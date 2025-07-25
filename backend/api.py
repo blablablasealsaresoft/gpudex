@@ -14,6 +14,8 @@ from pydantic import BaseModel
 # Import database and extended providers
 from database import DatabaseManager
 from providers import CloudProviderIntegrator
+from email_service import email_service
+from alert_checker import start_alert_service
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -257,6 +259,20 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Global startup flag to prevent multiple alert service instances
+alert_service_started = False
+
+@app.on_event("startup")
+async def startup_event():
+    """Start background services on app startup."""
+    global alert_service_started
+    if not alert_service_started:
+        import asyncio
+        # Start alert checking service in background
+        asyncio.create_task(start_alert_service())
+        alert_service_started = True
+        logger.info("Background alert service started")
+
 # Use the new extended provider integrator
 aggregator = CloudProviderIntegrator()
 
@@ -323,17 +339,34 @@ async def create_alert(alert_request: AlertRequest):
     """Create price drop alert"""
     try:
         db_manager = DatabaseManager()
+        
+        # Check if this is a new user (first alert)
+        existing_alerts = db_manager.get_user_alerts(alert_request.email)
+        is_new_user = len(existing_alerts) == 0
+        
+        # Create the alert
         alert_data = db_manager.create_alert(
             email=alert_request.email,
             gpu_type=alert_request.gpu_type,
             target_price=alert_request.target_price
         )
+        
+        # Send welcome email for new users
+        if is_new_user:
+            try:
+                await email_service.send_welcome_email(alert_request.email)
+                logger.info(f"Welcome email sent to {alert_request.email}")
+            except Exception as e:
+                logger.error(f"Failed to send welcome email: {str(e)}")
+                # Don't fail the alert creation if email fails
+        
         db_manager.close()
         
         return {
             "status": "success",
             "message": f"Alert created for {alert_request.gpu_type} below ${alert_request.target_price}/hr",
-            "alert_id": alert_data["id"]
+            "alert_id": alert_data["id"],
+            "welcome_sent": is_new_user
         }
     except Exception as e:
         logger.error(f"Error creating alert: {e}")

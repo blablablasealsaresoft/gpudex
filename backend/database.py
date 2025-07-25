@@ -53,6 +53,9 @@ class Alert(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     triggered_at = Column(DateTime, nullable=True)
+    welcome_sent = Column(Boolean, default=False)
+    notifications_enabled = Column(Boolean, default=True)
+    region = Column(String, default="us-east")
     
     def to_dict(self) -> Dict:
         return {
@@ -62,7 +65,10 @@ class Alert(Base):
             "target_price": self.target_price,
             "is_active": self.is_active,
             "created_at": self.created_at.isoformat(),
-            "triggered_at": self.triggered_at.isoformat() if self.triggered_at else None
+            "triggered_at": self.triggered_at.isoformat() if self.triggered_at else None,
+            "welcome_sent": self.welcome_sent,
+            "notifications_enabled": self.notifications_enabled,
+            "region": self.region
         }
 
 class ProviderStats(Base):
@@ -210,6 +216,28 @@ class DatabaseManager:
             logger.error(f"Error checking alerts: {e}")
             self.db.rollback()
             return []
+    
+    def get_user_alerts(self, email: str) -> List[Dict]:
+        """Get all alerts for a user."""
+        try:
+            alerts = self.db.query(Alert).filter(Alert.email == email).all()
+            return [alert.to_dict() for alert in alerts]
+        except Exception as e:
+            logger.error(f"Error getting user alerts: {e}")
+            return []
+    
+    def update_alert_welcome_status(self, alert_id: int, welcome_sent: bool) -> bool:
+        """Update welcome email sent status for an alert."""
+        try:
+            alert = self.db.query(Alert).filter(Alert.id == alert_id).first()
+            if alert:
+                alert.welcome_sent = welcome_sent
+                self.db.commit()
+                return True
+            return False
+        except Exception as e:
+            logger.error(f"Failed to update welcome status: {e}")
+            return False
     
     def close(self):
         """Close database connection"""
