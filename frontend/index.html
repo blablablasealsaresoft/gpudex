@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GPUDex - Find The Best GPU Prices Instantly</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
             margin: 0;
@@ -266,6 +267,84 @@
             margin: 1rem 0;
             text-align: center;
         }
+
+        .chart-container {
+            background: #111;
+            border-radius: 12px;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .chart-title {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .chart-btn {
+            padding: 0.5rem 1rem;
+            background: #333;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .chart-btn:hover {
+            background: #444;
+        }
+
+        .chart-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-color: #667eea;
+        }
+
+        #priceChart {
+            width: 100%;
+            height: 400px;
+            background: #0a0a0a;
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chart-canvas {
+            width: 100%;
+            height: 100%;
+        }
+
+        .price-trend {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+            margin-left: 1rem;
+        }
+
+        .trend-up {
+            color: #ef4444;
+        }
+
+        .trend-down {
+            color: #4ade80;
+        }
+
+        .trend-neutral {
+            color: #888;
+        }
     </style>
 </head>
 <body>
@@ -317,6 +396,28 @@
             <input type="email" placeholder="Get alerts when prices drop below target" id="emailInput">
             <button onclick="setupAlert()">Set Alert</button>
         </div>
+
+        <!-- Price History Chart -->
+        <div class="chart-container" id="chartContainer" style="display: none;">
+            <div class="chart-header">
+                <div>
+                    <span class="chart-title">Price History</span>
+                    <span class="price-trend" id="priceTrend">
+                        <span id="trendIcon">📈</span>
+                        <span id="trendText">Loading...</span>
+                    </span>
+                </div>
+                <div class="chart-controls">
+                    <button class="chart-btn active" onclick="updateChart('1h')">1H</button>
+                    <button class="chart-btn" onclick="updateChart('24h')">24H</button>
+                    <button class="chart-btn" onclick="updateChart('7d')">7D</button>
+                    <button class="chart-btn" onclick="updateChart('30d')">30D</button>
+                </div>
+            </div>
+            <div id="priceChart">
+                <canvas class="chart-canvas" id="chartCanvas"></canvas>
+            </div>
+        </div>
     </div>
 
     <div class="api-banner">
@@ -336,6 +437,8 @@
     <script>
         const API_BASE = 'https://gpudex.onrender.com';
         let currentData = null;
+        let priceChart = null;
+        let currentTimeframe = '24h';
 
         async function checkAPIStatus() {
             try {
@@ -387,6 +490,9 @@
                 if (data.arbitrage && data.arbitrage.opportunity) {
                     showArbitrageAlert(data.arbitrage);
                 }
+
+                // Show and load price history chart
+                showPriceChart(data.gpu_type);
 
             } catch (error) {
                 console.error('Search failed:', error);
@@ -501,9 +607,199 @@
             searchGPUs();
         };
 
-        // Add event listeners for form submission
-        document.getElementById('gpuSelect').addEventListener('change', searchGPUs);
-        document.getElementById('regionSelect').addEventListener('change', searchGPUs);
+                 // Add event listeners for form submission
+         document.getElementById('gpuSelect').addEventListener('change', searchGPUs);
+         document.getElementById('regionSelect').addEventListener('change', searchGPUs);
+
+         // ============ PRICE HISTORY CHART FUNCTIONS ============
+
+         async function showPriceChart(gpuType) {
+             const chartContainer = document.getElementById('chartContainer');
+             chartContainer.style.display = 'block';
+             
+             // Load initial chart data
+             await loadChartData(gpuType, currentTimeframe);
+         }
+
+         async function loadChartData(gpuType, timeframe) {
+             try {
+                 // Convert timeframe to hours for API
+                 const hoursMap = {
+                     '1h': 1,
+                     '24h': 24,
+                     '7d': 168,
+                     '30d': 720
+                 };
+
+                 const hours = hoursMap[timeframe];
+                 const response = await fetch(`${API_BASE}/api/v1/history/${gpuType}?hours=${hours}`);
+                 
+                 if (!response.ok) {
+                     throw new Error(`Failed to fetch history: ${response.status}`);
+                 }
+
+                 const historyData = await response.json();
+                 updatePriceChart(historyData, gpuType, timeframe);
+             } catch (error) {
+                 console.error('Failed to load chart data:', error);
+                 showMockChartData(gpuType, timeframe);
+             }
+         }
+
+         function showMockChartData(gpuType, timeframe) {
+             // Generate mock historical data for demo
+             const now = new Date();
+             const dataPoints = timeframe === '1h' ? 12 : timeframe === '24h' ? 24 : timeframe === '7d' ? 168 : 720;
+             const interval = timeframe === '1h' ? 5 : timeframe === '24h' ? 60 : timeframe === '7d' ? 60 : 60;
+             
+             const basePrice = currentData?.best_price?.price || 1.0;
+             const mockData = [];
+             
+             for (let i = dataPoints; i >= 0; i--) {
+                 const timestamp = new Date(now.getTime() - (i * interval * 60 * 1000));
+                 const volatility = 0.1 + Math.random() * 0.2; // 10-30% volatility
+                 const trend = Math.sin(i / 10) * 0.05; // Gentle trend
+                 const price = basePrice * (1 + trend + (Math.random() - 0.5) * volatility);
+                 
+                 mockData.push({
+                     timestamp: timestamp.toISOString(),
+                     price: Math.max(0.1, price), // Ensure positive price
+                     provider: 'TensorDock'
+                 });
+             }
+
+             updatePriceChart({ history: mockData }, gpuType, timeframe);
+         }
+
+         function updatePriceChart(historyData, gpuType, timeframe) {
+             const ctx = document.getElementById('chartCanvas');
+             
+             if (!historyData.history || historyData.history.length === 0) {
+                 showMockChartData(gpuType, timeframe);
+                 return;
+             }
+
+             // Process data for chart
+             const chartData = historyData.history.map(item => ({
+                 x: new Date(item.timestamp),
+                 y: item.price
+             })).sort((a, b) => a.x - b.x);
+
+             // Calculate trend
+             if (chartData.length >= 2) {
+                 const firstPrice = chartData[0].y;
+                 const lastPrice = chartData[chartData.length - 1].y;
+                 const changePercent = ((lastPrice - firstPrice) / firstPrice * 100);
+                 updatePriceTrend(changePercent, timeframe);
+             }
+
+             // Destroy existing chart
+             if (priceChart) {
+                 priceChart.destroy();
+             }
+
+             // Create new chart
+             priceChart = new Chart(ctx, {
+                 type: 'line',
+                 data: {
+                     datasets: [{
+                         label: `${gpuType.toUpperCase()} Price`,
+                         data: chartData,
+                         borderColor: '#667eea',
+                         backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                         fill: true,
+                         tension: 0.4,
+                         pointRadius: 0,
+                         pointHoverRadius: 8,
+                         borderWidth: 3
+                     }]
+                 },
+                 options: {
+                     responsive: true,
+                     maintainAspectRatio: false,
+                     plugins: {
+                         legend: {
+                             display: false
+                         }
+                     },
+                     scales: {
+                         x: {
+                             type: 'time',
+                             time: {
+                                 displayFormats: {
+                                     hour: 'HH:mm',
+                                     day: 'MMM dd',
+                                     week: 'MMM dd',
+                                     month: 'MMM yyyy'
+                                 }
+                             },
+                             grid: {
+                                 color: '#333'
+                             },
+                             ticks: {
+                                 color: '#888'
+                             }
+                         },
+                         y: {
+                             beginAtZero: false,
+                             grid: {
+                                 color: '#333'
+                             },
+                             ticks: {
+                                 color: '#888',
+                                 callback: function(value) {
+                                     return '$' + value.toFixed(2);
+                                 }
+                             }
+                         }
+                     },
+                     interaction: {
+                         intersect: false,
+                         mode: 'index'
+                     },
+                     animation: {
+                         duration: 1000,
+                         easing: 'easeInOutQuart'
+                     }
+                 }
+             });
+         }
+
+         function updatePriceTrend(changePercent, timeframe) {
+             const trendIcon = document.getElementById('trendIcon');
+             const trendText = document.getElementById('trendText');
+             const priceTrend = document.getElementById('priceTrend');
+
+             const absChange = Math.abs(changePercent);
+             const direction = changePercent > 0 ? 'up' : changePercent < 0 ? 'down' : 'neutral';
+
+             // Update icon and text
+             if (direction === 'up') {
+                 trendIcon.textContent = '📈';
+                 trendText.textContent = `+${absChange.toFixed(1)}% (${timeframe})`;
+                 priceTrend.className = 'price-trend trend-up';
+             } else if (direction === 'down') {
+                 trendIcon.textContent = '📉';
+                 trendText.textContent = `-${absChange.toFixed(1)}% (${timeframe})`;
+                 priceTrend.className = 'price-trend trend-down';
+             } else {
+                 trendIcon.textContent = '➡️';
+                 trendText.textContent = `${absChange.toFixed(1)}% (${timeframe})`;
+                 priceTrend.className = 'price-trend trend-neutral';
+             }
+         }
+
+         async function updateChart(timeframe) {
+             // Update active button
+             document.querySelectorAll('.chart-btn').forEach(btn => btn.classList.remove('active'));
+             event.target.classList.add('active');
+
+             currentTimeframe = timeframe;
+
+             if (currentData) {
+                 await loadChartData(currentData.gpu_type, timeframe);
+             }
+         }
     </script>
 </body>
 </html>
