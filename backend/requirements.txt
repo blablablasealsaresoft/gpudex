@@ -9,3 +9,5 @@ pydantic==2.4.2
 sendgrid==6.10.0
 celery==5.3.4
 redis==5.0.1
+slowapi==0.1.9
+python-jose==3.3.0

@@ -16,6 +16,18 @@ from database import DatabaseManager
 from providers import CloudProviderIntegrator
 from email_service import email_service
 from alert_checker import start_alert_service
+from rate_limiting import (
+    limiter, 
+    api_key_manager, 
+    get_api_key_info, 
+    require_api_key, 
+    check_rate_limits,
+    public_rate_limit,
+    add_rate_limit_headers
+)
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -259,6 +271,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Add rate limiting middleware
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
 # Global startup flag to prevent multiple alert service instances
 alert_service_started = False
 
@@ -285,7 +302,8 @@ app.add_middleware(
 )
 
 @app.get("/")
-async def root():
+@limiter.limit("30/minute")
+async def root(request: Request):
     """Health check endpoint"""
     return {
         "status": "healthy",
@@ -295,7 +313,8 @@ async def root():
     }
 
 @app.get("/api/v1/prices")
-async def get_prices(gpu: str = "4090", region: str = "us-east"):
+@limiter.limit("20/minute")  # Public rate limit
+async def get_prices(request: Request, gpu: str = "4090", region: str = "us-east", api_key_info: Optional[Dict] = Depends(get_api_key_info)):
     """Get aggregated GPU prices"""
     try:
         prices = await aggregator.aggregate_all_prices(gpu)
@@ -471,6 +490,98 @@ async def global_exception_handler(request, exc):
         status_code=500,
         content={"detail": "Internal server error"}
     )
+
+# ============ API KEY MANAGEMENT ENDPOINTS ============
+
+class APIKeyRequest(BaseModel):
+    email: str
+    key_name: str = "default"
+    requests_per_hour: int = 100
+    requests_per_day: int = 1000
+
+@app.post("/api/v1/api-keys")
+@limiter.limit("5/hour")  # Limit API key creation
+async def create_api_key(request: Request, api_key_request: APIKeyRequest):
+    """Create a new API key"""
+    try:
+        api_key_data = await api_key_manager.create_api_key(
+            user_email=api_key_request.email,
+            key_name=api_key_request.key_name,
+            requests_per_hour=api_key_request.requests_per_hour,
+            requests_per_day=api_key_request.requests_per_day
+        )
+        
+        return {
+            "status": "success",
+            "message": "API key created successfully",
+            "api_key": api_key_data["api_key"],
+            "key_name": api_key_data["key_name"],
+            "limits": {
+                "requests_per_hour": api_key_data["requests_per_hour"],
+                "requests_per_day": api_key_data["requests_per_day"]
+            },
+            "created_at": api_key_data["created_at"],
+            "usage_info": {
+                "documentation": "https://docs.gpudex.com/api",
+                "example": f"curl -H 'Authorization: Bearer {api_key_data['api_key']}' https://api.gpudex.com/api/v1/prices?gpu=a100"
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error creating API key: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/api-keys/info")
+async def get_api_key_info_endpoint(api_key_info: Dict = Depends(require_api_key)):
+    """Get information about the current API key"""
+    return {
+        "key_name": api_key_info["key_name"],
+        "user_email": api_key_info["user_email"],
+        "limits": {
+            "requests_per_hour": api_key_info["requests_per_hour"],
+            "requests_per_day": api_key_info["requests_per_day"]
+        },
+        "usage": {
+            "total_requests": api_key_info["usage_count"],
+            "last_used": api_key_info["last_used_at"]
+        },
+        "created_at": api_key_info["created_at"],
+        "is_active": api_key_info["is_active"]
+    }
+
+@app.get("/api/v1/pricing")
+@limiter.limit("20/minute")
+async def get_pricing_info(request: Request):
+    """Get API pricing information"""
+    return {
+        "plans": {
+            "free": {
+                "price": "$0/month",
+                "requests_per_hour": 100,
+                "requests_per_day": 1000,
+                "features": ["Basic GPU prices", "Price history", "Email alerts"]
+            },
+            "pro": {
+                "price": "$29/month", 
+                "requests_per_hour": 1000,
+                "requests_per_day": 20000,
+                "features": ["All free features", "Real-time arbitrage", "Advanced analytics", "Priority support"]
+            },
+            "enterprise": {
+                "price": "$199/month",
+                "requests_per_hour": 10000,
+                "requests_per_day": 200000,
+                "features": ["All pro features", "Custom integrations", "Dedicated support", "SLA guarantee"]
+            }
+        },
+        "endpoints": {
+            "GET /api/v1/prices": "Get current GPU prices",
+            "GET /api/v1/providers": "List all providers",
+            "GET /api/v1/analytics": "Market analytics",
+            "GET /api/v1/history/{gpu_type}": "Price history",
+            "POST /api/v1/alerts": "Create price alerts"
+        },
+        "getting_started": "https://docs.gpudex.com/quickstart"
+    }
 
 if __name__ == "__main__":
     # Get port from environment variable (for Render deployment)
