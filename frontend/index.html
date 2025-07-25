@@ -104,6 +104,12 @@
             transform: translateY(-1px);
         }
 
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .gpu-select {
             flex: 1;
         }
@@ -211,6 +217,18 @@
 
         .loading {
             animation: pulse 1.5s infinite;
+            text-align: center;
+            padding: 2rem;
+            color: #888;
+        }
+
+        .error {
+            color: #ef4444;
+            text-align: center;
+            padding: 2rem;
+            background: #1a1a1a;
+            border-radius: 8px;
+            margin: 1rem 0;
         }
 
         .alert-signup {
@@ -222,6 +240,31 @@
 
         .alert-signup input {
             flex: 1;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-online {
+            background: #4ade80;
+        }
+
+        .status-offline {
+            background: #ef4444;
+        }
+
+        .arbitrage-alert {
+            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+            color: white;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            text-align: center;
         }
     </style>
 </head>
@@ -237,7 +280,7 @@
             <div class="stat-label">Saved This Month</div>
         </div>
         <div class="stat">
-            <div class="stat-value">15</div>
+            <div class="stat-value" id="providerCount">5</div>
             <div class="stat-label">Providers</div>
         </div>
         <div class="stat">
@@ -262,11 +305,11 @@
                 <option value="eu">Europe</option>
                 <option value="asia">Asia</option>
             </select>
-            <button onclick="searchGPUs()">Find Best Price</button>
+            <button onclick="searchGPUs()" id="searchBtn">Find Best Price</button>
         </div>
 
         <div class="results" id="results">
-            <div class="loading">Scanning 15 providers for best prices...</div>
+            <div class="loading">Scanning providers for best prices...</div>
         </div>
 
         <div class="alert-signup">
@@ -279,7 +322,7 @@
         <h3 class="gradient-text">For Developers</h3>
         <p>Integrate GPU price aggregation into your app</p>
         <div class="code-snippet">
-            GET api.gpudex.io/v1/prices?gpu=a100&region=us-east
+            GET https://gpudex.onrender.com/api/v1/prices?gpu=a100&region=us-east
         </div>
         <button onclick="window.location.href='#api'">Get API Access</button>
     </div>
@@ -290,50 +333,176 @@
     </div>
 
     <script>
-        // Simulated data - replace with real API calls
-        const providers = [
-            { name: 'Vast.ai', price: 0.32, specs: 'Spot Instance', availability: 'available', savings: 45 },
-            { name: 'RunPod', price: 0.39, specs: 'On-Demand', availability: 'available', savings: 35 },
-            { name: 'Lambda Labs', price: 0.89, specs: 'Reserved', availability: 'limited', savings: 0 },
-            { name: 'TensorDock', price: 0.29, specs: 'Interruptible', availability: 'available', savings: 52 },
-            { name: 'Paperspace', price: 0.45, specs: 'On-Demand', availability: 'available', savings: 25 },
-        ];
+        const API_BASE = 'https://gpudex.onrender.com';
+        let currentData = null;
 
-        function searchGPUs() {
+        async function checkAPIStatus() {
+            try {
+                const response = await fetch(`${API_BASE}/`);
+                const data = await response.json();
+                console.log('API Status:', data);
+                return true;
+            } catch (error) {
+                console.error('API Status Check Failed:', error);
+                return false;
+            }
+        }
+
+        async function searchGPUs() {
             const resultsDiv = document.getElementById('results');
-            resultsDiv.innerHTML = '<div class="loading">Aggregating prices...</div>';
+            const searchBtn = document.getElementById('searchBtn');
+            const gpuType = document.getElementById('gpuSelect').value;
+            const region = document.getElementById('regionSelect').value;
+
+            // Show loading state
+            resultsDiv.innerHTML = '<div class="loading">Aggregating prices from providers...</div>';
+            searchBtn.disabled = true;
+            searchBtn.textContent = 'Searching...';
+
+            try {
+                // Check API status first
+                const apiOnline = await checkAPIStatus();
+                if (!apiOnline) {
+                    throw new Error('API is currently unavailable');
+                }
+
+                // Fetch real data from API
+                const response = await fetch(`${API_BASE}/api/v1/prices?gpu=${gpuType}&region=${region}`);
+                
+                if (!response.ok) {
+                    throw new Error(`API returned status ${response.status}`);
+                }
+
+                const data = await response.json();
+                currentData = data;
+
+                // Update provider count
+                document.getElementById('providerCount').textContent = data.total_providers || data.prices.length;
+
+                // Display results
+                displayResults(data);
+
+                // Show arbitrage opportunity if available
+                if (data.arbitrage && data.arbitrage.opportunity) {
+                    showArbitrageAlert(data.arbitrage);
+                }
+
+            } catch (error) {
+                console.error('Search failed:', error);
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        <h3>⚠️ Unable to fetch prices</h3>
+                        <p>${error.message}</p>
+                        <p>Please try again in a few moments.</p>
+                        <button onclick="searchGPUs()" style="margin-top: 1rem;">Retry</button>
+                    </div>
+                `;
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = 'Find Best Price';
+            }
+        }
+
+        function displayResults(data) {
+            const resultsDiv = document.getElementById('results');
             
-            setTimeout(() => {
-                let html = '';
-                providers.sort((a, b) => a.price - b.price).forEach(provider => {
-                    html += `
-                        <div class="result-item" style="position: relative;">
-                            ${provider.savings > 40 ? '<div class="savings-badge">SAVE ' + provider.savings + '%</div>' : ''}
-                            <div class="provider-name">${provider.name}</div>
-                            <div class="specs">${provider.specs}</div>
-                            <div class="price">$${provider.price}/hr</div>
-                            <div class="availability ${provider.availability}">${provider.availability}</div>
-                            <button class="cta-button" onclick="deploy('${provider.name}')">Deploy →</button>
+            if (!data.prices || data.prices.length === 0) {
+                resultsDiv.innerHTML = `
+                    <div class="error">
+                        <h3>No prices found</h3>
+                        <p>No GPU prices available for the selected criteria.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = `
+                <h3>Found ${data.prices.length} offers for ${data.gpu_type.toUpperCase()}</h3>
+                <p style="color: #888; margin-bottom: 1rem;">Last updated: ${new Date(data.timestamp).toLocaleString()}</p>
+            `;
+
+            data.prices.forEach((provider, index) => {
+                const isBestPrice = index === 0;
+                const savingsBadge = provider.savings > 30 ? `<div class="savings-badge">SAVE ${provider.savings}%</div>` : '';
+                
+                html += `
+                    <div class="result-item" style="position: relative; ${isBestPrice ? 'border: 2px solid #4ade80; border-radius: 8px;' : ''}">
+                        ${savingsBadge}
+                        <div class="provider-name">
+                            ${provider.provider}
+                            ${isBestPrice ? ' 🏆' : ''}
                         </div>
-                    `;
-                });
-                resultsDiv.innerHTML = html;
-            }, 1000);
+                        <div class="specs">${provider.specs || 'GPU Instance'}</div>
+                        <div class="price">$${provider.price.toFixed(2)}/hr</div>
+                        <div class="availability ${provider.availability}">${provider.availability}</div>
+                        <button class="cta-button" onclick="deploy('${provider.provider}', ${provider.price})">Deploy →</button>
+                    </div>
+                `;
+            });
+
+            resultsDiv.innerHTML = html;
         }
 
-        function deploy(provider) {
-            alert(`Redirecting to ${provider}...\n\nIn production, this would:\n1. Route through our aggregation layer\n2. Handle authentication\n3. Track for analytics\n4. Earn affiliate commission`);
+        function showArbitrageAlert(arbitrage) {
+            const resultsDiv = document.getElementById('results');
+            const alertHtml = `
+                <div class="arbitrage-alert">
+                    <h3>💰 Arbitrage Opportunity Detected!</h3>
+                    <p>Buy from ${arbitrage.buy_from} at $${arbitrage.spread.toFixed(2)}/hr spread</p>
+                    <p>Potential profit: $${arbitrage.potential_hourly_profit.toFixed(2)}/hr</p>
+                </div>
+            `;
+            resultsDiv.insertAdjacentHTML('afterbegin', alertHtml);
         }
 
-        function setupAlert() {
+        function deploy(provider, price) {
+            alert(`Redirecting to ${provider}...\n\nPrice: $${price.toFixed(2)}/hr\n\nIn production, this would:\n1. Route through our aggregation layer\n2. Handle authentication\n3. Track for analytics\n4. Earn affiliate commission`);
+        }
+
+        async function setupAlert() {
             const email = document.getElementById('emailInput').value;
-            if (email) {
-                alert(`Price alert configured!\n\nYou'll be notified when prices drop below your target.\n\nThis captures leads for your email list.`);
+            if (!email) {
+                alert('Please enter your email address');
+                return;
+            }
+
+            if (!currentData) {
+                alert('Please search for prices first to set up an alert');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/alerts`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        email: email,
+                        gpu_type: currentData.gpu_type,
+                        target_price: currentData.prices[0].price * 0.9 // 10% below current best
+                    })
+                });
+
+                if (response.ok) {
+                    alert(`Price alert configured!\n\nYou'll be notified when ${currentData.gpu_type.toUpperCase()} prices drop below $${(currentData.prices[0].price * 0.9).toFixed(2)}/hr.`);
+                    document.getElementById('emailInput').value = '';
+                } else {
+                    throw new Error('Failed to create alert');
+                }
+            } catch (error) {
+                alert('Failed to set up alert. Please try again.');
             }
         }
 
         // Auto-search on load
-        window.onload = () => searchGPUs();
+        window.onload = () => {
+            searchGPUs();
+        };
+
+        // Add event listeners for form submission
+        document.getElementById('gpuSelect').addEventListener('change', searchGPUs);
+        document.getElementById('regionSelect').addEventListener('change', searchGPUs);
     </script>
 </body>
 </html>
