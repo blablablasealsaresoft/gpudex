@@ -27,6 +27,10 @@ from auth_service import auth_service, get_current_user, get_current_user_option
 from payment_service import stripe_service, CreateCheckoutSessionRequest, PlanType
 from monitoring_service import monitoring_service, start_monitoring
 from ml_prediction_service import ml_service, start_ml_service
+from crypto_payment_service import (
+    crypto_service, create_crypto_payment, get_crypto_payment_status, 
+    get_supported_cryptocurrencies, CryptoPaymentRequest, CryptoPaymentResponse
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -616,6 +620,105 @@ async def get_pricing_info():
         ],
         "contact": "support@gpudex.ai"
     }
+
+# Cryptocurrency Payment Endpoints
+@app.get("/api/v1/crypto/currencies", response_model=List[Dict[str, Any]])
+async def get_supported_crypto_currencies():
+    """Get list of supported cryptocurrencies with current rates and discount info"""
+    try:
+        currencies = await get_supported_cryptocurrencies()
+        return {
+            "success": True,
+            "currencies": currencies,
+            "crypto_discount_rate": 0.01,  # 1% discount
+            "message": "Pay with crypto and save 1% on all orders!"
+        }
+    except Exception as e:
+        logger.error(f"Error getting crypto currencies: {e}")
+        raise HTTPException(status_code=500, detail="Failed to load cryptocurrency options")
+
+@app.post("/api/v1/crypto/payment", response_model=CryptoPaymentResponse)
+@basic_rate_limit
+async def create_crypto_payment_order(
+    request: Request,
+    payment_request: CryptoPaymentRequest,
+    current_user: Optional[Dict] = Depends(get_current_user_optional)
+):
+    """Create a new cryptocurrency payment order with 1% discount"""
+    try:
+        # Use authenticated user email if available, otherwise use provided email
+        if current_user:
+            payment_request.user_email = current_user.get("email", payment_request.user_email)
+        
+        # Create the crypto payment
+        payment_response = await create_crypto_payment(payment_request)
+        
+        logger.info(f"Created crypto payment {payment_response.coingate_id} for {payment_request.user_email}")
+        
+        return payment_response
+        
+    except Exception as e:
+        logger.error(f"Error creating crypto payment: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create crypto payment")
+
+@app.get("/api/v1/crypto/payment/{coingate_id}", response_model=Dict[str, Any])
+async def get_crypto_payment_info(coingate_id: str):
+    """Get cryptocurrency payment status and details"""
+    try:
+        payment_info = await get_crypto_payment_status(coingate_id)
+        return {
+            "success": True,
+            "payment": payment_info
+        }
+    except Exception as e:
+        logger.error(f"Error getting crypto payment info: {e}")
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+@app.post("/api/v1/crypto/webhook")
+async def handle_crypto_webhook(request: Request):
+    """Handle CoinGate webhook for payment status updates"""
+    try:
+        # Get webhook signature from headers
+        signature = request.headers.get("X-Coingate-Signature", "")
+        
+        # Get webhook data
+        webhook_data = await request.json()
+        
+        # Process webhook
+        async with crypto_service as service:
+            success = await service.handle_webhook(webhook_data, signature)
+        
+        if success:
+            return {"status": "success"}
+        else:
+            raise HTTPException(status_code=400, detail="Invalid webhook")
+            
+    except Exception as e:
+        logger.error(f"Error handling crypto webhook: {e}")
+        raise HTTPException(status_code=500, detail="Webhook processing failed")
+
+@app.get("/api/v1/crypto/calculator")
+async def crypto_discount_calculator(amount_usd: float = Query(..., description="Amount in USD")):
+    """Calculate crypto payment discount (1% savings)"""
+    try:
+        if amount_usd <= 0:
+            raise HTTPException(status_code=400, detail="Amount must be greater than 0")
+        
+        discount_amount = round(amount_usd * 0.01, 2)  # 1% discount
+        final_amount = round(amount_usd - discount_amount, 2)
+        
+        return {
+            "original_amount_usd": amount_usd,
+            "crypto_discount_amount": discount_amount,
+            "final_amount_usd": final_amount,
+            "discount_percentage": 1.0,
+            "savings_message": f"Save ${discount_amount} by paying with crypto!",
+            "supported_currencies": ["BTC", "ETH", "USDC", "USDT", "LTC", "BCH", "MATIC"]
+        }
+        
+    except Exception as e:
+        logger.error(f"Error calculating crypto discount: {e}")
+        raise HTTPException(status_code=500, detail="Calculation failed")
 
 if __name__ == "__main__":
     import uvicorn

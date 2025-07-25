@@ -237,11 +237,195 @@ class CloudProviderIntegrator:
     async def scrape_aws(self) -> List[GPUPriceData]:
         """Scrape GPU prices from AWS EC2"""
         try:
-            # AWS pricing is complex, using simplified approach
-            return await self._mock_aws_data()
+            if not self.aws_access_key or not self.aws_secret_key:
+                logger.info("AWS credentials not configured, using mock data")
+                return await self._mock_aws_data()
+            
+            # Use boto3 to get real AWS pricing
+            return await self._get_real_aws_pricing()
         except Exception as e:
             logger.error(f"Error scraping AWS: {e}")
             return await self._mock_aws_data()
+
+    async def _get_real_aws_pricing(self) -> List[GPUPriceData]:
+        """Get real AWS EC2 GPU instance pricing"""
+        try:
+            import boto3
+            from botocore.exceptions import NoCredentialsError, ClientError
+            
+            # Initialize AWS pricing client
+            pricing_client = boto3.client(
+                'pricing',
+                region_name='us-east-1',  # Pricing API is only available in us-east-1
+                aws_access_key_id=self.aws_access_key,
+                aws_secret_access_key=self.aws_secret_key
+            )
+            
+            # GPU instance types to check
+            gpu_instance_types = [
+                'p3.2xlarge',   # V100
+                'p3.8xlarge',   # 4x V100
+                'p4d.24xlarge', # 8x A100
+                'g4dn.xlarge',  # T4
+                'g4dn.2xlarge', # T4
+                'g5.xlarge',    # A10G
+                'g5.2xlarge',   # A10G
+            ]
+            
+            prices = []
+            
+            for instance_type in gpu_instance_types:
+                try:
+                    # Get pricing for each instance type
+                    response = pricing_client.get_products(
+                        ServiceCode='AmazonEC2',
+                        Filters=[
+                            {
+                                'Type': 'TERM_MATCH',
+                                'Field': 'instanceType',
+                                'Value': instance_type
+                            },
+                            {
+                                'Type': 'TERM_MATCH',
+                                'Field': 'tenancy',
+                                'Value': 'Shared'
+                            },
+                            {
+                                'Type': 'TERM_MATCH',
+                                'Field': 'operating-system',
+                                'Value': 'Linux'
+                            },
+                            {
+                                'Type': 'TERM_MATCH',
+                                'Field': 'location',
+                                'Value': 'US East (N. Virginia)'
+                            }
+                        ],
+                        MaxResults=1
+                    )
+                    
+                    if response['PriceList']:
+                        price_data = json.loads(response['PriceList'][0])
+                        terms = price_data.get('terms', {}).get('OnDemand', {})
+                        
+                        if terms:
+                            # Extract the first pricing dimension
+                            first_term = next(iter(terms.values()))
+                            price_dimensions = first_term.get('priceDimensions', {})
+                            
+                            if price_dimensions:
+                                first_dimension = next(iter(price_dimensions.values()))
+                                price_usd = float(first_dimension.get('pricePerUnit', {}).get('USD', 0))
+                                
+                                # Map instance type to GPU details
+                                gpu_info = self._get_aws_gpu_info(instance_type)
+                                
+                                if price_usd > 0:
+                                    prices.append(GPUPriceData(
+                                        provider="aws",
+                                        gpu_type=gpu_info['gpu_type'],
+                                        price_per_hour=price_usd,
+                                        availability="Available",
+                                        region="us-east-1",
+                                        memory=gpu_info['memory'],
+                                        cuda_cores=gpu_info['cuda_cores'],
+                                        specifications={
+                                            "instance_type": instance_type,
+                                            "vcpus": gpu_info['vcpus'],
+                                            "ram": gpu_info['ram'],
+                                            "gpu_count": gpu_info['gpu_count']
+                                        },
+                                        last_updated=datetime.now(),
+                                        url="https://aws.amazon.com/ec2/instance-types/",
+                                        instance_type=instance_type
+                                    ))
+                                
+                except Exception as e:
+                    logger.error(f"Error getting AWS pricing for {instance_type}: {e}")
+                    continue
+            
+            logger.info(f"Retrieved {len(prices)} real AWS GPU prices")
+            return prices if prices else await self._mock_aws_data()
+            
+        except (NoCredentialsError, ClientError) as e:
+            logger.warning(f"AWS credentials error: {e}, falling back to mock data")
+            return await self._mock_aws_data()
+        except ImportError:
+            logger.warning("boto3 not installed, using mock AWS data")
+            return await self._mock_aws_data()
+        except Exception as e:
+            logger.error(f"Unexpected error getting real AWS pricing: {e}")
+            return await self._mock_aws_data()
+
+    def _get_aws_gpu_info(self, instance_type: str) -> Dict[str, Any]:
+        """Get GPU specifications for AWS instance types"""
+        gpu_specs = {
+            'p3.2xlarge': {
+                'gpu_type': 'V100',
+                'memory': '16GB',
+                'cuda_cores': 5120,
+                'vcpus': 8,
+                'ram': '61GB',
+                'gpu_count': 1
+            },
+            'p3.8xlarge': {
+                'gpu_type': 'V100',
+                'memory': '64GB',
+                'cuda_cores': 20480,
+                'vcpus': 32,
+                'ram': '244GB',
+                'gpu_count': 4
+            },
+            'p4d.24xlarge': {
+                'gpu_type': 'A100',
+                'memory': '320GB',
+                'cuda_cores': 55296,
+                'vcpus': 96,
+                'ram': '1152GB',
+                'gpu_count': 8
+            },
+            'g4dn.xlarge': {
+                'gpu_type': 'T4',
+                'memory': '16GB',
+                'cuda_cores': 2560,
+                'vcpus': 4,
+                'ram': '16GB',
+                'gpu_count': 1
+            },
+            'g4dn.2xlarge': {
+                'gpu_type': 'T4',
+                'memory': '16GB',
+                'cuda_cores': 2560,
+                'vcpus': 8,
+                'ram': '32GB',
+                'gpu_count': 1
+            },
+            'g5.xlarge': {
+                'gpu_type': 'A10G',
+                'memory': '24GB',
+                'cuda_cores': 9216,
+                'vcpus': 4,
+                'ram': '16GB',
+                'gpu_count': 1
+            },
+            'g5.2xlarge': {
+                'gpu_type': 'A10G',
+                'memory': '24GB',
+                'cuda_cores': 9216,
+                'vcpus': 8,
+                'ram': '32GB',
+                'gpu_count': 1
+            }
+        }
+        
+        return gpu_specs.get(instance_type, {
+            'gpu_type': 'Unknown',
+            'memory': '0GB',
+            'cuda_cores': 0,
+            'vcpus': 0,
+            'ram': '0GB',
+            'gpu_count': 0
+        })
 
     async def _mock_aws_data(self) -> List[GPUPriceData]:
         """Mock data for AWS EC2 GPU instances"""
