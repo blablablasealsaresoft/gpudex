@@ -8,13 +8,6 @@ services:
     env_file:
       - docker-quickstart.env
     environment:
-      - DATABASE_URL=${DATABASE_URL}
-      - REDIS_URL=redis://redis:6379/0
-      - SENDGRID_API_KEY=${SENDGRID_API_KEY}
-      - FROM_EMAIL=${FROM_EMAIL}
-      - STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
-      - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
       - ENVIRONMENT=production
       - WORKERS=4
       - LOG_LEVEL=info
@@ -48,10 +41,6 @@ services:
       - "5432:5432"
     env_file:
       - docker-quickstart.env
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -113,9 +102,6 @@ services:
       - "3001:3000"
     env_file:
       - docker-quickstart.env
-    environment:
-      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER}
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
@@ -129,15 +115,11 @@ services:
       - ./backups:/backups
     env_file:
       - docker-quickstart.env
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     command: |
       bash -c "
       while true; do
         sleep 24h
-        pg_dump -h postgres -U ${POSTGRES_USER} -d ${POSTGRES_DB} > /backups/backup_$(date +%Y%m%d_%H%M%S).sql
+        pg_dump -h postgres -U $$POSTGRES_USER -d $$POSTGRES_DB > /backups/backup_$(date +%Y%m%d_%H%M%S).sql
         find /backups -name '*.sql' -mtime +7 -delete
       done"
     restart: unless-stopped

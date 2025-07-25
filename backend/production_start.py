@@ -53,9 +53,9 @@ def validate_environment():
 def setup_database():
     """Initialize database tables if needed."""
     try:
-        from database import DatabaseManager
+        from database import DatabaseManager, create_tables
         db_manager = DatabaseManager()
-        db_manager.create_tables()
+        create_tables()
         logger.info("Database initialization completed")
     except Exception as e:
         logger.error(f"Database initialization failed: {e}")

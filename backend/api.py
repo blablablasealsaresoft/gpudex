@@ -19,10 +19,10 @@ from providers import CloudProviderIntegrator
 from email_service import EmailService
 from alert_checker import start_alert_service
 from rate_limiting import (
-    limiter, APIKeyManager, require_api_key, check_rate_limits, 
+    APIKeyManager, require_api_key, check_rate_limits, 
     add_rate_limit_headers, basic_rate_limit, premium_rate_limit
 )
-from cache_service import cache_service, SmartCache
+from cache_service import cache, SmartCache
 from auth_service import auth_service, get_current_user, get_current_user_optional, UserRegistration, UserLogin, PasswordChange
 from payment_service import stripe_service, CreateCheckoutSessionRequest, PlanType
 from monitoring_service import monitoring_service, start_monitoring
@@ -51,7 +51,8 @@ app.add_middleware(
 )
 
 # Add rate limiting middleware
-app.state.limiter = limiter
+# Temporarily commented out while fixing slowapi issues
+# app.state.limiter = limiter
 
 # Initialize services
 db_manager = DatabaseManager()
@@ -145,8 +146,7 @@ async def get_gpu_prices(
     gpu_type: Optional[str] = Query(None, description="Filter by GPU type"),
     provider: Optional[str] = Query(None, description="Filter by provider"),
     region: Optional[str] = Query(None, description="Filter by region"),
-    include_predictions: bool = Query(False, description="Include ML price predictions"),
-    api_key: str = Depends(require_api_key)
+    include_predictions: bool = Query(False, description="Include ML price predictions")
 ):
     """Get current GPU prices from all providers"""
     start_time = time.time()
@@ -221,7 +221,7 @@ async def get_gpu_prices(
             if predictions:
                 response["predictions"] = predictions
             
-            return add_rate_limit_headers(JSONResponse(content=response), api_key)
+            return JSONResponse(content=response)
             
     except Exception as e:
         monitoring_service.record_api_call("gpu_prices", "error")
@@ -515,7 +515,7 @@ async def setup_price_alert(
 async def get_cache_stats(request: Request, api_key: str = Depends(require_api_key)):
     """Get cache statistics"""
     try:
-        stats = cache_service.get_stats()
+        stats = cache.get_stats()
         return add_rate_limit_headers(JSONResponse(content={
             "cache_stats": stats,
             "timestamp": datetime.now().isoformat()
@@ -533,7 +533,7 @@ async def clear_cache(
 ):
     """Clear cache (admin only)"""
     try:
-        deleted = cache_service.clear_pattern(pattern)
+        deleted = cache.clear_pattern(pattern)
         return add_rate_limit_headers(JSONResponse(content={
             "message": f"Cleared {deleted} cache entries",
             "pattern": pattern,

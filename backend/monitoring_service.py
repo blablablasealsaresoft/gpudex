@@ -292,6 +292,22 @@ class MonitoringService:
         self.system_memory.set(metrics.memory_percent)
         self.system_disk.set(metrics.disk_percent)
 
+    def _serialize_datetime_dict(self, data: dict) -> dict:
+        """Convert datetime objects to ISO format strings in a dictionary"""
+        result = {}
+        for key, value in data.items():
+            if isinstance(value, datetime):
+                result[key] = value.isoformat()
+            elif isinstance(value, dict):
+                result[key] = self._serialize_datetime_dict(value)
+            elif isinstance(value, list):
+                result[key] = [self._serialize_datetime_dict(item) if isinstance(item, dict) 
+                             else item.isoformat() if isinstance(item, datetime) 
+                             else item for item in value]
+            else:
+                result[key] = value
+        return result
+
     async def perform_health_checks(self) -> Dict[str, Any]:
         """Perform all health checks and return comprehensive status"""
         health_checks = {}
@@ -302,7 +318,7 @@ class MonitoringService:
         
         health_checks["system"] = {
             "status": "healthy",
-            "metrics": asdict(system_metrics)
+            "metrics": self._serialize_datetime_dict(asdict(system_metrics))
         }
         
         # Check for system alerts
@@ -322,15 +338,15 @@ class MonitoringService:
         
         # Database health
         db_check = await self.check_database_health()
-        health_checks["database"] = asdict(db_check)
+        health_checks["database"] = self._serialize_datetime_dict(asdict(db_check))
         
         # Redis health
         redis_check = await self.check_redis_health()
-        health_checks["redis"] = asdict(redis_check)
+        health_checks["redis"] = self._serialize_datetime_dict(asdict(redis_check))
         
         # External APIs health
         api_checks = await self.check_external_apis_health()
-        health_checks["external_apis"] = [asdict(check) for check in api_checks]
+        health_checks["external_apis"] = [self._serialize_datetime_dict(asdict(check)) for check in api_checks]
         
         # Overall status
         all_statuses = [health_checks["system"]["status"], db_check.status, redis_check.status]

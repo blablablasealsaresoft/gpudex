@@ -498,6 +498,152 @@
         .trend-neutral {
             color: #888;
         }
+
+        /* Advanced Features Styles */
+        .advanced-filters {
+            background: #1a1a1a;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+            border: 1px solid #333;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .search-controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-toggle, .realtime-toggle, .compare-btn {
+            padding: 0.75rem 1rem;
+            background: #333;
+            border: 1px solid #444;
+            color: white;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .filter-toggle:hover, .realtime-toggle:hover, .compare-btn:hover {
+            background: #444;
+        }
+
+        .realtime-toggle.active {
+            background: #4ade80;
+            border-color: #4ade80;
+            color: #000;
+        }
+
+        .comparison-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .comparison-content {
+            background: #111;
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow: auto;
+            border: 1px solid #333;
+        }
+
+        .close-comparison {
+            float: right;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #888;
+        }
+
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #333;
+        }
+
+        .comparison-table th {
+            background: #1a1a1a;
+            font-weight: bold;
+        }
+
+        .result-checkbox {
+            margin-right: 1rem;
+        }
+
+        .performance-badge {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            margin-left: 0.5rem;
+        }
+
+        .realtime-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background: #4ade80;
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* Mobile responsiveness for new features */
+        @media (max-width: 768px) {
+            .filter-row {
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+
+            .search-controls {
+                flex-direction: column;
+                gap: 0.8rem;
+            }
+
+            .comparison-content {
+                padding: 1rem;
+                max-width: 95%;
+            }
+
+            .comparison-table {
+                font-size: 0.9rem;
+            }
+
+            .comparison-table th,
+            .comparison-table td {
+                padding: 0.5rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -531,14 +677,46 @@
                 <option value="a40">RTX A40 (48GB)</option>
                 <option value="v100">Tesla V100 (32GB)</option>
                 <option value="3090">RTX 3090 (24GB)</option>
+                <option value="2080ti">RTX 2080 Ti (11GB)</option>
+                <option value="3060">RTX 3060 (12GB)</option>
+                <option value="3070">RTX 3070 (8GB)</option>
+                <option value="3080">RTX 3080 (10GB)</option>
             </select>
             <select id="regionSelect">
                 <option value="us-east">US East</option>
                 <option value="us-west">US West</option>
-                <option value="eu">Europe</option>
-                <option value="asia">Asia</option>
+                <option value="eu-west">EU West</option>
+                <option value="eu-central">EU Central</option>
+                <option value="asia-pacific">Asia Pacific</option>
+                <option value="global">All Regions</option>
             </select>
-            <button onclick="searchGPUs()" id="searchBtn">Find Best Price</button>
+            <select id="sortSelect">
+                <option value="price">Sort by Price</option>
+                <option value="performance">Sort by Performance</option>
+                <option value="availability">Sort by Availability</option>
+                <option value="provider">Sort by Provider</option>
+            </select>
+            <button onclick="searchGPUs()" id="searchBtn">🔍 Find Best Price</button>
+        </div>
+        
+        <!-- Advanced Filters -->
+        <div class="advanced-filters" id="advancedFilters" style="display: none;">
+            <div class="filter-row">
+                <input type="number" id="maxPrice" placeholder="Max Price/hr ($)" min="0" step="0.01">
+                <input type="number" id="minMemory" placeholder="Min Memory (GB)" min="1" step="1">
+                <select id="availabilityFilter">
+                    <option value="">Any Availability</option>
+                    <option value="available">Available Now</option>
+                    <option value="limited">Limited Stock</option>
+                </select>
+                <button onclick="toggleAdvancedFilters()" class="filter-toggle">Simple Search</button>
+            </div>
+        </div>
+        
+        <div class="search-controls">
+            <button onclick="toggleAdvancedFilters()" class="filter-toggle" id="advancedToggle">⚙️ Advanced Filters</button>
+            <button onclick="toggleRealTimeUpdates()" class="realtime-toggle" id="realtimeBtn">📡 Real-time Updates</button>
+            <button onclick="compareSelected()" class="compare-btn" id="compareBtn" style="display: none;">📊 Compare Selected</button>
         </div>
 
         <div class="results" id="results">
@@ -577,7 +755,7 @@
         <h3 class="gradient-text">For Developers</h3>
         <p>Integrate GPU price aggregation into your app</p>
         <div class="code-snippet">
-            GET https://gpudex.onrender.com/api/v1/prices?gpu=a100&region=us-east
+            GET http://localhost:8000/api/v1/prices?gpu=a100&region=us-east
         </div>
         <button onclick="window.location.href='#api'">Get API Access</button>
     </div>
@@ -588,7 +766,7 @@
     </div>
 
     <script>
-        const API_BASE = 'https://gpudex.onrender.com';
+        const API_BASE = 'http://localhost:8000';
         let currentData = null;
         let priceChart = null;
         let currentTimeframe = '24h';
@@ -952,6 +1130,251 @@
              if (currentData) {
                  await loadChartData(currentData.gpu_type, timeframe);
              }
+         }
+
+         // ============ ADVANCED FEATURES ============
+
+         let realtimeEnabled = false;
+         let realtimeInterval = null;
+         let selectedProviders = new Set();
+
+         function toggleAdvancedFilters() {
+             const filters = document.getElementById('advancedFilters');
+             const toggle = document.getElementById('advancedToggle');
+             
+             if (filters.style.display === 'none') {
+                 filters.style.display = 'block';
+                 toggle.textContent = '⚙️ Simple Search';
+             } else {
+                 filters.style.display = 'none';
+                 toggle.textContent = '⚙️ Advanced Filters';
+             }
+         }
+
+         function toggleRealTimeUpdates() {
+             const btn = document.getElementById('realtimeBtn');
+             
+             if (realtimeEnabled) {
+                 // Disable real-time updates
+                 realtimeEnabled = false;
+                 clearInterval(realtimeInterval);
+                 btn.classList.remove('active');
+                 btn.innerHTML = '📡 Real-time Updates';
+             } else {
+                 // Enable real-time updates
+                 realtimeEnabled = true;
+                 btn.classList.add('active');
+                 btn.innerHTML = '<span class="realtime-indicator"></span>Live Updates';
+                 
+                 // Update every 30 seconds
+                 realtimeInterval = setInterval(() => {
+                     if (currentData) {
+                         searchGPUs();
+                     }
+                 }, 30000);
+             }
+         }
+
+         function toggleProviderSelection(providerId, checkbox) {
+             if (checkbox.checked) {
+                 selectedProviders.add(providerId);
+             } else {
+                 selectedProviders.delete(providerId);
+             }
+             
+             const compareBtn = document.getElementById('compareBtn');
+             if (selectedProviders.size >= 2) {
+                 compareBtn.style.display = 'inline-block';
+             } else {
+                 compareBtn.style.display = 'none';
+             }
+         }
+
+         function compareSelected() {
+             if (selectedProviders.size < 2) {
+                 alert('Please select at least 2 providers to compare');
+                 return;
+             }
+
+             const comparison = Array.from(selectedProviders).map(id => {
+                 return currentData.prices.find(p => p.provider === id);
+             }).filter(Boolean);
+
+             showComparisonModal(comparison);
+         }
+
+         function showComparisonModal(providers) {
+             const modal = document.createElement('div');
+             modal.className = 'comparison-modal';
+             
+             const content = `
+                 <div class="comparison-content">
+                     <span class="close-comparison" onclick="this.parentElement.parentElement.remove()">&times;</span>
+                     <h2 class="gradient-text">Provider Comparison</h2>
+                     <table class="comparison-table">
+                         <thead>
+                             <tr>
+                                 <th>Provider</th>
+                                 <th>Price/hr</th>
+                                 <th>Availability</th>
+                                 <th>Specs</th>
+                                 <th>Performance</th>
+                                 <th>Action</th>
+                             </tr>
+                         </thead>
+                         <tbody>
+                             ${providers.map(p => `
+                                 <tr>
+                                     <td><strong>${p.provider}</strong></td>
+                                     <td>$${p.price.toFixed(2)}</td>
+                                     <td><span class="availability ${p.availability}">${p.availability}</span></td>
+                                     <td>${p.specs || 'Standard Instance'}</td>
+                                     <td>${p.performance || 'N/A'}<span class="performance-badge">CUDA</span></td>
+                                     <td><button onclick="deploy('${p.provider}', ${p.price})">Deploy</button></td>
+                                 </tr>
+                             `).join('')}
+                         </tbody>
+                     </table>
+                 </div>
+             `;
+             
+             modal.innerHTML = content;
+             document.body.appendChild(modal);
+         }
+
+         // Enhanced search function with filters
+         async function searchGPUsAdvanced() {
+             const gpu = document.getElementById('gpuSelect').value;
+             const region = document.getElementById('regionSelect').value;
+             const sort = document.getElementById('sortSelect').value;
+             const maxPrice = document.getElementById('maxPrice')?.value;
+             const minMemory = document.getElementById('minMemory')?.value;
+             const availability = document.getElementById('availabilityFilter')?.value;
+
+             let params = new URLSearchParams({
+                 gpu: gpu,
+                 region: region,
+                 sort: sort
+             });
+
+             if (maxPrice) params.append('max_price', maxPrice);
+             if (minMemory) params.append('min_memory', minMemory);
+             if (availability) params.append('availability', availability);
+
+             try {
+                 const response = await fetch(`${API_BASE}/api/v1/prices?${params.toString()}`);
+                 
+                 if (!response.ok) {
+                     throw new Error(`HTTP ${response.status}`);
+                 }
+
+                 const data = await response.json();
+                 displayAdvancedResults(data);
+                 currentData = data;
+                 
+                 if (data.prices && data.prices.length > 0) {
+                     showPriceChart(gpu);
+                 }
+             } catch (error) {
+                 console.error('Search failed:', error);
+                 displayMockResults(gpu);
+             }
+         }
+
+         function displayAdvancedResults(data) {
+             const resultsDiv = document.getElementById('results');
+             
+             if (!data.prices || data.prices.length === 0) {
+                 resultsDiv.innerHTML = '<div class="error">No providers found matching your criteria</div>';
+                 return;
+             }
+
+             const html = data.prices.map((provider, index) => {
+                 const isBestPrice = index === 0;
+                 const savingsBadge = provider.savings > 30 ? `<div class="savings-badge">SAVE ${provider.savings}%</div>` : '';
+                 const performanceBadge = provider.performance ? `<span class="performance-badge">${provider.performance}</span>` : '';
+                 
+                 return `
+                     <div class="result-item" style="position: relative; ${isBestPrice ? 'border: 2px solid #4ade80; border-radius: 8px;' : ''}">
+                         <input type="checkbox" class="result-checkbox" onchange="toggleProviderSelection('${provider.provider}', this)">
+                         <div class="provider-name">
+                             <strong>${provider.provider}</strong>
+                             ${isBestPrice ? '<span style="color: #4ade80; margin-left: 8px;">🏆 Best Price</span>' : ''}
+                             ${performanceBadge}
+                         </div>
+                         <div class="specs">${provider.specs || 'GPU Instance'}${provider.memory ? ` • ${provider.memory}GB` : ''}</div>
+                         <div class="price">$${provider.price.toFixed(2)}/hr</div>
+                         <div class="availability ${provider.availability}">${provider.availability}</div>
+                         <button onclick="deploy('${provider.provider}', ${provider.price})">Deploy</button>
+                         ${savingsBadge}
+                     </div>
+                 `;
+             }).join('');
+
+             resultsDiv.innerHTML = html;
+         }
+
+         // Override the original searchGPUs to use the enhanced version
+         async function searchGPUs() {
+             const resultsDiv = document.getElementById('results');
+             resultsDiv.innerHTML = '<div class="loading">🔍 Scanning providers for best prices...</div>';
+             
+             // Add small delay for better UX
+             setTimeout(() => {
+                 searchGPUsAdvanced();
+             }, 500);
+         }
+
+         // Mock results fallback function
+         function displayMockResults(gpuType) {
+             const resultsDiv = document.getElementById('results');
+             
+             // Mock data for demonstration
+             const mockProviders = [
+                 { provider: "AWS", price: 3.20, availability: "available", specs: `${gpuType.toUpperCase()} Instance`, savings: 0 },
+                 { provider: "Google Cloud", price: 3.45, availability: "available", specs: `${gpuType.toUpperCase()} Instance`, savings: 15 },
+                 { provider: "Azure", price: 3.80, availability: "limited", specs: `${gpuType.toUpperCase()} Instance`, savings: 25 },
+                 { provider: "Vast.ai", price: 2.95, availability: "available", specs: `${gpuType.toUpperCase()} Instance`, savings: 35 },
+                 { provider: "RunPod", price: 3.10, availability: "available", specs: `${gpuType.toUpperCase()} Instance`, savings: 20 }
+             ];
+
+             // Sort by price
+             mockProviders.sort((a, b) => a.price - b.price);
+
+             // Display mock results
+             const html = mockProviders.map((provider, index) => {
+                 const isBestPrice = index === 0;
+                 const savingsBadge = provider.savings > 30 ? `<div class="savings-badge">SAVE ${provider.savings}%</div>` : '';
+                 
+                 return `
+                     <div class="result-item" style="position: relative; ${isBestPrice ? 'border: 2px solid #4ade80; border-radius: 8px;' : ''}">
+                         <input type="checkbox" class="result-checkbox" onchange="toggleProviderSelection('${provider.provider}', this)">
+                         <div class="provider-name">
+                             <strong>${provider.provider}</strong>
+                             ${isBestPrice ? '<span style="color: #4ade80; margin-left: 8px;">🏆 Best Price</span>' : ''}
+                         </div>
+                         <div class="specs">${provider.specs}</div>
+                         <div class="price">$${provider.price.toFixed(2)}/hr</div>
+                         <div class="availability ${provider.availability}">${provider.availability}</div>
+                         <button onclick="deploy('${provider.provider}', ${provider.price})">Deploy</button>
+                         ${savingsBadge}
+                     </div>
+                 `;
+             }).join('');
+
+             resultsDiv.innerHTML = `
+                 <div style="background: #1a1a1a; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #333;">
+                     <h3 style="color: #fbbf24; margin-bottom: 0.5rem;">⚠️ Demo Mode</h3>
+                     <p style="color: #888; margin: 0;">API connection failed. Showing demo data for ${gpuType.toUpperCase()}.</p>
+                 </div>
+                 ${html}
+             `;
+
+             // Set mock data for other functions
+             currentData = {
+                 gpu_type: gpuType,
+                 prices: mockProviders
+             };
          }
     </script>
 </body>
