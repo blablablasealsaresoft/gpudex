@@ -1,0 +1,162 @@
+[
+  {
+    "timestamp": "2025-07-25 10:14:21.513645",
+    "cpu_percent": 0.0,
+    "memory_percent": 8.3,
+    "disk_percent": 1.0,
+    "network_sent": 9776,
+    "network_recv": 9887,
+    "active_connections": 3,
+    "process_count": 1
+  },
+  {
+    "timestamp": "2025-07-25 10:15:01.708848",
+    "cpu_percent": 0.7,
+    "memory_percent": 8.6,
+    "disk_percent": 1.0,
+    "network_sent": 21329,
+    "network_recv": 37217,
+    "active_connections": 3,
+    "process_count": 1
+  },
+  {
+    "timestamp": "2025-07-25 10:15:32.715547",
+    "cpu_percent": 0.0,
+    "memory_percent": 8.6,
+    "disk_percent": 1.0,
+    "network_sent": 21329,
+    "network_recv": 37217,
+    "active_connections": 3,
+    "process_count": 1
+  },
+  {
+    "timestamp": "2025-07-25 10:16:03.721463",
+    "cpu_percent": 0.0,
+    "memory_percent": 8.6,
+    "disk_percent": 1.0,
+    "network_sent": 21329,
+    "network_recv": 37217,
+    "active_connections": 3,
+    "process_count": 1
+  },
+  {
+    "timestamp": "2025-07-25 10:16:34.730038",
+    "cpu_percent": 0.1,
+    "memory_percent": 8.6,
+    "disk_percent": 1.0,
+    "network_sent": 21329,
+    "network_recv": 37259,
+    "active_connections": 3,
+    "process_count": 1
+  },
+  {
+    "timestamp": "2025-07-25 10:17:05.734065",
+    "cpu_percent": 0.0,
+    "memory_percent": 8.5,
+    "disk_percent": 1.0,
+    "network_sent": 21329,
+    "network_recv": 37259,
+    "active_connections": 3,
+    "process_count": 1
+  },
+  {
+    "timestamp": "2025-07-25 10:17:36.738556",
+    "cpu_percent": 0.0,
+    "memory_percent": 8.5,
+    "disk_percent": 1.0,
+    "network_sent": 21329,
+    "network_recv": 37259,
+    "active_connections": 3,
+    "process_count": 1
+  },
+  {
+    "timestamp": "2025-07-25 10:18:07.741712",
+    "cpu_percent": 0.0,
+    "memory_percent": 8.5,
+    "disk_percent": 1.0,
+    "network_sent": 21329,
+    "network_recv": 37259,
+    "active_connections": 3,
+    "process_count": 1
+  },
+  {
+    "timestamp": "2025-07-25 10:18:38.750774",
+    "cpu_percent": 0.0,
+    "memory_percent": 8.5,
+    "disk_percent": 1.0,
+    "network_sent": 21329,
+    "network_recv": 37259,
+    "active_connections": 3,
+    "process_count": 1
+  },
+  {
+    "timestamp": "2025-07-25 10:19:09.757545",
+    "cpu_percent": 0.4,
+    "memory_percent": 8.5,
+    "disk_percent": 1.0,
+    "network_sent": 21329,
+    "network_recv": 37259,
+    "active_connections": 3,
+    "process_count": 1
+  },
+  {
+    "timestamp": "2025-07-25 10:19:40.772772",
+    "cpu_percent": 0.0,
+    "memory_percent": 8.4,
+    "disk_percent": 1.0,
+    "network_sent": 21329,
+    "network_recv": 37259,
+    "active_connections": 3,
+    "process_count": 1
+  },
+  {
+    "timestamp": "2025-07-25 10:20:11.783539",
+    "cpu_percent": 0.1,
+    "memory_percent": 8.5,
+    "disk_percent": 1.0,
+    "network_sent": 21329,
+    "network_recv": 37259,
+    "active_connections": 3,
+    "process_count": 1
+  },
+  {
+    "timestamp": "2025-07-25 10:20:42.791917",
+    "cpu_percent": 0.0,
+    "memory_percent": 8.5,
+    "disk_percent": 1.0,
+    "network_sent": 21329,
+    "network_recv": 37259,
+    "active_connections": 3,
+    "process_count": 1
+  },
+  {
+    "timestamp": "2025-07-25 10:21:13.798431",
+    "cpu_percent": 0.0,
+    "memory_percent": 8.5,
+    "disk_percent": 1.0,
+    "network_sent": 21329,
+    "network_recv": 37259,
+    "active_connections": 3,
+    "process_count": 1
+  },
+  {
+    "timestamp": "2025-07-25 10:21:44.804369",
+    "cpu_percent": 0.0,
+    "memory_percent": 8.5,
+    "disk_percent": 1.0,
+    "network_sent": 21329,
+    "network_recv": 37259,
+    "active_connections": 3,
+    "process_count": 1
+  },
+  {
+    "timestamp": "2025-07-25 10:22:15.810356",
+    "cpu_percent": 0.1,
+    "memory_percent": 8.5,
+    "disk_percent": 1.0,
+    "network_sent": 21329,
+    "network_recv": 37259,
+    "active_connections": 3,
+    "process_count": 1
+  }
+]

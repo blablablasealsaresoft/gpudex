@@ -3,365 +3,243 @@ GPUDex Redis Caching Service
 Advanced caching layer for performance optimization and reduced API calls.
 """
 
-import json
-import hashlib
-import pickle
-import logging
-from typing import Any, Optional, Dict, List, Union
-from datetime import datetime, timedelta
-from functools import wraps
 import redis
+import json
+import logging
+from typing import Any, Optional, Dict, List
+from datetime import datetime, timedelta
+import hashlib
 import asyncio
-from contextlib import asynccontextmanager
+from functools import wraps
+import os
 
 logger = logging.getLogger(__name__)
 
 class CacheService:
-    """
-    Production-grade Redis caching service with intelligent strategies.
-    """
-    
-    def __init__(self, redis_url: str = "redis://localhost:6379/0"):
-        """Initialize Redis connection with connection pooling."""
+    def __init__(self):
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379')
         try:
-            # Parse Redis URL and create connection pool
-            self.redis_pool = redis.ConnectionPool.from_url(
-                redis_url,
-                max_connections=20,
-                retry_on_timeout=True,
-                socket_keepalive=True,
-                socket_keepalive_options={}
-            )
-            self.redis = redis.Redis(connection_pool=self.redis_pool)
-            
+            self.redis_client = redis.from_url(redis_url, decode_responses=True)
             # Test connection
-            self.redis.ping()
-            logger.info("✅ Redis cache service initialized successfully")
-            
-            # Cache statistics
-            self.stats = {
-                "hits": 0,
-                "misses": 0,
-                "sets": 0,
-                "deletes": 0
-            }
-            
+            self.redis_client.ping()
+            logger.info("Redis connection established successfully")
         except Exception as e:
-            logger.error(f"❌ Failed to initialize Redis cache service: {e}")
-            # Fallback to in-memory cache for development
-            self.redis = None
+            logger.warning(f"Redis connection failed: {e}. Falling back to memory cache.")
+            self.redis_client = None
             self._memory_cache = {}
-            
-    def _generate_key(self, prefix: str, *args, **kwargs) -> str:
-        """Generate consistent cache key from arguments."""
-        # Create a string representation of all arguments
-        key_data = {
-            'args': args,
-            'kwargs': sorted(kwargs.items()) if kwargs else {}
-        }
-        
-        # Create hash of the data
-        key_string = json.dumps(key_data, sort_keys=True, default=str)
-        key_hash = hashlib.md5(key_string.encode()).hexdigest()[:12]
-        
-        return f"gpudex:{prefix}:{key_hash}"
     
-    def _serialize(self, data: Any) -> bytes:
-        """Serialize data for Redis storage."""
+    def _generate_key(self, prefix: str, **kwargs) -> str:
+        """Generate a unique cache key from parameters"""
+        key_data = f"{prefix}:" + ":".join(f"{k}={v}" for k, v in sorted(kwargs.items()))
+        return hashlib.md5(key_data.encode()).hexdigest()
+    
+    def _serialize(self, data: Any) -> str:
+        """Serialize data for storage"""
+        if isinstance(data, (dict, list)):
+            return json.dumps(data, default=str)
+        return str(data)
+    
+    def _deserialize(self, data: str) -> Any:
+        """Deserialize data from storage"""
         try:
-            if isinstance(data, (str, int, float, bool)):
-                return json.dumps(data).encode()
+            return json.loads(data)
+        except (json.JSONDecodeError, TypeError):
+            return data
+    
+    def get(self, key: str) -> Optional[Any]:
+        """Get value from cache"""
+        try:
+            if self.redis_client:
+                value = self.redis_client.get(key)
+                return self._deserialize(value) if value else None
             else:
-                return pickle.dumps(data)
+                return self._memory_cache.get(key)
         except Exception as e:
-            logger.error(f"Serialization error: {e}")
-            return pickle.dumps(data)
-    
-    def _deserialize(self, data: bytes) -> Any:
-        """Deserialize data from Redis."""
-        try:
-            # Try JSON first (faster)
-            return json.loads(data.decode())
-        except (json.JSONDecodeError, UnicodeDecodeError):
-            try:
-                # Fall back to pickle
-                return pickle.loads(data)
-            except Exception as e:
-                logger.error(f"Deserialization error: {e}")
-                return None
-    
-    async def get(self, key: str) -> Optional[Any]:
-        """Get value from cache."""
-        try:
-            if self.redis is None:
-                # Fallback to memory cache
-                result = self._memory_cache.get(key)
-                if result:
-                    self.stats["hits"] += 1
-                else:
-                    self.stats["misses"] += 1
-                return result
-            
-            data = self.redis.get(key)
-            if data is not None:
-                self.stats["hits"] += 1
-                return self._deserialize(data)
-            else:
-                self.stats["misses"] += 1
-                return None
-                
-        except Exception as e:
-            logger.error(f"Cache get error for key {key}: {e}")
-            self.stats["misses"] += 1
+            logger.error(f"Cache get error: {e}")
             return None
     
-    async def set(self, key: str, value: Any, ttl: int = 3600) -> bool:
-        """Set value in cache with TTL."""
+    def set(self, key: str, value: Any, ttl: int = 300) -> bool:
+        """Set value in cache with TTL"""
         try:
-            if self.redis is None:
-                # Fallback to memory cache (no TTL support)
-                self._memory_cache[key] = value
-                self.stats["sets"] += 1
+            serialized_value = self._serialize(value)
+            if self.redis_client:
+                return self.redis_client.setex(key, ttl, serialized_value)
+            else:
+                self._memory_cache[key] = serialized_value
+                # Simple TTL simulation for memory cache
+                asyncio.create_task(self._expire_memory_key(key, ttl))
                 return True
-            
-            serialized_data = self._serialize(value)
-            result = self.redis.setex(key, ttl, serialized_data)
-            if result:
-                self.stats["sets"] += 1
-            return bool(result)
-            
         except Exception as e:
-            logger.error(f"Cache set error for key {key}: {e}")
+            logger.error(f"Cache set error: {e}")
             return False
     
-    async def delete(self, key: str) -> bool:
-        """Delete key from cache."""
+    async def _expire_memory_key(self, key: str, ttl: int):
+        """Expire memory cache key after TTL"""
+        await asyncio.sleep(ttl)
+        self._memory_cache.pop(key, None)
+    
+    def delete(self, key: str) -> bool:
+        """Delete key from cache"""
         try:
-            if self.redis is None:
-                if key in self._memory_cache:
-                    del self._memory_cache[key]
-                    self.stats["deletes"] += 1
-                    return True
-                return False
-            
-            result = self.redis.delete(key)
-            if result:
-                self.stats["deletes"] += 1
-            return bool(result)
-            
+            if self.redis_client:
+                return bool(self.redis_client.delete(key))
+            else:
+                return bool(self._memory_cache.pop(key, None))
         except Exception as e:
-            logger.error(f"Cache delete error for key {key}: {e}")
+            logger.error(f"Cache delete error: {e}")
             return False
     
-    async def clear_pattern(self, pattern: str) -> int:
-        """Clear all keys matching a pattern."""
+    def clear_pattern(self, pattern: str) -> int:
+        """Clear all keys matching pattern"""
         try:
-            if self.redis is None:
+            if self.redis_client:
+                keys = self.redis_client.keys(pattern)
+                if keys:
+                    return self.redis_client.delete(*keys)
+                return 0
+            else:
                 # Simple pattern matching for memory cache
-                keys_to_delete = [k for k in self._memory_cache.keys() if pattern in k]
+                keys_to_delete = [k for k in self._memory_cache.keys() if pattern.replace('*', '') in k]
                 for key in keys_to_delete:
                     del self._memory_cache[key]
                 return len(keys_to_delete)
-            
-            keys = self.redis.keys(pattern)
-            if keys:
-                deleted = self.redis.delete(*keys)
-                self.stats["deletes"] += deleted
-                return deleted
-            return 0
-            
         except Exception as e:
-            logger.error(f"Cache clear pattern error for pattern {pattern}: {e}")
+            logger.error(f"Cache clear pattern error: {e}")
             return 0
     
-    async def exists(self, key: str) -> bool:
-        """Check if key exists in cache."""
+    def exists(self, key: str) -> bool:
+        """Check if key exists in cache"""
         try:
-            if self.redis is None:
+            if self.redis_client:
+                return bool(self.redis_client.exists(key))
+            else:
                 return key in self._memory_cache
-            
-            return bool(self.redis.exists(key))
-            
         except Exception as e:
-            logger.error(f"Cache exists error for key {key}: {e}")
+            logger.error(f"Cache exists error: {e}")
             return False
     
-    async def get_ttl(self, key: str) -> int:
-        """Get TTL for a key."""
+    def get_ttl(self, key: str) -> int:
+        """Get TTL for key"""
         try:
-            if self.redis is None:
-                return -1  # Memory cache doesn't support TTL
-            
-            return self.redis.ttl(key)
-            
+            if self.redis_client:
+                return self.redis_client.ttl(key)
+            else:
+                return -1  # Memory cache doesn't track TTL
         except Exception as e:
-            logger.error(f"Cache TTL error for key {key}: {e}")
+            logger.error(f"Cache TTL error: {e}")
             return -1
     
     def get_stats(self) -> Dict[str, Any]:
-        """Get cache statistics."""
-        total_requests = self.stats["hits"] + self.stats["misses"]
-        hit_rate = (self.stats["hits"] / total_requests * 100) if total_requests > 0 else 0
-        
-        return {
-            **self.stats,
-            "hit_rate": round(hit_rate, 2),
-            "total_requests": total_requests,
-            "redis_connected": self.redis is not None,
-            "timestamp": datetime.utcnow().isoformat()
-        }
+        """Get cache statistics"""
+        try:
+            if self.redis_client:
+                info = self.redis_client.info()
+                return {
+                    'connected_clients': info.get('connected_clients', 0),
+                    'used_memory': info.get('used_memory_human', '0B'),
+                    'keyspace_hits': info.get('keyspace_hits', 0),
+                    'keyspace_misses': info.get('keyspace_misses', 0),
+                    'total_commands_processed': info.get('total_commands_processed', 0)
+                }
+            else:
+                return {
+                    'memory_cache_keys': len(self._memory_cache),
+                    'type': 'memory_fallback'
+                }
+        except Exception as e:
+            logger.error(f"Cache stats error: {e}")
+            return {}
 
 # Global cache instance
-cache_service = None
+cache = CacheService()
 
-def get_cache_service() -> CacheService:
-    """Get or create cache service instance."""
-    global cache_service
-    if cache_service is None:
-        import os
-        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-        cache_service = CacheService(redis_url)
-    return cache_service
-
-# Cache decorators for different use cases
-def cache_result(prefix: str, ttl: int = 3600):
-    """
-    Decorator to cache function results.
-    
-    Args:
-        prefix: Cache key prefix
-        ttl: Time to live in seconds
-    """
+# Decorators for caching
+def cache_result(ttl: int = 300, key_prefix: str = "general"):
+    """Decorator to cache function results"""
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            cache = get_cache_service()
-            
-            # Generate cache key
-            cache_key = cache._generate_key(prefix, *args, **kwargs)
+            # Generate cache key from function name and parameters
+            cache_key = cache._generate_key(
+                f"{key_prefix}:{func.__name__}",
+                args=str(args),
+                kwargs=str(kwargs)
+            )
             
             # Try to get from cache
-            cached_result = await cache.get(cache_key)
+            cached_result = cache.get(cache_key)
             if cached_result is not None:
                 logger.debug(f"Cache hit for {func.__name__}")
                 return cached_result
             
             # Execute function and cache result
             result = await func(*args, **kwargs) if asyncio.iscoroutinefunction(func) else func(*args, **kwargs)
-            
-            if result is not None:
-                await cache.set(cache_key, result, ttl)
-                logger.debug(f"Cached result for {func.__name__}")
-            
+            cache.set(cache_key, result, ttl)
+            logger.debug(f"Cached result for {func.__name__}")
             return result
-        
         return wrapper
     return decorator
 
-def cache_prices(ttl: int = 300):
-    """Specialized decorator for caching GPU prices."""
-    return cache_result("prices", ttl)
+def cache_prices(ttl: int = 180):
+    """Specialized decorator for caching GPU prices"""
+    return cache_result(ttl=ttl, key_prefix="prices")
 
-def cache_analytics(ttl: int = 3600):
-    """Specialized decorator for caching analytics data."""
-    return cache_result("analytics", ttl)
+def cache_analytics(ttl: int = 600):
+    """Specialized decorator for caching analytics data"""
+    return cache_result(ttl=ttl, key_prefix="analytics")
 
-def cache_providers(ttl: int = 1800):
-    """Specialized decorator for caching provider data."""
-    return cache_result("providers", ttl)
+def cache_providers(ttl: int = 3600):
+    """Specialized decorator for caching provider data"""
+    return cache_result(ttl=ttl, key_prefix="providers")
 
+# Smart caching strategies
 class SmartCache:
-    """
-    Intelligent caching strategies for different data types.
-    """
+    """Intelligent caching with different strategies"""
     
-    def __init__(self):
-        self.cache = get_cache_service()
+    @staticmethod
+    def cache_prices_with_strategy(provider: str, gpu_type: str = None):
+        """Cache prices with intelligent TTL based on provider volatility"""
+        # Different TTL based on provider update frequency
+        ttl_map = {
+            'aws': 300,      # 5 minutes - frequently updated
+            'gcp': 300,      # 5 minutes - frequently updated  
+            'azure': 300,    # 5 minutes - frequently updated
+            'vultr': 600,    # 10 minutes - less frequent
+            'linode': 600,   # 10 minutes - less frequent
+            'vast': 180,     # 3 minutes - very dynamic
+            'runpod': 180,   # 3 minutes - very dynamic
+            'default': 300   # 5 minutes default
+        }
+        
+        ttl = ttl_map.get(provider.lower(), ttl_map['default'])
+        key = cache._generate_key("smart_prices", provider=provider, gpu_type=gpu_type or 'all')
+        
+        return key, ttl
     
-    async def cache_prices_with_strategy(self, gpu_type: str, region: str, prices: List[Dict]) -> None:
-        """
-        Cache prices with intelligent strategies:
-        - Short TTL for high-demand GPUs
-        - Longer TTL for stable prices
-        - Different TTLs by region
-        """
-        
-        # Determine TTL based on GPU popularity and volatility
-        high_demand_gpus = ["4090", "a100", "h100", "v100"]
-        volatile_regions = ["us-east", "eu-west"]
-        
-        base_ttl = 300  # 5 minutes
-        
-        if gpu_type.lower() in high_demand_gpus:
-            ttl = base_ttl // 2  # 2.5 minutes for high-demand
+    @staticmethod
+    def get_cached_prices(provider: str, gpu_type: str = None) -> Optional[Dict]:
+        """Get cached prices with smart key generation"""
+        key, _ = SmartCache.cache_prices_with_strategy(provider, gpu_type)
+        return cache.get(key)
+    
+    @staticmethod
+    def cache_prices_data(provider: str, data: Dict, gpu_type: str = None):
+        """Cache prices data with smart strategy"""
+        key, ttl = SmartCache.cache_prices_with_strategy(provider, gpu_type)
+        cache.set(key, data, ttl)
+    
+    @staticmethod
+    def invalidate_prices(provider: str = None):
+        """Invalidate price caches"""
+        if provider:
+            pattern = f"*smart_prices*provider={provider}*"
         else:
-            ttl = base_ttl * 2   # 10 minutes for standard GPUs
-        
-        if region in volatile_regions:
-            ttl = int(ttl * 0.8)  # 20% reduction for volatile regions
-        
-        # Cache with computed TTL
-        cache_key = self.cache._generate_key("smart_prices", gpu_type, region)
-        await self.cache.set(cache_key, prices, ttl)
-        
-        # Also cache individual provider prices for partial updates
-        for price_data in prices:
-            provider_key = self.cache._generate_key("provider_price", price_data.get("provider"), gpu_type, region)
-            await self.cache.set(provider_key, price_data, ttl * 2)  # Longer TTL for individual providers
+            pattern = "*smart_prices*"
+        return cache.clear_pattern(pattern)
     
-    async def get_cached_prices(self, gpu_type: str, region: str) -> Optional[List[Dict]]:
-        """Get cached prices with fallback strategies."""
-        
-        # Try main cache first
-        cache_key = self.cache._generate_key("smart_prices", gpu_type, region)
-        cached_prices = await self.cache.get(cache_key)
-        
-        if cached_prices is not None:
-            return cached_prices
-        
-        # Fallback: Try to reconstruct from individual provider caches
-        providers = ["vast", "runpod", "tensordock", "lambda", "paperspace", "aws", "gcp", "azure"]
-        partial_prices = []
-        
-        for provider in providers:
-            provider_key = self.cache._generate_key("provider_price", provider, gpu_type, region)
-            provider_price = await self.cache.get(provider_key)
-            if provider_price:
-                partial_prices.append(provider_price)
-        
-        if partial_prices:
-            logger.info(f"Reconstructed prices from {len(partial_prices)} cached providers")
-            return partial_prices
-        
-        return None
-    
-    async def invalidate_prices(self, gpu_type: Optional[str] = None, region: Optional[str] = None) -> int:
-        """Invalidate price caches with optional filtering."""
-        
-        if gpu_type and region:
-            # Specific invalidation
-            cache_key = self.cache._generate_key("smart_prices", gpu_type, region)
-            await self.cache.delete(cache_key)
-            return 1
-        elif gpu_type:
-            # Invalidate all regions for a GPU type
-            return await self.cache.clear_pattern(f"gpudex:smart_prices:*{gpu_type}*")
-        else:
-            # Invalidate all price caches
-            return await self.cache.clear_pattern("gpudex:smart_prices:*")
-    
-    async def warm_cache(self, popular_combinations: List[Dict]) -> None:
-        """Pre-warm cache with popular GPU/region combinations."""
-        logger.info("Starting cache warm-up...")
-        
-        # This would be called with actual price fetching logic
-        # For now, we'll just log the intent
-        for combo in popular_combinations:
-            gpu_type = combo.get("gpu_type")
-            region = combo.get("region")
-            logger.info(f"Would warm cache for {gpu_type} in {region}")
-        
-        logger.info("Cache warm-up completed")
-
-# Global smart cache instance
-smart_cache = SmartCache() 
+    @staticmethod
+    def warm_cache(providers: List[str], gpu_types: List[str]):
+        """Pre-warm cache with common queries"""
+        # This would be called by a background task
+        logger.info(f"Warming cache for {len(providers)} providers and {len(gpu_types)} GPU types")
+        # Implementation would fetch and cache common combinations 

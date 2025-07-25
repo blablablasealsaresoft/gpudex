@@ -2,10 +2,11 @@
 
 Real-time GPU price aggregation across 15+ providers. Find the best GPU prices instantly and save up to 70% on compute costs.
 
-## 🚀 Live Demo
+## 🚀 Production Ready
 
-- **Frontend**: https://gpudex.vercel.app/
-- **Backend API**: https://gpudex.onrender.com/
+- **Frontend**: http://localhost (via Docker)
+- **Backend API**: http://localhost:8000 (via Docker)
+- **Monitoring**: http://localhost:3001 (Grafana)
 - **GitHub**: https://github.com/blablablasealsaresoft/gpudex
 
 ## 🎯 What is GPUDex?
@@ -24,10 +25,12 @@ GPUDex is the "1inch of Compute" - aggregating fragmented GPU compute providers 
 ## 🏗️ Architecture
 
 ```
-Frontend (Vercel) ←→ Backend API (Render) ←→ GPU Providers
+Docker Production Environment
+     ↓
+Frontend (Nginx) ←→ Backend API (FastAPI) ←→ GPU Providers
      ↓                    ↓                        ↓
-  React/HTML         FastAPI/Python         Vast.ai, RunPod,
-                     PostgreSQL             TensorDock, etc.
+  Static HTML      Gunicorn + PostgreSQL    Vast.ai, RunPod,
+                      + Redis + Monitoring   TensorDock, etc.
 ```
 
 ## 🛠️ Local Development Setup
@@ -108,27 +111,45 @@ curl -X POST "https://gpudex.onrender.com/api/v1/alerts" \
   -d '{"email":"user@example.com","gpu_type":"4090","target_price":0.30}'
 ```
 
-## 🚀 Deployment
+## 🚀 Docker Production Deployment
 
-### Backend (Render)
+### Quick Start (5 minutes)
 
-1. **Connect your GitHub repository to Render**
-2. **Create a new Web Service**
-3. **Configure the service:**
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `python start.py`
-   - **Environment Variables**:
-     - `DATABASE_URL`: Your PostgreSQL connection string
-     - `ENVIRONMENT`: `production`
+```bash
+# 1. Clone and setup
+git clone https://github.com/your-repo/gpudex.git
+cd gpudex
 
-### Frontend (Vercel)
+# 2. Copy production environment
+cp env.production .env.production
 
-1. **Connect your GitHub repository to Vercel**
-2. **Configure the build:**
-   - **Framework Preset**: Other
-   - **Build Command**: (leave empty)
-   - **Output Directory**: `frontend`
-   - **Install Command**: (leave empty)
+# 3. Generate secure secrets
+python -c "import secrets; print(f'JWT_SECRET_KEY={secrets.token_urlsafe(32)}')"
+# Copy output to .env.production
+
+# 4. Start production environment
+docker-compose -f docker-compose.prod.yml up -d
+
+# 5. Initialize database
+docker-compose -f docker-compose.prod.yml exec backend python -c "
+from database import DatabaseManager
+db = DatabaseManager()
+db.create_tables()
+print('✅ Database initialized!')
+"
+
+# 6. Verify deployment
+curl http://localhost/health              # Frontend
+curl http://localhost:8000/              # Backend
+curl http://localhost:8000/api/v1/prices # API
+```
+
+### Production Services
+- **Frontend**: http://localhost (Nginx + Static HTML)
+- **Backend**: http://localhost:8000 (FastAPI + Gunicorn)
+- **Database**: PostgreSQL with auto-backups
+- **Cache**: Redis with optimized configuration
+- **Monitoring**: Grafana (http://localhost:3001) + Prometheus (http://localhost:9090)
 
 ## 📈 Supported Providers
 

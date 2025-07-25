@@ -265,22 +265,24 @@ def add_rate_limit_headers(response, api_key_info: Dict, rate_info: Dict):
     response.headers["X-RateLimit-Daily-Remaining"] = str(rate_info.get("daily_limit", 0) - rate_info.get("daily_usage", 0))
     response.headers["X-API-Key-User"] = api_key_info.get("user_email", "unknown")
 
-# Rate limiting decorators for different tiers
-def premium_rate_limit(f):
-    """Rate limit for premium API endpoints."""
-    @wraps(f)
+# Rate limiting decorators
+def basic_rate_limit(func):
+    """Basic rate limit decorator - 100 requests per hour"""
+    @wraps(func)
     async def wrapper(*args, **kwargs):
-        # This would be applied to premium endpoints
-        return await f(*args, **kwargs)
-    return wrapper
+        return await func(*args, **kwargs)
+    
+    # Apply rate limit using limiter
+    return limiter.limit("100/hour")(wrapper)
 
-def free_tier_rate_limit(f):
-    """Rate limit for free tier API endpoints.""" 
-    @wraps(f)
+def premium_rate_limit(func):
+    """Premium rate limit decorator - 1000 requests per hour"""
+    @wraps(func)
     async def wrapper(*args, **kwargs):
-        # This would be applied to free tier endpoints
-        return await f(*args, **kwargs)
-    return wrapper
+        return await func(*args, **kwargs)
+    
+    # Apply rate limit using limiter
+    return limiter.limit("1000/hour")(wrapper)
 
 # Default rate limits for public endpoints (no API key required)
 public_rate_limit = limiter.limit("10/minute")  # 10 requests per minute for public use

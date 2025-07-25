@@ -1,591 +1,627 @@
 # GPU Price Aggregator - Backend Foundation
 # Run this to start collecting real pricing data
 
-import asyncio
-import aiohttp
-import json
 import logging
-from datetime import datetime
-from typing import Dict, List
-import re
 import os
+import asyncio
+from datetime import datetime
+from typing import Dict, List, Any, Optional
+from fastapi import FastAPI, HTTPException, Depends, Request, Query, BackgroundTasks
+from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import HTTPBearer
 from pydantic import BaseModel
+import time
 
-# Import database and extended providers
+# Import our services
 from database import DatabaseManager
 from providers import CloudProviderIntegrator
-from email_service import email_service
+from email_service import EmailService
 from alert_checker import start_alert_service
 from rate_limiting import (
-    limiter, 
-    api_key_manager, 
-    get_api_key_info, 
-    require_api_key, 
-    check_rate_limits,
-    public_rate_limit,
-    add_rate_limit_headers
+    limiter, APIKeyManager, require_api_key, check_rate_limits, 
+    add_rate_limit_headers, basic_rate_limit, premium_rate_limit
 )
-from slowapi import _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
+from cache_service import cache_service, SmartCache
+from auth_service import auth_service, get_current_user, get_current_user_optional, UserRegistration, UserLogin, PasswordChange
+from payment_service import stripe_service, CreateCheckoutSessionRequest, PlanType
+from monitoring_service import monitoring_service, start_monitoring
+from ml_prediction_service import ml_service, start_ml_service
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-class GPUAggregator:
-    def __init__(self):
-        self.providers = {
-            'vast.ai': self.scrape_vast,
-            'runpod.io': self.scrape_runpod,
-            'tensordock.com': self.scrape_tensordock,
-            'lambdalabs.com': self.scrape_lambda,
-            'paperspace.com': self.scrape_paperspace,
-        }
-        self.gpu_mappings = {
-            '4090': ['RTX 4090', 'RTX4090', '4090'],
-            'a100': ['A100', 'A100-PCIE-40GB', 'A100 40GB'],
-            'h100': ['H100', 'H100 80GB', 'H100-PCIE'],
-        }
-    
-    async def scrape_vast(self, session, gpu_type):
-        """Scrape Vast.ai marketplace"""
-        try:
-            # Vast.ai API endpoint (public)
-            url = "https://vast.ai/api/v0/offers"
-            params = {
-                'type': 'on-demand',
-                'gpu_name': gpu_type,
-                'order': 'price'
-            }
-            
-            async with session.get(url, params=params, timeout=10) as response:
-                if response.status != 200:
-                    logger.warning(f"Vast.ai API returned status {response.status}")
-                    return []
-                
-                data = await response.json()
-                
-                prices = []
-                for offer in data.get('offers', [])[:5]:  # Top 5 offers
-                    prices.append({
-                        'provider': 'Vast.ai',
-                        'price': offer.get('dph_total', 0),  # dollars per hour
-                        'gpu_count': offer.get('num_gpus', 1),
-                        'availability': 'available' if offer.get('rentable') else 'limited',
-                        'type': 'spot',
-                        'region': self._parse_region(offer.get('geolocation', '')),
-                        'specs': f"{offer.get('gpu_name', 'GPU')} - {offer.get('cuda_max_good', 'Unknown')} CUDA"
-                    })
-                logger.info(f"Vast.ai: Found {len(prices)} offers for {gpu_type}")
-                return prices
-        except Exception as e:
-            logger.error(f"Error scraping Vast.ai: {e}")
-            return []
-    
-    async def scrape_runpod(self, session, gpu_type):
-        """Scrape RunPod pricing"""
-        try:
-            # RunPod API endpoint
-            url = "https://api.runpod.io/v2/pods/pricing"
-            
-            async with session.get(url, timeout=10) as response:
-                if response.status != 200:
-                    logger.warning(f"RunPod API returned status {response.status}")
-                    return []
-                
-                data = await response.json()
-                
-                # Map GPU types to RunPod pricing
-                pricing_map = {
-                    '4090': {'price': 0.39, 'name': 'RTX 4090'},
-                    'a100': {'price': 1.49, 'name': 'A100'},
-                    'h100': {'price': 2.99, 'name': 'H100'},
-                }
-                
-                gpu_info = pricing_map.get(gpu_type, {'price': 0.5, 'name': 'GPU'})
-                
-                return [{
-                    'provider': 'RunPod',
-                    'price': gpu_info['price'],
-                    'gpu_count': 1,
-                    'availability': 'available',
-                    'type': 'on-demand',
-                    'region': 'us-east',
-                    'specs': f"{gpu_info['name']} - On-Demand"
-                }]
-        except Exception as e:
-            logger.error(f"Error scraping RunPod: {e}")
-            return []
-    
-    async def scrape_tensordock(self, session, gpu_type):
-        """Scrape TensorDock pricing"""
-        try:
-            # TensorDock pricing structure
-            prices_map = {
-                '4090': {'price': 0.29, 'name': 'RTX 4090'},
-                'a100': {'price': 0.99, 'name': 'A100'},
-                'h100': {'price': 2.25, 'name': 'H100'},
-            }
-            
-            gpu_info = prices_map.get(gpu_type, {'price': 0.4, 'name': 'GPU'})
-            
-            return [{
-                'provider': 'TensorDock',
-                'price': gpu_info['price'],
-                'gpu_count': 1,
-                'availability': 'available',
-                'type': 'interruptible',
-                'region': 'global',
-                'specs': f"{gpu_info['name']} - Interruptible"
-            }]
-        except Exception as e:
-            logger.error(f"Error scraping TensorDock: {e}")
-            return []
-    
-    async def scrape_lambda(self, session, gpu_type):
-        """Scrape Lambda Labs pricing"""
-        try:
-            # Lambda's pricing structure
-            prices = {
-                'a100': {'price': 1.10, 'name': 'A100'},
-                'h100': {'price': 2.49, 'name': 'H100'},
-                '4090': {'price': 0.60, 'name': 'RTX 4090'}
-            }
-            
-            gpu_info = prices.get(gpu_type, {'price': 1.0, 'name': 'GPU'})
-            
-            return [{
-                'provider': 'Lambda Labs',
-                'price': gpu_info['price'],
-                'gpu_count': 1,
-                'availability': 'limited',
-                'type': 'reserved',
-                'region': 'us-west',
-                'specs': f"{gpu_info['name']} - Reserved"
-            }]
-        except Exception as e:
-            logger.error(f"Error scraping Lambda Labs: {e}")
-            return []
-    
-    async def scrape_paperspace(self, session, gpu_type):
-        """Scrape Paperspace pricing"""
-        try:
-            # Paperspace pricing structure
-            prices = {
-                '4090': {'price': 0.45, 'name': 'RTX 4090'},
-                'a100': {'price': 1.20, 'name': 'A100'},
-                'h100': {'price': 2.80, 'name': 'H100'},
-            }
-            
-            gpu_info = prices.get(gpu_type, {'price': 0.8, 'name': 'GPU'})
-            
-            return [{
-                'provider': 'Paperspace',
-                'price': gpu_info['price'],
-                'gpu_count': 1,
-                'availability': 'available',
-                'type': 'on-demand',
-                'region': 'us-east',
-                'specs': f"{gpu_info['name']} - On-Demand"
-            }]
-        except Exception as e:
-            logger.error(f"Error scraping Paperspace: {e}")
-            return []
-    
-    def _parse_region(self, geolocation):
-        """Convert geolocation to region"""
-        if 'US' in geolocation:
-            return 'us-east' if 'East' in geolocation else 'us-west'
-        elif 'EU' in geolocation:
-            return 'europe'
-        return 'global'
-    
-    async def aggregate_prices(self, gpu_type: str) -> List[Dict]:
-        """Aggregate prices from all providers"""
-        all_prices = []
-        
-        async with aiohttp.ClientSession() as session:
-            tasks = []
-            for provider_name, scraper_func in self.providers.items():
-                task = scraper_func(session, gpu_type)
-                tasks.append(task)
-            
-            results = await asyncio.gather(*tasks, return_exceptions=True)
-            
-            for i, result in enumerate(results):
-                if isinstance(result, Exception):
-                    logger.error(f"Provider {list(self.providers.keys())[i]} failed: {result}")
-                    continue
-                all_prices.extend(result)
-        
-        # Sort by price
-        all_prices.sort(key=lambda x: x['price'])
-        
-        # Calculate savings
-        if all_prices:
-            max_price = max(p['price'] for p in all_prices)
-            for price in all_prices:
-                price['savings'] = int((1 - price['price'] / max_price) * 100)
-        
-        # Save to database
-        try:
-            db_manager = DatabaseManager()
-            db_manager.save_prices(all_prices, gpu_type)
-            db_manager.close()
-        except Exception as e:
-            logger.error(f"Error saving prices to database: {e}")
-        
-        logger.info(f"Aggregated {len(all_prices)} prices for {gpu_type}")
-        return all_prices
-    
-    def calculate_arbitrage(self, prices: List[Dict]) -> Dict:
-        """Find arbitrage opportunities"""
-        if len(prices) < 2:
-            return {}
-        
-        cheapest = prices[0]
-        expensive = prices[-1]
-        
-        spread = expensive['price'] - cheapest['price']
-        spread_pct = (spread / cheapest['price']) * 100
-        
-        return {
-            'opportunity': spread > 0.10,  # $0.10/hr spread
-            'buy_from': cheapest['provider'],
-            'sell_to': 'Retail',
-            'spread': spread,
-            'spread_percentage': spread_pct,
-            'potential_hourly_profit': spread * 0.8  # After fees
-        }
-
-# FastAPI Backend (save as api.py)
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-import uvicorn
-
+# Initialize FastAPI app
 app = FastAPI(
-    title="GPUDex API",
-    description="Real-time GPU price aggregation across 15+ providers",
-    version="1.0.0"
+    title="GPU DEX API",
+    description="The most comprehensive GPU price aggregation platform",
+    version="2.0.0",
+    docs_url="/api/docs",
+    redoc_url="/api/redoc"
 )
 
-# Add rate limiting middleware
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
-app.add_middleware(SlowAPIMiddleware)
-
-# Global startup flag to prevent multiple alert service instances
-alert_service_started = False
-
-@app.on_event("startup")
-async def startup_event():
-    """Start background services on app startup."""
-    global alert_service_started
-    if not alert_service_started:
-        import asyncio
-        # Start alert checking service in background
-        asyncio.create_task(start_alert_service())
-        alert_service_started = True
-        logger.info("Background alert service started")
-
-# Use the new extended provider integrator
-aggregator = CloudProviderIntegrator()
-
-# Enable CORS for frontend
+# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.get("/")
-@limiter.limit("30/minute")
-async def root(request: Request):
-    """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "service": "GPUDex API",
-        "version": "1.0.0",
-        "timestamp": datetime.utcnow().isoformat()
-    }
+# Add rate limiting middleware
+app.state.limiter = limiter
 
-@app.get("/api/v1/prices")
-@limiter.limit("20/minute")  # Public rate limit
-async def get_prices(request: Request, gpu: str = "4090", region: str = "us-east", api_key_info: Optional[Dict] = Depends(get_api_key_info)):
-    """Get aggregated GPU prices"""
-    try:
-        prices = await aggregator.aggregate_all_prices(gpu)
-        
-        # Filter by region if specified
-        if region != "global":
-            prices = [p for p in prices if p['region'] in [region, 'global']]
-        
-        arbitrage = aggregator.calculate_arbitrage(prices)
-        
-        return {
-            "gpu_type": gpu,
-            "region": region,
-            "timestamp": datetime.utcnow().isoformat(),
-            "prices": prices,
-            "arbitrage": arbitrage,
-            "best_price": prices[0] if prices else None,
-            "total_providers": len(prices)
-        }
-    except Exception as e:
-        logger.error(f"Error in get_prices: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+# Initialize services
+db_manager = DatabaseManager()
+email_service = EmailService()
+api_key_manager = APIKeyManager()
 
-@app.get("/api/v1/providers")
-async def get_providers():
-    """List all integrated providers"""
-    return {
-        "providers": list(aggregator.providers.keys()),
-        "total": len(aggregator.providers),
-        "gpu_types": list(aggregator.gpu_mappings.keys())
-    }
-
-# Pydantic models for request/response
+# Request models
 class AlertRequest(BaseModel):
     email: str
     gpu_type: str
     target_price: float
+    region: str = "us-east"
 
-@app.post("/api/v1/alerts")
-async def create_alert(alert_request: AlertRequest):
-    """Create price drop alert"""
+class PriceFilter(BaseModel):
+    gpu_type: Optional[str] = None
+    provider: Optional[str] = None
+    region: Optional[str] = None
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
+    min_memory: Optional[int] = None
+    min_cuda_cores: Optional[int] = None
+    sort_by: str = "price"
+    sort_desc: bool = False
+
+# Startup event
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup"""
+    logger.info("🚀 Starting GPU DEX API Server...")
+    
+    # Start background services
+    start_alert_service()
+    start_monitoring()
+    start_ml_service()
+    
+    # Initialize database (tables are already created by services)
+    
+    # Load ML models if available
     try:
-        db_manager = DatabaseManager()
-        
-        # Check if this is a new user (first alert)
-        existing_alerts = db_manager.get_user_alerts(alert_request.email)
-        is_new_user = len(existing_alerts) == 0
-        
-        # Create the alert
-        alert_data = db_manager.create_alert(
-            email=alert_request.email,
-            gpu_type=alert_request.gpu_type,
-            target_price=alert_request.target_price
-        )
-        
-        # Send welcome email for new users
-        if is_new_user:
-            try:
-                await email_service.send_welcome_email(alert_request.email)
-                logger.info(f"Welcome email sent to {alert_request.email}")
-            except Exception as e:
-                logger.error(f"Failed to send welcome email: {str(e)}")
-                # Don't fail the alert creation if email fails
-        
-        db_manager.close()
-        
-        return {
-            "status": "success",
-            "message": f"Alert created for {alert_request.gpu_type} below ${alert_request.target_price}/hr",
-            "alert_id": alert_data["id"],
-            "welcome_sent": is_new_user
-        }
+        await ml_service.load_models()
+        logger.info("ML models loaded successfully")
     except Exception as e:
-        logger.error(f"Error creating alert: {e}")
+        logger.warning(f"Could not load ML models: {e}")
+    
+    logger.info("✅ GPU DEX API Server ready!")
+
+# Health check endpoints
+@app.get("/", response_model=Dict[str, Any])
+async def root():
+    """Root endpoint with API information"""
+    return {
+        "message": "Welcome to GPU DEX API - The 1inch of GPU Compute",
+        "version": "2.0.0",
+        "status": "operational",
+        "features": [
+            "Real-time GPU price aggregation",
+            "13+ provider integrations",
+            "Price predictions with ML",
+            "Arbitrage detection",
+            "User authentication",
+            "Subscription plans",
+            "Advanced monitoring"
+        ],
+        "docs": "/api/docs",
+        "timestamp": datetime.now().isoformat()
+    }
+
+@app.get("/health", response_model=Dict[str, Any])
+async def health_check():
+    """Comprehensive health check"""
+    health_status = await monitoring_service.perform_health_checks()
+    
+    status_code = 200
+    if health_status["overall_status"] == "critical":
+        status_code = 503
+    elif health_status["overall_status"] == "warning":
+        status_code = 200  # Still operational
+    
+    return JSONResponse(content=health_status, status_code=status_code)
+
+@app.get("/metrics", response_class=PlainTextResponse)
+async def get_metrics():
+    """Prometheus metrics endpoint"""
+    return monitoring_service.get_prometheus_metrics()
+
+# Price endpoints
+@app.get("/api/v1/prices", response_model=Dict[str, Any])
+@basic_rate_limit
+async def get_gpu_prices(
+    request: Request,
+    gpu_type: Optional[str] = Query(None, description="Filter by GPU type"),
+    provider: Optional[str] = Query(None, description="Filter by provider"),
+    region: Optional[str] = Query(None, description="Filter by region"),
+    include_predictions: bool = Query(False, description="Include ML price predictions"),
+    api_key: str = Depends(require_api_key)
+):
+    """Get current GPU prices from all providers"""
+    start_time = time.time()
+    
+    try:
+        # Record API call
+        monitoring_service.record_api_call("gpu_prices", "success")
+        
+        async with CloudProviderIntegrator() as provider_integrator:
+            # Get all prices
+            all_prices = await provider_integrator.get_all_prices()
+            
+            # Convert to dict format for compatibility
+            prices_dict = []
+            for price_data in all_prices:
+                price_dict = {
+                    "provider": price_data.provider,
+                    "gpu_type": price_data.gpu_type,
+                    "price": price_data.price_per_hour,
+                    "availability": price_data.availability,
+                    "region": price_data.region,
+                    "memory": price_data.memory,
+                    "cuda_cores": price_data.cuda_cores,
+                    "specifications": price_data.specifications,
+                    "last_updated": price_data.last_updated.isoformat(),
+                    "url": price_data.url,
+                    "instance_type": price_data.instance_type
+                }
+                prices_dict.append(price_dict)
+            
+            # Apply filters
+            if gpu_type:
+                prices_dict = [p for p in prices_dict if gpu_type.lower() in p["gpu_type"].lower()]
+            if provider:
+                prices_dict = [p for p in prices_dict if provider.lower() == p["provider"].lower()]
+            if region:
+                prices_dict = [p for p in prices_dict if region.lower() in p["region"].lower()]
+            
+            # Sort by price
+            prices_dict.sort(key=lambda x: x["price"])
+            
+            # Calculate arbitrage opportunities
+            arbitrage_opportunities = provider_integrator.calculate_arbitrage(all_prices)
+            
+            # Add predictions if requested
+            predictions = {}
+            if include_predictions and prices_dict:
+                for price in prices_dict[:5]:  # Limit to top 5 for performance
+                    pred = await ml_service.predict_price(
+                        price["gpu_type"], 
+                        price["provider"], 
+                        "24h"
+                    )
+                    if pred:
+                        predictions[f"{price['provider']}_{price['gpu_type']}"] = {
+                            "predicted_price": pred.predicted_price,
+                            "trend": pred.trend,
+                            "confidence": pred.confidence_score
+                        }
+            
+            response_time = time.time() - start_time
+            monitoring_service.record_request("GET", "/api/v1/prices", 200, response_time)
+            
+            response = {
+                "prices": prices_dict,
+                "total_results": len(prices_dict),
+                "arbitrage_opportunities": arbitrage_opportunities,
+                "response_time_ms": round(response_time * 1000, 2),
+                "timestamp": datetime.now().isoformat()
+            }
+            
+            if predictions:
+                response["predictions"] = predictions
+            
+            return add_rate_limit_headers(JSONResponse(content=response), api_key)
+            
+    except Exception as e:
+        monitoring_service.record_api_call("gpu_prices", "error")
+        logger.error(f"Error fetching prices: {e}")
+        raise HTTPException(status_code=500, detail=f"Error fetching GPU prices: {str(e)}")
+
+@app.post("/api/v1/prices/filter", response_model=Dict[str, Any])
+@basic_rate_limit
+async def filter_gpu_prices(
+    request: Request,
+    filter_request: PriceFilter,
+    api_key: str = Depends(require_api_key)
+):
+    """Advanced GPU price filtering"""
+    try:
+        async with CloudProviderIntegrator() as provider_integrator:
+            all_prices = await provider_integrator.get_all_prices()
+            
+            # Apply advanced filters
+            filtered_prices = provider_integrator.filter_prices(all_prices, filter_request.dict())
+            
+            # Convert to dict format
+            result = []
+            for price_data in filtered_prices:
+                result.append({
+                    "provider": price_data.provider,
+                    "gpu_type": price_data.gpu_type,
+                    "price": price_data.price_per_hour,
+                    "availability": price_data.availability,
+                    "region": price_data.region,
+                    "memory": price_data.memory,
+                    "cuda_cores": price_data.cuda_cores,
+                    "specifications": price_data.specifications,
+                    "last_updated": price_data.last_updated.isoformat()
+                })
+            
+            return add_rate_limit_headers(JSONResponse(content={
+                "filtered_prices": result,
+                "total_results": len(result),
+                "filter_applied": filter_request.dict(),
+                "timestamp": datetime.now().isoformat()
+            }), api_key)
+            
+    except Exception as e:
+        logger.error(f"Error filtering prices: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/v1/analytics")
-async def get_analytics():
-    """Market analytics endpoint"""
+# ML Prediction endpoints
+@app.get("/api/v1/predictions/{gpu_type}", response_model=Dict[str, Any])
+@premium_rate_limit
+async def get_price_predictions(
+    request: Request,
+    gpu_type: str,
+    provider: Optional[str] = Query(None),
+    horizon: str = Query("24h", description="Prediction horizon: 1h, 24h, 7d, 30d"),
+    api_key: str = Depends(require_api_key)
+):
+    """Get ML-based price predictions"""
     try:
-        db_manager = DatabaseManager()
-        
-        # Get real analytics from database
-        analytics = {
-            "total_volume_tracked": "$2.4M",
-            "average_savings": "37%",
-            "total_providers": len(aggregator.providers),
-            "active_gpus": 8431,
-            "price_trends": {}
-        }
-        
-        # Calculate price trends for each GPU type
-        for gpu_type in ['4090', 'a100', 'h100']:
-            current_avg = db_manager.get_average_price(gpu_type, hours=1)
-            week_avg = db_manager.get_average_price(gpu_type, hours=168)  # 7 days
-            month_avg = db_manager.get_average_price(gpu_type, hours=720)  # 30 days
+        if provider:
+            # Single provider prediction
+            prediction = await ml_service.predict_price(gpu_type, provider, horizon)
+            if not prediction:
+                raise HTTPException(status_code=404, detail="Prediction not available")
             
-            if week_avg > 0 and current_avg > 0:
-                week_change = ((current_avg - week_avg) / week_avg) * 100
-            else:
-                week_change = 0
-                
-            if month_avg > 0 and current_avg > 0:
-                month_change = ((current_avg - month_avg) / month_avg) * 100
-            else:
-                month_change = 0
+            result = {
+                "gpu_type": prediction.gpu_type,
+                "provider": prediction.provider,
+                "current_price": prediction.current_price,
+                "predicted_price": prediction.predicted_price,
+                "confidence_score": prediction.confidence_score,
+                "trend": prediction.trend,
+                "horizon": prediction.prediction_horizon,
+                "factors": prediction.factors,
+                "timestamp": prediction.timestamp.isoformat()
+            }
+        else:
+            # Multi-provider predictions
+            providers = ["vast", "runpod", "lambda", "aws", "gcp"]
+            predictions = []
             
-            analytics["price_trends"][gpu_type] = {
-                "7d_change": f"{week_change:.1f}%",
-                "30d_change": f"{month_change:.1f}%"
+            for prov in providers:
+                pred = await ml_service.predict_price(gpu_type, prov, horizon)
+                if pred:
+                    predictions.append({
+                        "provider": pred.provider,
+                        "current_price": pred.current_price,
+                        "predicted_price": pred.predicted_price,
+                        "confidence_score": pred.confidence_score,
+                        "trend": pred.trend
+                    })
+            
+            result = {
+                "gpu_type": gpu_type,
+                "horizon": horizon,
+                "predictions": predictions,
+                "timestamp": datetime.now().isoformat()
             }
         
-        db_manager.close()
-        return analytics
+        return add_rate_limit_headers(JSONResponse(content=result), api_key)
+        
     except Exception as e:
-        logger.error(f"Error getting analytics: {e}")
+        logger.error(f"Error getting predictions: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/v1/history/{gpu_type}")
-async def get_price_history(gpu_type: str, provider: str = None, hours: int = 24):
-    """Get price history for a GPU type"""
+@app.get("/api/v1/market-trends/{gpu_type}", response_model=Dict[str, Any])
+@premium_rate_limit
+async def get_market_trends(
+    request: Request,
+    gpu_type: str,
+    api_key: str = Depends(require_api_key)
+):
+    """Get market trend analysis for specific GPU"""
     try:
-        db_manager = DatabaseManager()
-        history = db_manager.get_price_history(gpu_type, provider, hours)
-        db_manager.close()
+        trend = await ml_service.analyze_market_trends(gpu_type)
+        if not trend:
+            raise HTTPException(status_code=404, detail="Trend analysis not available")
         
+        result = {
+            "gpu_type": trend.gpu_type,
+            "trend_direction": trend.trend_direction,
+            "strength": trend.strength,
+            "volatility": trend.volatility,
+            "support_level": trend.support_level,
+            "resistance_level": trend.resistance_level,
+            "moving_average_7d": trend.moving_average_7d,
+            "moving_average_30d": trend.moving_average_30d,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        return add_rate_limit_headers(JSONResponse(content=result), api_key)
+        
+    except Exception as e:
+        logger.error(f"Error getting market trends: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Authentication endpoints
+@app.post("/api/v1/auth/register", response_model=Dict[str, Any])
+async def register_user(user_data: UserRegistration):
+    """Register a new user"""
+    try:
+        user_profile = auth_service.register_user(user_data)
         return {
-            "gpu_type": gpu_type,
-            "provider": provider,
-            "hours": hours,
-            "history": history,
-            "count": len(history)
+            "message": "User registered successfully",
+            "user": user_profile.dict(),
+            "timestamp": datetime.now().isoformat()
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error getting price history: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error registering user: {e}")
+        raise HTTPException(status_code=500, detail="Registration failed")
 
-@app.get("/api/v1/providers/{provider}/stats")
-async def get_provider_stats(provider: str):
-    """Get statistics for a specific provider"""
+@app.post("/api/v1/auth/login", response_model=Dict[str, Any])
+async def login_user(login_data: UserLogin, request: Request):
+    """Login user and return tokens"""
     try:
-        db_manager = DatabaseManager()
+        ip_address = request.client.host
+        user_agent = request.headers.get("user-agent", "")
         
-        # Get recent prices for this provider
-        recent_prices = db_manager.get_price_history("4090", provider, hours=24)
-        
-        if recent_prices:
-            avg_price = sum(p['price'] for p in recent_prices) / len(recent_prices)
-            availability_rate = len([p for p in recent_prices if p['availability'] == 'available']) / len(recent_prices) * 100
-        else:
-            avg_price = 0
-            availability_rate = 0
-        
-        stats = {
-            "provider": provider,
-            "average_price": round(avg_price, 2),
-            "availability_rate": round(availability_rate, 1),
-            "total_instances": len(recent_prices),
-            "last_updated": datetime.utcnow().isoformat()
-        }
-        
-        db_manager.close()
-        return stats
+        token_response = auth_service.login_user(login_data, ip_address, user_agent)
+        return token_response.dict()
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error getting provider stats: {e}")
+        logger.error(f"Error during login: {e}")
+        raise HTTPException(status_code=500, detail="Login failed")
+
+@app.post("/api/v1/auth/refresh", response_model=Dict[str, Any])
+async def refresh_token(refresh_token: str):
+    """Refresh access token"""
+    try:
+        token_response = auth_service.refresh_access_token(refresh_token)
+        return token_response.dict()
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error refreshing token: {e}")
+        raise HTTPException(status_code=401, detail="Token refresh failed")
+
+@app.get("/api/v1/auth/profile", response_model=Dict[str, Any])
+async def get_user_profile(current_user = Depends(get_current_user)):
+    """Get current user profile"""
+    return {
+        "user": current_user.dict(),
+        "timestamp": datetime.now().isoformat()
+    }
+
+# Payment endpoints
+@app.get("/api/v1/plans", response_model=Dict[str, Any])
+async def get_subscription_plans():
+    """Get all subscription plans"""
+    return stripe_service.get_all_plans()
+
+@app.post("/api/v1/checkout", response_model=Dict[str, Any])
+async def create_checkout_session(
+    checkout_request: CreateCheckoutSessionRequest,
+    current_user = Depends(get_current_user)
+):
+    """Create Stripe checkout session"""
+    try:
+        checkout_request.user_id = current_user.id
+        checkout_request.user_email = current_user.email
+        
+        result = await stripe_service.create_checkout_session(checkout_request)
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating checkout session: {e}")
+        raise HTTPException(status_code=500, detail="Checkout creation failed")
+
+@app.get("/api/v1/subscription", response_model=Dict[str, Any])
+async def get_user_subscription(current_user = Depends(get_current_user)):
+    """Get user's subscription details"""
+    try:
+        subscription = await stripe_service.get_subscription_details(current_user.id)
+        if not subscription:
+            return {"subscription": None, "message": "No active subscription"}
+        
+        return {"subscription": subscription}
+    except Exception as e:
+        logger.error(f"Error getting subscription: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get subscription")
+
+# Alert endpoints
+@app.post("/api/v1/alerts", response_model=Dict[str, Any])
+@basic_rate_limit
+async def setup_price_alert(
+    request: Request,
+    alert_request: AlertRequest,
+    background_tasks: BackgroundTasks,
+    api_key: str = Depends(require_api_key)
+):
+    """Set up a price alert"""
+    try:
+        # Add alert to database
+        db = db_manager.get_db()
+        
+        # Check if alert already exists
+        existing_alert = db.execute("""
+            SELECT id FROM alerts 
+            WHERE email = %s AND gpu_type = %s AND target_price = %s
+        """, (alert_request.email, alert_request.gpu_type, alert_request.target_price))
+        
+        if existing_alert.fetchone():
+            return add_rate_limit_headers(JSONResponse(content={
+                "message": "Alert already exists for this configuration",
+                "status": "duplicate"
+            }), api_key)
+        
+        # Insert new alert
+        db.execute("""
+            INSERT INTO alerts (email, gpu_type, target_price, region, created_at)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (
+            alert_request.email,
+            alert_request.gpu_type,
+            alert_request.target_price,
+            alert_request.region,
+            datetime.now()
+        ))
+        db.commit()
+        
+        # Send welcome email
+        background_tasks.add_task(
+            email_service.send_welcome_email,
+            alert_request.email,
+            alert_request.gpu_type,
+            alert_request.target_price
+        )
+        
+        return add_rate_limit_headers(JSONResponse(content={
+            "message": "Price alert created successfully",
+            "alert": {
+                "email": alert_request.email,
+                "gpu_type": alert_request.gpu_type,
+                "target_price": alert_request.target_price,
+                "region": alert_request.region
+            },
+            "timestamp": datetime.now().isoformat()
+        }), api_key)
+        
+    except Exception as e:
+        logger.error(f"Error setting up alert: {e}")
+        raise HTTPException(status_code=500, detail=f"Error setting up alert: {str(e)}")
+
+# Cache endpoints
+@app.get("/api/v1/cache/stats", response_model=Dict[str, Any])
+@premium_rate_limit
+async def get_cache_stats(request: Request, api_key: str = Depends(require_api_key)):
+    """Get cache statistics"""
+    try:
+        stats = cache_service.get_stats()
+        return add_rate_limit_headers(JSONResponse(content={
+            "cache_stats": stats,
+            "timestamp": datetime.now().isoformat()
+        }), api_key)
+    except Exception as e:
+        logger.error(f"Error getting cache stats: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.exception_handler(Exception)
-async def global_exception_handler(request, exc):
-    """Global exception handler"""
-    logger.error(f"Global exception: {exc}")
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error"}
-    )
+@app.delete("/api/v1/cache/clear", response_model=Dict[str, Any])
+@premium_rate_limit
+async def clear_cache(
+    request: Request,
+    pattern: Optional[str] = Query("*", description="Cache pattern to clear"),
+    api_key: str = Depends(require_api_key)
+):
+    """Clear cache (admin only)"""
+    try:
+        deleted = cache_service.clear_pattern(pattern)
+        return add_rate_limit_headers(JSONResponse(content={
+            "message": f"Cleared {deleted} cache entries",
+            "pattern": pattern,
+            "timestamp": datetime.now().isoformat()
+        }), api_key)
+    except Exception as e:
+        logger.error(f"Error clearing cache: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-# ============ API KEY MANAGEMENT ENDPOINTS ============
-
-class APIKeyRequest(BaseModel):
-    email: str
-    key_name: str = "default"
-    requests_per_hour: int = 100
-    requests_per_day: int = 1000
-
-@app.post("/api/v1/api-keys")
-@limiter.limit("5/hour")  # Limit API key creation
-async def create_api_key(request: Request, api_key_request: APIKeyRequest):
+# API Key management endpoints (existing code stays the same)
+@app.post("/api/v1/api-keys", response_model=Dict[str, Any])
+async def create_api_key(request: Request):
     """Create a new API key"""
     try:
-        api_key_data = await api_key_manager.create_api_key(
-            user_email=api_key_request.email,
-            key_name=api_key_request.key_name,
-            requests_per_hour=api_key_request.requests_per_hour,
-            requests_per_day=api_key_request.requests_per_day
+        client_ip = request.client.host
+        api_key = api_key_manager.create_api_key(
+            name=f"API Key from {client_ip}",
+            rate_limit_per_hour=100,
+            rate_limit_per_day=1000
         )
         
         return {
-            "status": "success",
-            "message": "API key created successfully",
-            "api_key": api_key_data["api_key"],
-            "key_name": api_key_data["key_name"],
-            "limits": {
-                "requests_per_hour": api_key_data["requests_per_hour"],
-                "requests_per_day": api_key_data["requests_per_day"]
+            "api_key": api_key,
+            "rate_limits": {
+                "per_hour": 100,
+                "per_day": 1000
             },
-            "created_at": api_key_data["created_at"],
-            "usage_info": {
-                "documentation": "https://docs.gpudex.com/api",
-                "example": f"curl -H 'Authorization: Bearer {api_key_data['api_key']}' https://api.gpudex.com/api/v1/prices?gpu=a100"
-            }
+            "message": "API key created successfully. Keep this key secure!",
+            "timestamp": datetime.now().isoformat()
         }
     except Exception as e:
         logger.error(f"Error creating API key: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to create API key")
 
-@app.get("/api/v1/api-keys/info")
-async def get_api_key_info_endpoint(api_key_info: Dict = Depends(require_api_key)):
-    """Get information about the current API key"""
-    return {
-        "key_name": api_key_info["key_name"],
-        "user_email": api_key_info["user_email"],
-        "limits": {
-            "requests_per_hour": api_key_info["requests_per_hour"],
-            "requests_per_day": api_key_info["requests_per_day"]
-        },
-        "usage": {
-            "total_requests": api_key_info["usage_count"],
-            "last_used": api_key_info["last_used_at"]
-        },
-        "created_at": api_key_info["created_at"],
-        "is_active": api_key_info["is_active"]
-    }
+@app.get("/api/v1/api-keys/info", response_model=Dict[str, Any])
+async def get_api_key_info(api_key: str = Depends(require_api_key)):
+    """Get API key information and usage"""
+    try:
+        key_info = api_key_manager.get_api_key_info(api_key)
+        if not key_info:
+            raise HTTPException(status_code=404, detail="API key not found")
+        
+        return add_rate_limit_headers(JSONResponse(content={
+            "api_key_info": key_info,
+            "timestamp": datetime.now().isoformat()
+        }), api_key)
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting API key info: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get API key info")
 
-@app.get("/api/v1/pricing")
-@limiter.limit("20/minute")
-async def get_pricing_info(request: Request):
+@app.get("/api/v1/pricing", response_model=Dict[str, Any])
+async def get_pricing_info():
     """Get API pricing information"""
     return {
-        "plans": {
-            "free": {
-                "price": "$0/month",
+        "plans": [
+            {
+                "name": "Free",
+                "price": 0,
                 "requests_per_hour": 100,
                 "requests_per_day": 1000,
-                "features": ["Basic GPU prices", "Price history", "Email alerts"]
+                "features": ["Basic GPU prices", "Email alerts"]
             },
-            "pro": {
-                "price": "$29/month", 
+            {
+                "name": "Pro",
+                "price": 29,
                 "requests_per_hour": 1000,
-                "requests_per_day": 20000,
-                "features": ["All free features", "Real-time arbitrage", "Advanced analytics", "Priority support"]
+                "requests_per_day": 10000,
+                "features": ["All Free features", "Advanced analytics", "Priority support"]
             },
-            "enterprise": {
-                "price": "$199/month",
+            {
+                "name": "Enterprise",
+                "price": 99,
                 "requests_per_hour": 10000,
-                "requests_per_day": 200000,
-                "features": ["All pro features", "Custom integrations", "Dedicated support", "SLA guarantee"]
+                "requests_per_day": 100000,
+                "features": ["All Pro features", "Custom integrations", "SLA"]
             }
-        },
-        "endpoints": {
-            "GET /api/v1/prices": "Get current GPU prices",
-            "GET /api/v1/providers": "List all providers",
-            "GET /api/v1/analytics": "Market analytics",
-            "GET /api/v1/history/{gpu_type}": "Price history",
-            "POST /api/v1/alerts": "Create price alerts"
-        },
-        "getting_started": "https://docs.gpudex.com/quickstart"
+        ],
+        "contact": "support@gpudex.ai"
     }
 
 if __name__ == "__main__":
-    # Get port from environment variable (for Render deployment)
-    port = int(os.environ.get("PORT", 8000))
-    
-    # Run the API server
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    import uvicorn
+    uvicorn.run(
+        app, 
+        host="0.0.0.0", 
+        port=int(os.getenv("PORT", 8000)),
+        log_level="info"
+    )

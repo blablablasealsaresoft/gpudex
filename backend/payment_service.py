@@ -3,549 +3,448 @@ GPUDex Payment Service
 Comprehensive Stripe integration for subscription management and premium features.
 """
 
-import os
-import json
 import stripe
+import os
 import logging
-from typing import Optional, Dict, Any, List
-from datetime import datetime, timedelta
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, Float, Enum
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from database import DatabaseManager
-import enum
+from typing import Dict, List, Any, Optional
+from datetime import datetime, timezone
+from enum import Enum
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Float, Text, create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
+from pydantic import BaseModel, validator
+from fastapi import HTTPException, status
+import json
 
 logger = logging.getLogger(__name__)
 
-# Stripe Configuration
+# Configure Stripe
 stripe.api_key = os.getenv("STRIPE_SECRET_KEY")
-STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
-class SubscriptionStatus(enum.Enum):
+Base = declarative_base()
+
+class SubscriptionStatus(str, Enum):
     ACTIVE = "active"
     CANCELED = "canceled"
-    PAST_DUE = "past_due"
-    UNPAID = "unpaid"
-    TRIALING = "trialing"
     INCOMPLETE = "incomplete"
+    INCOMPLETE_EXPIRED = "incomplete_expired"
+    PAST_DUE = "past_due"
+    TRIALING = "trialing"
+    UNPAID = "unpaid"
 
-class PlanType(enum.Enum):
+class PlanType(str, Enum):
     FREE = "free"
     BASIC = "basic"
-    PRO = "pro"
+    PREMIUM = "premium"
     ENTERPRISE = "enterprise"
 
-# Database Models
-class Subscription(DatabaseManager.Base):
-    """User subscription model."""
+class Subscription(Base):
     __tablename__ = "subscriptions"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, nullable=False, index=True)
-    
-    # Stripe data
+    stripe_subscription_id = Column(String(255), unique=True, index=True)
     stripe_customer_id = Column(String(255), nullable=False, index=True)
-    stripe_subscription_id = Column(String(255), nullable=True, index=True)
-    stripe_price_id = Column(String(255), nullable=True)
-    
-    # Subscription details
-    plan_type = Column(Enum(PlanType), default=PlanType.FREE)
-    status = Column(Enum(SubscriptionStatus), default=SubscriptionStatus.ACTIVE)
-    
-    # Billing
-    current_period_start = Column(DateTime, nullable=True)
-    current_period_end = Column(DateTime, nullable=True)
+    plan_type = Column(String(50), nullable=False)
+    status = Column(String(50), nullable=False)
+    current_period_start = Column(DateTime(timezone=True))
+    current_period_end = Column(DateTime(timezone=True))
+    trial_start = Column(DateTime(timezone=True))
+    trial_end = Column(DateTime(timezone=True))
     cancel_at_period_end = Column(Boolean, default=False)
-    
-    # Usage tracking
-    api_calls_used = Column(Integer, default=0)
-    api_calls_limit = Column(Integer, default=100)  # Monthly limit
-    
-    # Metadata
-    metadata = Column(Text, nullable=True)  # JSON string for additional data
-    
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
-    
-    def to_dict(self) -> Dict[str, Any]:
-        return {
-            "id": self.id,
-            "user_id": self.user_id,
-            "plan_type": self.plan_type.value if self.plan_type else None,
-            "status": self.status.value if self.status else None,
-            "current_period_start": self.current_period_start.isoformat() if self.current_period_start else None,
-            "current_period_end": self.current_period_end.isoformat() if self.current_period_end else None,
-            "cancel_at_period_end": self.cancel_at_period_end,
-            "api_calls_used": self.api_calls_used,
-            "api_calls_limit": self.api_calls_limit,
-            "created_at": self.created_at.isoformat(),
-            "updated_at": self.updated_at.isoformat()
-        }
+    canceled_at = Column(DateTime(timezone=True))
+    api_limit_daily = Column(Integer, default=100)
+    api_limit_monthly = Column(Integer, default=1000)
+    price_per_month = Column(Float, default=0.0)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    subscription_metadata = Column(Text)  # JSON string for additional data
 
-class PaymentHistory(DatabaseManager.Base):
-    """Payment history tracking."""
-    __tablename__ = "payment_history"
+class PaymentIntentLog(Base):
+    __tablename__ = "payment_intent_logs"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, nullable=False, index=True)
-    subscription_id = Column(Integer, nullable=True)
-    
-    # Stripe data
-    stripe_payment_intent_id = Column(String(255), nullable=True)
-    stripe_invoice_id = Column(String(255), nullable=True)
-    
-    # Payment details
-    amount = Column(Float, nullable=False)  # In dollars
-    currency = Column(String(3), default="USD")
+    stripe_payment_intent_id = Column(String(255), unique=True, index=True)
+    amount = Column(Float, nullable=False)
+    currency = Column(String(10), default="usd")
     status = Column(String(50), nullable=False)
-    description = Column(Text, nullable=True)
-    
-    # Metadata
-    metadata = Column(Text, nullable=True)
-    
-    # Timestamps
-    created_at = Column(DateTime, default=datetime.utcnow)
+    description = Column(Text)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+    payment_metadata = Column(Text)
 
-# Pydantic Models
-class CreateCheckoutSession(BaseModel):
-    price_id: str
+# Pydantic models
+class CreateCheckoutSessionRequest(BaseModel):
+    plan_type: PlanType
     success_url: str
     cancel_url: str
+    user_email: str
+    user_id: int
 
-class CreatePortalSession(BaseModel):
-    return_url: str
+class StripeWebhookEvent(BaseModel):
+    type: str
+    data: Dict[str, Any]
 
-class UsageUpdate(BaseModel):
-    api_calls_used: int
-
-class PlanDetails(BaseModel):
-    plan_type: str
-    name: str
-    description: str
-    price: float
-    currency: str
-    interval: str
-    features: List[str]
-    api_calls_limit: int
-    stripe_price_id: str
-
-class PaymentService:
-    """Comprehensive Stripe payment service."""
-    
-    # Plan configuration
-    PLANS = {
-        PlanType.FREE: {
-            "name": "Free Tier",
-            "description": "Perfect for getting started",
-            "price": 0,
-            "currency": "USD",
-            "interval": "month",
-            "features": [
-                "100 API calls per month",
-                "Basic GPU price data",
-                "Standard support"
-            ],
-            "api_calls_limit": 100,
-            "stripe_price_id": None
-        },
-        PlanType.BASIC: {
-            "name": "Basic Plan",
-            "description": "For small teams and individual developers",
-            "price": 29,
-            "currency": "USD", 
-            "interval": "month",
-            "features": [
-                "1,000 API calls per month",
-                "Real-time price updates",
-                "Advanced filtering",
-                "Email support"
-            ],
-            "api_calls_limit": 1000,
-            "stripe_price_id": os.getenv("STRIPE_BASIC_PRICE_ID")
-        },
-        PlanType.PRO: {
-            "name": "Pro Plan",
-            "description": "For growing businesses and power users",
-            "price": 99,
-            "currency": "USD",
-            "interval": "month", 
-            "features": [
-                "10,000 API calls per month",
-                "Arbitrage detection",
-                "Price predictions",
-                "Custom alerts",
-                "Priority support"
-            ],
-            "api_calls_limit": 10000,
-            "stripe_price_id": os.getenv("STRIPE_PRO_PRICE_ID")
-        },
-        PlanType.ENTERPRISE: {
-            "name": "Enterprise Plan",
-            "description": "For large organizations with custom needs",
-            "price": 299,
-            "currency": "USD",
-            "interval": "month",
-            "features": [
-                "Unlimited API calls",
-                "Custom integrations",
-                "Advanced analytics",
-                "Dedicated support",
-                "SLA guarantee"
-            ],
-            "api_calls_limit": 999999,
-            "stripe_price_id": os.getenv("STRIPE_ENTERPRISE_PRICE_ID")
+class StripeService:
+    def __init__(self, database_url: str = None):
+        self.database_url = database_url or os.getenv("DATABASE_URL", "postgresql://gpudex:gpudex123@localhost:5432/gpudex")
+        self.webhook_secret = os.getenv("STRIPE_WEBHOOK_SECRET")
+        
+        # Plan configurations
+        self.plans = {
+            PlanType.FREE: {
+                "name": "Free",
+                "price": 0,
+                "api_limit_daily": 100,
+                "api_limit_monthly": 1000,
+                "features": ["Basic GPU price comparison", "100 API calls/day", "Email alerts"]
+            },
+            PlanType.BASIC: {
+                "name": "Basic",
+                "price": 29,  # $29/month
+                "stripe_price_id": os.getenv("STRIPE_BASIC_PRICE_ID"),
+                "api_limit_daily": 1000,
+                "api_limit_monthly": 20000,
+                "features": ["Everything in Free", "1,000 API calls/day", "Advanced filtering", "Price history"]
+            },
+            PlanType.PREMIUM: {
+                "name": "Premium",
+                "price": 79,  # $79/month
+                "stripe_price_id": os.getenv("STRIPE_PREMIUM_PRICE_ID"),
+                "api_limit_daily": 5000,
+                "api_limit_monthly": 100000,
+                "features": ["Everything in Basic", "5,000 API calls/day", "Arbitrage detection", "ML predictions", "Priority support"]
+            },
+            PlanType.ENTERPRISE: {
+                "name": "Enterprise",
+                "price": 299,  # $299/month
+                "stripe_price_id": os.getenv("STRIPE_ENTERPRISE_PRICE_ID"),
+                "api_limit_daily": 50000,
+                "api_limit_monthly": 1000000,
+                "features": ["Everything in Premium", "50,000 API calls/day", "Custom integrations", "Dedicated support", "SLA"]
+            }
         }
-    }
-    
-    def __init__(self):
-        self.db_manager = DatabaseManager()
-        # Create tables if they don't exist
-        Subscription.__table__.create(self.db_manager.engine, checkfirst=True)
-        PaymentHistory.__table__.create(self.db_manager.engine, checkfirst=True)
-    
-    def get_or_create_customer(self, user_id: int, email: str, name: str = None) -> str:
-        """Get existing Stripe customer or create new one."""
+        
+        # Initialize database
+        self.engine = create_engine(self.database_url)
+        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        
+        # Create tables
+        Base.metadata.create_all(bind=self.engine)
+        
+        logger.info("Stripe service initialized successfully")
+
+    def get_db(self) -> Session:
+        """Get database session"""
+        db = self.SessionLocal()
         try:
-            # Try to find existing subscription with customer ID
-            db = self.db_manager.get_db()
-            subscription = db.query(Subscription).filter(
-                Subscription.user_id == user_id
-            ).first()
-            
-            if subscription and subscription.stripe_customer_id:
-                # Verify customer exists in Stripe
-                try:
-                    customer = stripe.Customer.retrieve(subscription.stripe_customer_id)
-                    return customer.id
-                except stripe.error.InvalidRequestError:
-                    # Customer doesn't exist, create new one
-                    pass
-            
-            # Create new customer
-            customer = stripe.Customer.create(
-                email=email,
-                name=name,
-                metadata={"user_id": user_id}
-            )
-            
-            # Update or create subscription record
-            if subscription:
-                subscription.stripe_customer_id = customer.id
-                subscription.updated_at = datetime.utcnow()
-            else:
-                subscription = Subscription(
-                    user_id=user_id,
-                    stripe_customer_id=customer.id
+            return db
+        finally:
+            pass  # Session will be closed by caller
+
+    async def create_checkout_session(self, request: CreateCheckoutSessionRequest) -> Dict[str, Any]:
+        """Create Stripe checkout session for subscription"""
+        try:
+            plan_config = self.plans.get(request.plan_type)
+            if not plan_config or request.plan_type == PlanType.FREE:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Invalid plan type for checkout"
                 )
-                db.add(subscription)
-            
-            db.commit()
-            db.close()
-            
-            logger.info(f"Created Stripe customer for user {user_id}: {customer.id}")
-            return customer.id
-            
-        except Exception as e:
-            logger.error(f"Error creating Stripe customer: {e}")
-            raise
-    
-    def create_checkout_session(self, user_id: int, email: str, checkout_data: CreateCheckoutSession) -> Dict[str, Any]:
-        """Create Stripe checkout session for subscription."""
-        try:
-            customer_id = self.get_or_create_customer(user_id, email)
+
+            # Create or get Stripe customer
+            customer = await self._get_or_create_customer(request.user_email, request.user_id)
             
             # Create checkout session
-            session = stripe.checkout.Session.create(
-                customer=customer_id,
+            checkout_session = stripe.checkout.Session.create(
+                customer=customer.id,
                 payment_method_types=['card'],
                 line_items=[{
-                    'price': checkout_data.price_id,
+                    'price': plan_config["stripe_price_id"],
                     'quantity': 1,
                 }],
                 mode='subscription',
-                success_url=checkout_data.success_url,
-                cancel_url=checkout_data.cancel_url,
+                success_url=request.success_url + '?session_id={CHECKOUT_SESSION_ID}',
+                cancel_url=request.cancel_url,
                 metadata={
-                    'user_id': user_id
+                    'user_id': str(request.user_id),
+                    'plan_type': request.plan_type,
                 }
             )
-            
-            logger.info(f"Created checkout session for user {user_id}: {session.id}")
-            
+
             return {
-                "checkout_url": session.url,
-                "session_id": session.id
+                "checkout_url": checkout_session.url,
+                "session_id": checkout_session.id,
+                "customer_id": customer.id
             }
-            
+
+        except stripe.error.StripeError as e:
+            logger.error(f"Stripe error creating checkout session: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Payment processing error: {str(e)}"
+            )
         except Exception as e:
             logger.error(f"Error creating checkout session: {e}")
-            raise
-    
-    def create_customer_portal_session(self, user_id: int, portal_data: CreatePortalSession) -> Dict[str, Any]:
-        """Create Stripe customer portal session."""
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create checkout session"
+            )
+
+    async def _get_or_create_customer(self, email: str, user_id: int) -> stripe.Customer:
+        """Get existing Stripe customer or create new one"""
+        # Check if customer already exists
+        customers = stripe.Customer.list(email=email, limit=1)
+        
+        if customers.data:
+            return customers.data[0]
+        
+        # Create new customer
+        customer = stripe.Customer.create(
+            email=email,
+            metadata={'user_id': str(user_id)}
+        )
+        
+        return customer
+
+    async def handle_webhook_event(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Handle Stripe webhook events"""
         try:
-            db = self.db_manager.get_db()
+            event_type = event_data.get('type')
+            logger.info(f"Processing Stripe webhook event: {event_type}")
+
+            if event_type.startswith('customer.subscription.'):
+                return await self.process_subscription_event(event_data)
+            elif event_type.startswith('payment_intent.'):
+                return await self.process_payment_intent_event(event_data)
+            elif event_type == 'checkout.session.completed':
+                return await self.process_checkout_completed(event_data)
+            else:
+                logger.info(f"Unhandled webhook event type: {event_type}")
+                return {"status": "ignored", "event_type": event_type}
+
+        except Exception as e:
+            logger.error(f"Error processing webhook event: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Webhook processing failed"
+            )
+
+    async def process_subscription_event(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process subscription-related webhook events"""
+        db = self.get_db()
+        try:
+            event_type = event_data['type']
+            subscription_data = event_data['data']['object']
+            
+            user_id = int(subscription_data['metadata'].get('user_id', 0))
+            if not user_id:
+                logger.warning("No user_id in subscription metadata")
+                return {"status": "error", "message": "No user_id found"}
+
+            # Get or create subscription record
             subscription = db.query(Subscription).filter(
-                Subscription.user_id == user_id
+                Subscription.stripe_subscription_id == subscription_data['id']
             ).first()
+
+            if not subscription:
+                # Create new subscription record
+                plan_type = subscription_data['metadata'].get('plan_type', 'basic')
+                plan_config = self.plans.get(plan_type, self.plans[PlanType.BASIC])
+                
+                subscription = Subscription(
+                    user_id=user_id,
+                    stripe_subscription_id=subscription_data['id'],
+                    stripe_customer_id=subscription_data['customer'],
+                    plan_type=plan_type,
+                    status=subscription_data['status'],
+                    api_limit_daily=plan_config['api_limit_daily'],
+                    api_limit_monthly=plan_config['api_limit_monthly'],
+                    price_per_month=plan_config['price']
+                )
+                db.add(subscription)
+            
+            # Update subscription details
+            subscription.status = subscription_data['status']
+            subscription.current_period_start = datetime.fromtimestamp(
+                subscription_data['current_period_start'], tz=timezone.utc
+            )
+            subscription.current_period_end = datetime.fromtimestamp(
+                subscription_data['current_period_end'], tz=timezone.utc
+            )
+            subscription.cancel_at_period_end = subscription_data.get('cancel_at_period_end', False)
+            
+            if subscription_data.get('canceled_at'):
+                subscription.canceled_at = datetime.fromtimestamp(
+                    subscription_data['canceled_at'], tz=timezone.utc
+                )
+            
+            subscription.updated_at = datetime.now(timezone.utc)
+            
+            db.commit()
+            
+            # Update user premium status
+            await self.update_user_premium_status(user_id, subscription.status == SubscriptionStatus.ACTIVE)
+            
+            logger.info(f"Updated subscription for user {user_id}: {event_type}")
+            return {"status": "success", "user_id": user_id, "event_type": event_type}
+
+        finally:
             db.close()
+
+    async def process_payment_intent_event(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process payment intent webhook events"""
+        db = self.get_db()
+        try:
+            payment_intent = event_data['data']['object']
+            user_id = int(payment_intent['metadata'].get('user_id', 0))
             
-            if not subscription or not subscription.stripe_customer_id:
-                raise ValueError("No subscription found for user")
-            
-            # Create portal session
-            session = stripe.billing_portal.Session.create(
-                customer=subscription.stripe_customer_id,
-                return_url=portal_data.return_url,
+            if not user_id:
+                logger.warning("No user_id in payment intent metadata")
+                return {"status": "error", "message": "No user_id found"}
+
+            # Log payment intent
+            payment_log = PaymentIntentLog(
+                user_id=user_id,
+                stripe_payment_intent_id=payment_intent['id'],
+                amount=payment_intent['amount'] / 100,  # Convert from cents
+                currency=payment_intent['currency'],
+                status=payment_intent['status'],
+                description=payment_intent.get('description', ''),
+                payment_metadata=json.dumps(payment_intent.get('metadata', {}))
             )
             
-            return {
-                "portal_url": session.url
-            }
+            db.add(payment_log)
+            db.commit()
             
-        except Exception as e:
-            logger.error(f"Error creating portal session: {e}")
-            raise
-    
-    def get_subscription(self, user_id: int) -> Optional[Dict[str, Any]]:
-        """Get user subscription details."""
+            logger.info(f"Logged payment intent for user {user_id}: {payment_intent['status']}")
+            return {"status": "success", "user_id": user_id}
+
+        finally:
+            db.close()
+
+    async def process_checkout_completed(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Process completed checkout session"""
+        session = event_data['data']['object']
+        user_id = int(session['metadata'].get('user_id', 0))
+        
+        if session['mode'] == 'subscription':
+            logger.info(f"Checkout completed for user {user_id} - subscription will be handled by subscription events")
+        
+        return {"status": "success", "user_id": user_id}
+
+    async def get_customer_portal_session(self, customer_id: str, return_url: str) -> str:
+        """Create customer portal session for subscription management"""
         try:
-            db = self.db_manager.get_db()
+            portal_session = stripe.billing_portal.Session.create(
+                customer=customer_id,
+                return_url=return_url,
+            )
+            return portal_session.url
+        except stripe.error.StripeError as e:
+            logger.error(f"Error creating customer portal session: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to create portal session"
+            )
+
+    async def get_subscription_details(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """Get subscription details for a user"""
+        db = self.get_db()
+        try:
             subscription = db.query(Subscription).filter(
                 Subscription.user_id == user_id
-            ).first()
-            db.close()
+            ).order_by(Subscription.created_at.desc()).first()
             
             if not subscription:
                 return None
             
-            # Add plan details
-            result = subscription.to_dict()
-            if subscription.plan_type in self.PLANS:
-                result["plan_details"] = self.PLANS[subscription.plan_type]
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"Error getting subscription: {e}")
-            return None
-    
-    def update_subscription_from_stripe(self, stripe_subscription: Dict[str, Any]) -> bool:
-        """Update subscription from Stripe webhook data."""
-        try:
-            db = self.db_manager.get_db()
-            
-            # Find subscription by Stripe subscription ID
-            subscription = db.query(Subscription).filter(
-                Subscription.stripe_subscription_id == stripe_subscription["id"]
-            ).first()
-            
-            if not subscription:
-                # Find by customer ID and create subscription record
-                customer_id = stripe_subscription["customer"]
-                subscription = db.query(Subscription).filter(
-                    Subscription.stripe_customer_id == customer_id
-                ).first()
-                
-                if subscription:
-                    subscription.stripe_subscription_id = stripe_subscription["id"]
-            
-            if not subscription:
-                logger.warning(f"Subscription not found for Stripe subscription: {stripe_subscription['id']}")
-                db.close()
-                return False
-            
-            # Update subscription details
-            subscription.status = SubscriptionStatus(stripe_subscription["status"])
-            subscription.current_period_start = datetime.fromtimestamp(stripe_subscription["current_period_start"])
-            subscription.current_period_end = datetime.fromtimestamp(stripe_subscription["current_period_end"])
-            subscription.cancel_at_period_end = stripe_subscription.get("cancel_at_period_end", False)
-            
-            # Determine plan type from price ID
-            if stripe_subscription.get("items", {}).get("data"):
-                price_id = stripe_subscription["items"]["data"][0]["price"]["id"]
-                subscription.stripe_price_id = price_id
-                
-                # Map price ID to plan type
-                for plan_type, plan_config in self.PLANS.items():
-                    if plan_config.get("stripe_price_id") == price_id:
-                        subscription.plan_type = plan_type
-                        subscription.api_calls_limit = plan_config["api_calls_limit"]
-                        break
-            
-            subscription.updated_at = datetime.utcnow()
-            
-            db.commit()
-            db.close()
-            
-            logger.info(f"Updated subscription for user {subscription.user_id}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error updating subscription: {e}")
-            return False
-    
-    def handle_payment_success(self, payment_intent: Dict[str, Any]) -> bool:
-        """Handle successful payment."""
-        try:
-            db = self.db_manager.get_db()
-            
-            # Find user by customer ID
-            customer_id = payment_intent["customer"]
-            subscription = db.query(Subscription).filter(
-                Subscription.stripe_customer_id == customer_id
-            ).first()
-            
-            if not subscription:
-                logger.warning(f"Subscription not found for customer: {customer_id}")
-                db.close()
-                return False
-            
-            # Create payment history record
-            payment_record = PaymentHistory(
-                user_id=subscription.user_id,
-                subscription_id=subscription.id,
-                stripe_payment_intent_id=payment_intent["id"],
-                amount=payment_intent["amount"] / 100,  # Convert from cents
-                currency=payment_intent["currency"].upper(),
-                status=payment_intent["status"],
-                description=payment_intent.get("description", "Subscription payment"),
-                metadata=json.dumps(payment_intent.get("metadata", {}))
-            )
-            
-            db.add(payment_record)
-            db.commit()
-            db.close()
-            
-            logger.info(f"Recorded payment for user {subscription.user_id}: ${payment_record.amount}")
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error handling payment success: {e}")
-            return False
-    
-    def update_usage(self, user_id: int, api_calls_used: int) -> bool:
-        """Update API usage for user."""
-        try:
-            db = self.db_manager.get_db()
-            subscription = db.query(Subscription).filter(
-                Subscription.user_id == user_id
-            ).first()
-            
-            if not subscription:
-                # Create default free subscription
-                subscription = Subscription(
-                    user_id=user_id,
-                    plan_type=PlanType.FREE,
-                    api_calls_limit=self.PLANS[PlanType.FREE]["api_calls_limit"]
-                )
-                db.add(subscription)
-            
-            subscription.api_calls_used = api_calls_used
-            subscription.updated_at = datetime.utcnow()
-            
-            db.commit()
-            db.close()
-            
-            return True
-            
-        except Exception as e:
-            logger.error(f"Error updating usage: {e}")
-            return False
-    
-    def check_api_limit(self, user_id: int) -> Dict[str, Any]:
-        """Check if user has exceeded API limits."""
-        try:
-            db = self.db_manager.get_db()
-            subscription = db.query(Subscription).filter(
-                Subscription.user_id == user_id
-            ).first()
-            db.close()
-            
-            if not subscription:
-                # Default free tier limits
-                return {
-                    "allowed": True,
-                    "calls_used": 0,
-                    "calls_limit": self.PLANS[PlanType.FREE]["api_calls_limit"],
-                    "plan_type": "free"
-                }
-            
-            calls_used = subscription.api_calls_used or 0
-            calls_limit = subscription.api_calls_limit or 100
+            plan_config = self.plans.get(subscription.plan_type, {})
             
             return {
-                "allowed": calls_used < calls_limit,
-                "calls_used": calls_used,
-                "calls_limit": calls_limit,
-                "plan_type": subscription.plan_type.value if subscription.plan_type else "free",
-                "remaining": max(0, calls_limit - calls_used)
+                "subscription_id": subscription.stripe_subscription_id,
+                "customer_id": subscription.stripe_customer_id,
+                "plan_type": subscription.plan_type,
+                "plan_name": plan_config.get("name", subscription.plan_type),
+                "status": subscription.status,
+                "price_per_month": subscription.price_per_month,
+                "api_limit_daily": subscription.api_limit_daily,
+                "api_limit_monthly": subscription.api_limit_monthly,
+                "current_period_start": subscription.current_period_start.isoformat() if subscription.current_period_start else None,
+                "current_period_end": subscription.current_period_end.isoformat() if subscription.current_period_end else None,
+                "cancel_at_period_end": subscription.cancel_at_period_end,
+                "canceled_at": subscription.canceled_at.isoformat() if subscription.canceled_at else None,
+                "features": plan_config.get("features", [])
             }
-            
-        except Exception as e:
-            logger.error(f"Error checking API limit: {e}")
-            return {"allowed": False, "error": str(e)}
-    
-    def get_all_plans(self) -> List[Dict[str, Any]]:
-        """Get all available subscription plans."""
-        plans = []
-        for plan_type, config in self.PLANS.items():
-            plan_data = {
-                "plan_type": plan_type.value,
-                **config
-            }
-            plans.append(plan_data)
         
-        return plans
-    
-    def process_webhook(self, payload: bytes, signature: str) -> Dict[str, Any]:
-        """Process Stripe webhook."""
+        finally:
+            db.close()
+
+    async def cancel_subscription(self, user_id: int, at_period_end: bool = True) -> Dict[str, Any]:
+        """Cancel user subscription"""
+        db = self.get_db()
         try:
-            # Verify webhook signature
-            event = stripe.Webhook.construct_event(
-                payload, signature, STRIPE_WEBHOOK_SECRET
+            subscription = db.query(Subscription).filter(
+                Subscription.user_id == user_id,
+                Subscription.status == SubscriptionStatus.ACTIVE
+            ).first()
+            
+            if not subscription:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="No active subscription found"
+                )
+            
+            # Cancel subscription in Stripe
+            stripe_subscription = stripe.Subscription.modify(
+                subscription.stripe_subscription_id,
+                cancel_at_period_end=at_period_end
             )
             
-            event_type = event["type"]
-            event_data = event["data"]["object"]
+            # Update local record
+            subscription.cancel_at_period_end = at_period_end
+            if not at_period_end:
+                subscription.status = SubscriptionStatus.CANCELED
+                subscription.canceled_at = datetime.now(timezone.utc)
             
-            logger.info(f"Processing webhook: {event_type}")
+            db.commit()
             
-            # Handle different event types
-            if event_type == "customer.subscription.created":
-                self.update_subscription_from_stripe(event_data)
-            
-            elif event_type == "customer.subscription.updated":
-                self.update_subscription_from_stripe(event_data)
-            
-            elif event_type == "customer.subscription.deleted":
-                # Handle subscription cancellation
-                self.update_subscription_from_stripe(event_data)
-            
-            elif event_type == "payment_intent.succeeded":
-                self.handle_payment_success(event_data)
-            
-            elif event_type == "invoice.payment_succeeded":
-                # Handle successful recurring payment
-                if event_data.get("subscription"):
-                    # Get subscription details
-                    subscription = stripe.Subscription.retrieve(event_data["subscription"])
-                    self.update_subscription_from_stripe(subscription)
-            
-            elif event_type == "invoice.payment_failed":
-                # Handle failed payment
-                logger.warning(f"Payment failed for invoice: {event_data['id']}")
-            
-            return {"status": "success", "event_type": event_type}
-            
-        except stripe.error.SignatureVerificationError as e:
-            logger.error(f"Webhook signature verification failed: {e}")
-            raise ValueError("Invalid webhook signature")
+            logger.info(f"Canceled subscription for user {user_id} (at_period_end: {at_period_end})")
+            return {
+                "status": "canceled",
+                "cancel_at_period_end": at_period_end,
+                "canceled_at": subscription.canceled_at.isoformat() if subscription.canceled_at else None
+            }
         
-        except Exception as e:
-            logger.error(f"Error processing webhook: {e}")
-            raise
+        finally:
+            db.close()
 
-# Global payment service instance
-payment_service = PaymentService() 
+    async def update_user_premium_status(self, user_id: int, is_premium: bool):
+        """Update user premium status in user table"""
+        # This would update the user table - implementation depends on your user service
+        # For now, we'll just log it
+        logger.info(f"User {user_id} premium status updated to: {is_premium}")
+
+    def get_plan_info(self, plan_type: PlanType) -> Dict[str, Any]:
+        """Get plan information"""
+        return self.plans.get(plan_type, {})
+
+    def get_all_plans(self) -> Dict[str, Any]:
+        """Get all available plans"""
+        return {
+            "plans": [
+                {
+                    "type": plan_type,
+                    "name": config["name"],
+                    "price": config["price"],
+                    "api_limit_daily": config["api_limit_daily"],
+                    "api_limit_monthly": config["api_limit_monthly"],
+                    "features": config["features"]
+                }
+                for plan_type, config in self.plans.items()
+            ]
+        }
+
+# Global Stripe service instance
+stripe_service = StripeService() 
