@@ -11,8 +11,9 @@ import re
 import os
 from pydantic import BaseModel
 
-# Import database
+# Import database and extended providers
 from database import DatabaseManager
+from providers import CloudProviderIntegrator
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -256,7 +257,8 @@ app = FastAPI(
     version="1.0.0"
 )
 
-aggregator = GPUAggregator()
+# Use the new extended provider integrator
+aggregator = CloudProviderIntegrator()
 
 # Enable CORS for frontend
 app.add_middleware(
@@ -280,7 +282,7 @@ async def root():
 async def get_prices(gpu: str = "4090", region: str = "us-east"):
     """Get aggregated GPU prices"""
     try:
-        prices = await aggregator.aggregate_prices(gpu)
+        prices = await aggregator.aggregate_all_prices(gpu)
         
         # Filter by region if specified
         if region != "global":
