@@ -175,15 +175,25 @@ docker-compose -f docker-compose.prod.yml up -d
 
 ### **2. Access Your Platform**
 - **🌐 Main Application**: http://localhost
-- **🖥️ Frontend Interface**: http://localhost:3000
-- **⚙️ API Documentation**: http://localhost:8000/docs
-- **📊 Analytics Dashboard**: http://localhost:3001
+- **🖥️ Frontend Interface**: http://localhost:3000  
+- **⚙️ Backend API**: http://localhost:8000
+- **📊 Analytics Dashboard**: http://localhost:3001 (Grafana)
+- **📈 Metrics**: http://localhost:9090 (Prometheus)
+- **🔗 API Documentation**: http://localhost:8000/docs
 
-### **3. Start Finding GPU Deals**
-1. Search for your desired GPU type and region
-2. Compare prices across all providers
-3. Book through GPUDex for best rates + crypto discounts
-4. Monitor your usage via the dashboard
+### **3. Start Using GPUDex**
+1. **Browse GPUs**: Search 11+ GPU types across 15+ providers
+2. **Add to Cart**: Select duration (1-168 hours) and add to shopping cart
+3. **Choose Payment**: Credit card or crypto (BTC, ETH, USDC + 1% discount)
+4. **Complete Booking**: Secure checkout with real-time confirmation
+5. **Monitor Usage**: Track bookings and costs via dashboard
+
+### **4. For Production**
+Update `docker-quickstart.env` with your real API keys:
+- **CoinGate**: For crypto payments (coingate.com)
+- **Stripe**: For card payments (stripe.com)
+- **SendGrid**: For email notifications (sendgrid.com)
+- **Cloud Providers**: AWS, GCP, Azure credentials for real pricing
 
 ---
 
@@ -223,16 +233,19 @@ docker-compose -f docker-compose.prod.yml up -d
 
 ### **Platform Statistics**
 - **Response Time**: <200ms average API latency
-- **Uptime**: 99.9% availability SLA
-- **Providers**: 15+ integrated platforms
-- **Savings**: 10-40% average cost reduction
-- **Users**: Growing community of AI/ML developers
+- **Uptime**: 99.9% availability SLA (Prometheus monitoring)
+- **Providers**: 15+ integrated platforms (4 real APIs, 11 ready for keys)
+- **Savings**: 10-40% average cost reduction + 1% crypto discount
+- **GPU Types**: 11+ supported (RTX 4090, A100, H100, V100, etc.)
+- **Payment Methods**: Crypto (10+ currencies) + Credit Cards
 
-### **Real-time Monitoring**
-- **System Health**: Automated monitoring and alerting
-- **Price Accuracy**: 99.5% price data accuracy
-- **Transaction Success**: 99.8% successful bookings
-- **Customer Satisfaction**: 4.8/5 average rating
+### **Real-time Monitoring & Features**
+- **Live Updates**: 30-second price refresh cycles
+- **Shopping Cart**: Full e-commerce with duration selection
+- **User Authentication**: JWT-based secure login system
+- **Payment Processing**: CoinGate (crypto) + Stripe (cards)
+- **Health Monitoring**: Automated system checks & alerting
+- **Mobile Responsive**: PWA-ready design for all devices
 
 ---
 
