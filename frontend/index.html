@@ -3,9 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPUDex - Find The Best GPU Prices Instantly</title>
+    <title>GPUDex - The 1inch of Compute | Rent GPUs with Crypto</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://js.stripe.com/v3/"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            --warning-gradient: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            --dark-bg: #0a0a0a;
+            --dark-card: #1a1a1a;
+            --border-color: #333;
+            --text-primary: #ffffff;
+            --text-secondary: #888;
+            --accent-blue: #667eea;
+            --accent-purple: #764ba2;
+            --success-green: #00f2fe;
+            --crypto-gold: #f7931e;
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -13,74 +31,206 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0a0a0a;
-            color: #ffffff;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', sans-serif;
+            background: var(--dark-bg);
+            color: var(--text-primary);
             line-height: 1.6;
-            -webkit-text-size-adjust: 100%;
-            -webkit-tap-highlight-color: transparent;
+            overflow-x: hidden;
         }
 
-        /* Mobile-first responsive design */
-        @media (max-width: 768px) {
-            body {
-                font-size: 16px;
-                line-height: 1.5;
-            }
+        /* Modern scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--dark-bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent-blue);
+            border-radius: 4px;
         }
 
         .gradient-text {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary-gradient);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
         }
 
-        header {
-            padding: 2rem;
-            text-align: center;
-            border-bottom: 1px solid #1a1a1a;
+        /* Header & Navigation */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            background: rgba(10, 10, 10, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
         }
 
         .logo {
-            font-size: 2.5rem;
+            font-size: 1.8rem;
             font-weight: 900;
-            margin-bottom: 0.5rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        /* Mobile header optimization */
-        @media (max-width: 768px) {
-            header {
-                padding: 1.5rem 1rem;
-            }
-
-            .logo {
-                font-size: 2rem;
-                margin-bottom: 0.3rem;
-            }
-        }
-
-        .tagline {
-            color: #888;
-            font-size: 1.1rem;
-        }
-
-        .stats-bar {
+        .nav-links {
             display: flex;
-            justify-content: center;
-            gap: 3rem;
-            padding: 1.5rem;
-            background: #111;
-            border-bottom: 1px solid #222;
+            gap: 2rem;
+            align-items: center;
         }
 
-        /* Mobile stats bar optimization */
-        @media (max-width: 768px) {
-            .stats-bar {
-                gap: 1.5rem;
-                padding: 1rem;
-                flex-wrap: wrap;
-            }
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s ease;
+        }
+
+        .nav-link:hover {
+            color: var(--accent-blue);
+        }
+
+        .user-section {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .cart-icon {
+            position: relative;
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            transition: color 0.3s ease;
+        }
+
+        .cart-icon:hover {
+            color: var(--accent-blue);
+        }
+
+        .cart-count {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: var(--accent-purple);
+            color: white;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* Buttons */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: var(--primary-gradient);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .btn-crypto {
+            background: linear-gradient(135deg, #f7931e 0%, #ff6b35 100%);
+            color: white;
+        }
+
+        .btn-crypto:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(247, 147, 30, 0.3);
+        }
+
+        /* Hero Section */
+        .hero {
+            text-align: center;
+            padding: 4rem 2rem;
+            background: radial-gradient(ellipse at center, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 900;
+            margin-bottom: 1rem;
+            line-height: 1.2;
+        }
+
+        .hero .subtitle {
+            font-size: 1.3rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .crypto-banner {
+            background: linear-gradient(135deg, rgba(247, 147, 30, 0.1) 0%, rgba(255, 107, 53, 0.1) 100%);
+            border: 1px solid rgba(247, 147, 30, 0.3);
+            border-radius: 12px;
+            padding: 1rem 2rem;
+            margin: 2rem auto;
+            max-width: 500px;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .crypto-banner i {
+            color: var(--crypto-gold);
+            font-size: 1.5rem;
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            padding: 2rem;
+            background: var(--dark-card);
+            border-bottom: 1px solid var(--border-color);
         }
 
         .stat {
@@ -88,1294 +238,1517 @@
         }
 
         .stat-value {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #667eea;
+            font-size: 2rem;
+            font-weight: 900;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
         .stat-label {
-            color: #666;
+            color: var(--text-secondary);
             font-size: 0.9rem;
+            margin-top: 0.5rem;
         }
 
+        /* Search & Filters */
         .search-section {
             padding: 3rem 2rem;
-            max-width: 800px;
+            max-width: 1400px;
             margin: 0 auto;
         }
 
-        .search-box {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        /* Mobile search section optimization */
-        @media (max-width: 768px) {
-            .search-section {
-                padding: 2rem 1rem;
-                max-width: 100%;
-            }
-
-            .search-box {
-                flex-direction: column;
-                gap: 0.8rem;
-                margin-bottom: 1.5rem;
-            }
-        }
-
-        select, input, button {
-            padding: 1rem;
-            border-radius: 8px;
-            border: 1px solid #333;
-            background: #1a1a1a;
-            color: white;
-            font-size: 1rem;
-        }
-
-        /* Mobile form elements optimization */
-        @media (max-width: 768px) {
-            select, input, button {
-                padding: 0.8rem;
-                font-size: 16px; /* Prevents zoom on iOS */
-                width: 100%;
-                -webkit-appearance: none;
-                -moz-appearance: none;
-                appearance: none;
-            }
-
-            button {
-                margin-top: 0.5rem;
-                min-height: 48px; /* Touch-friendly height */
-                font-weight: 600;
-            }
-        }
-
-        select:focus, input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        button {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border: none;
-            cursor: pointer;
-            font-weight: 600;
-            transition: transform 0.2s;
-        }
-
-        button:hover {
-            transform: translateY(-1px);
-        }
-
-        button:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-
-        .gpu-select {
-            flex: 1;
-        }
-
-        .results {
-            background: #111;
-            border-radius: 12px;
-            padding: 2rem;
-            margin-top: 2rem;
-        }
-
-        .result-item {
-            display: grid;
-            grid-template-columns: 200px 1fr auto auto auto;
-            gap: 1rem;
-            padding: 1.5rem;
-            border-bottom: 1px solid #222;
-            align-items: center;
-        }
-
-        /* Mobile results optimization */
-        @media (max-width: 768px) {
-            .results {
-                padding: 1rem;
-                margin-top: 1rem;
-                border-radius: 8px;
-            }
-
-            .result-item {
-                grid-template-columns: 1fr;
-                grid-template-rows: auto auto auto auto auto;
-                gap: 0.8rem;
-                padding: 1rem;
-                text-align: center;
-            }
-
-            .provider-name {
-                font-size: 1.2rem;
-                order: -5;
-            }
-
-            .price {
-                font-size: 1.8rem;
-                order: -4;
-                margin: 0.5rem 0;
-            }
-
-            .specs {
-                order: -3;
-                margin-bottom: 0.5rem;
-            }
-
-            .availability {
-                order: -2;
-                justify-self: center;
-                margin: 0.5rem 0;
-            }
-        }
-
-        .result-item:last-child {
-            border-bottom: none;
-        }
-
-        .provider-name {
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
-
-        .specs {
-            color: #888;
-            font-size: 0.9rem;
-        }
-
-        .price {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #4ade80;
-        }
-
-        .availability {
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
-
-        .available {
-            background: #065f46;
-            color: #4ade80;
-        }
-
-        .limited {
-            background: #7c2d12;
-            color: #fb923c;
-        }
-
-        .cta-button {
-            padding: 0.75rem 1.5rem;
-            font-size: 0.9rem;
-        }
-
-        .savings-badge {
-            position: absolute;
-            top: -10px;
-            right: -10px;
-            background: #dc2626;
-            color: white;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .footer {
-            margin-top: 4rem;
-            padding: 2rem;
+        .search-header {
             text-align: center;
-            border-top: 1px solid #222;
+            margin-bottom: 3rem;
         }
 
-        .api-banner {
-            background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-            padding: 2rem;
-            border-radius: 12px;
-            text-align: center;
-            margin: 2rem auto;
-            max-width: 600px;
-        }
-
-        .code-snippet {
-            background: #0a0a0a;
-            padding: 1rem;
-            border-radius: 8px;
-            font-family: 'Courier New', monospace;
-            margin: 1rem 0;
-            color: #4ade80;
-        }
-
-        @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
-        }
-
-        .loading {
-            animation: pulse 1.5s infinite;
-            text-align: center;
-            padding: 2rem;
-            color: #888;
-        }
-
-        .error {
-            color: #ef4444;
-            text-align: center;
-            padding: 2rem;
-            background: #1a1a1a;
-            border-radius: 8px;
-            margin: 1rem 0;
-        }
-
-        .alert-signup {
-            display: flex;
-            gap: 1rem;
-            margin-top: 1rem;
-            align-items: center;
-        }
-
-        .alert-signup input {
-            flex: 1;
-        }
-
-        /* Mobile alert signup optimization */
-        @media (max-width: 768px) {
-            .alert-signup {
-                flex-direction: column;
-                gap: 0.8rem;
-                align-items: stretch;
-                margin-top: 1.5rem;
-            }
-
-            .alert-signup input {
-                flex: none;
-                width: 100%;
-            }
-        }
-
-        .status-indicator {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            margin-right: 8px;
-        }
-
-        .status-online {
-            background: #4ade80;
-        }
-
-        .status-offline {
-            background: #ef4444;
-        }
-
-        .arbitrage-alert {
-            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
-            color: white;
-            padding: 1rem;
-            border-radius: 8px;
-            margin: 1rem 0;
-            text-align: center;
-        }
-
-        .chart-container {
-            background: #111;
-            border-radius: 12px;
-            padding: 2rem;
-            margin-top: 2rem;
-        }
-
-        /* Mobile chart optimization */
-        @media (max-width: 768px) {
-            .chart-container {
-                padding: 1rem;
-                margin-top: 1rem;
-                border-radius: 8px;
-            }
-        }
-
-        .chart-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .search-header h2 {
+            font-size: 2.5rem;
+            font-weight: 800;
             margin-bottom: 1rem;
         }
 
-        .chart-title {
-            font-size: 1.5rem;
-            font-weight: bold;
+        .search-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
         }
 
-        .chart-controls {
+        .control-group {
             display: flex;
+            flex-direction: column;
             gap: 0.5rem;
         }
 
-        /* Mobile chart header optimization */
-        @media (max-width: 768px) {
-            .chart-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 1rem;
-                margin-bottom: 1.5rem;
-            }
-
-            .chart-title {
-                font-size: 1.3rem;
-            }
-
-            .chart-controls {
-                align-self: stretch;
-                justify-content: space-between;
-                gap: 0.3rem;
-            }
-
-            .chart-btn {
-                flex: 1;
-                min-height: 44px;
-                font-size: 0.9rem;
-                padding: 0.6rem 0.5rem;
-            }
-        }
-
-        .chart-btn {
-            padding: 0.5rem 1rem;
-            background: #333;
-            border: 1px solid #444;
-            color: white;
-            border-radius: 6px;
-            cursor: pointer;
+        .control-group label {
+            font-weight: 600;
+            color: var(--text-secondary);
             font-size: 0.9rem;
-            transition: all 0.2s;
         }
 
-        .chart-btn:hover {
-            background: #444;
-        }
-
-        .chart-btn.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-color: #667eea;
-        }
-
-        #priceChart {
-            width: 100%;
-            height: 400px;
-            background: #0a0a0a;
-            border-radius: 8px;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .chart-canvas {
-            width: 100%;
-            height: 100%;
-        }
-
-        .price-trend {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.9rem;
-            margin-left: 1rem;
-        }
-
-        .trend-up {
-            color: #ef4444;
-        }
-
-        .trend-down {
-            color: #4ade80;
-        }
-
-        .trend-neutral {
-            color: #888;
-        }
-
-        /* Advanced Features Styles */
-        .advanced-filters {
-            background: #1a1a1a;
-            border-radius: 8px;
+        .form-control {
             padding: 1rem;
-            margin: 1rem 0;
-            border: 1px solid #333;
+            background: var(--dark-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .advanced-filters {
+            background: var(--dark-card);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-top: 2rem;
+            border: 1px solid var(--border-color);
         }
 
         .filter-row {
-            display: flex;
-            gap: 1rem;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
         }
 
-        .search-controls {
-            display: flex;
-            gap: 1rem;
-            margin-top: 1rem;
-            flex-wrap: wrap;
+        /* GPU Results Grid */
+        .gpu-results {
+            padding: 0 2rem 3rem;
+            max-width: 1400px;
+            margin: 0 auto;
         }
 
-        .filter-toggle, .realtime-toggle, .compare-btn {
-            padding: 0.75rem 1rem;
-            background: #333;
-            border: 1px solid #444;
-            color: white;
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .view-btn {
+            padding: 0.5rem;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
             border-radius: 6px;
             cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .view-btn.active {
+            background: var(--accent-blue);
+            color: white;
+            border-color: var(--accent-blue);
+        }
+
+        .gpu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
+            gap: 2rem;
+        }
+
+        .gpu-card {
+            background: var(--dark-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            overflow: hidden;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .gpu-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--accent-blue);
+            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.1);
+        }
+
+        .gpu-card-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .provider-badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .provider-aws { background: rgba(255, 153, 0, 0.2); color: #ff9900; }
+        .provider-vast { background: rgba(100, 255, 218, 0.2); color: #64ffda; }
+        .provider-runpod { background: rgba(138, 43, 226, 0.2); color: #8a2be2; }
+        .provider-lambda { background: rgba(255, 69, 0, 0.2); color: #ff4500; }
+
+        .gpu-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .gpu-specs {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .spec-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .spec-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .spec-value {
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .gpu-pricing {
+            padding: 1.5rem;
+            background: rgba(102, 126, 234, 0.05);
+            border-top: 1px solid var(--border-color);
+        }
+
+        .price-main {
+            font-size: 2rem;
+            font-weight: 900;
+            color: var(--accent-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .price-crypto {
+            font-size: 1.1rem;
+            color: var(--crypto-gold);
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        .gpu-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .btn-add-cart {
+            flex: 1;
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-add-cart:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-quick-buy {
+            background: var(--success-gradient);
+            color: white;
+            border: none;
+            padding: 0.8rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        /* Shopping Cart Sidebar */
+        .cart-sidebar {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100vh;
+            background: var(--dark-card);
+            border-left: 1px solid var(--border-color);
+            z-index: 2000;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+        }
+
+        .cart-sidebar.open {
+            right: 0;
+        }
+
+        .cart-header {
+            padding: 2rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .cart-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        .cart-items {
+            padding: 1rem;
+        }
+
+        .cart-item {
+            background: var(--dark-bg);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid var(--border-color);
+        }
+
+        .cart-summary {
+            padding: 2rem;
+            border-top: 1px solid var(--border-color);
+            background: var(--dark-bg);
+        }
+
+        .cart-total {
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .crypto-discount {
+            color: var(--crypto-gold);
             font-size: 0.9rem;
-            transition: all 0.2s;
+            margin-bottom: 1rem;
         }
 
-        .filter-toggle:hover, .realtime-toggle:hover, .compare-btn:hover {
-            background: #444;
-        }
-
-        .realtime-toggle.active {
-            background: #4ade80;
-            border-color: #4ade80;
-            color: #000;
-        }
-
-        .comparison-modal {
+        /* Checkout Modal */
+        .modal-overlay {
+            display: none;
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.9);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 3000;
+            backdrop-filter: blur(10px);
         }
 
-        .comparison-content {
-            background: #111;
+        .modal {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--dark-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 2rem 2rem 0;
+            text-align: center;
+        }
+
+        .modal-content {
             padding: 2rem;
+        }
+
+        .payment-methods {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .payment-method {
+            padding: 1.5rem;
+            border: 2px solid var(--border-color);
             border-radius: 12px;
-            max-width: 90%;
-            max-height: 90%;
-            overflow: auto;
-            border: 1px solid #333;
-        }
-
-        .close-comparison {
-            float: right;
-            font-size: 1.5rem;
             cursor: pointer;
-            color: #888;
+            text-align: center;
+            transition: all 0.3s ease;
         }
 
-        .comparison-table {
-            width: 100%;
-            border-collapse: collapse;
+        .payment-method.selected {
+            border-color: var(--accent-blue);
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .payment-method.crypto.selected {
+            border-color: var(--crypto-gold);
+            background: rgba(247, 147, 30, 0.1);
+        }
+
+        .crypto-options {
+            display: none;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
             margin-top: 1rem;
         }
 
-        .comparison-table th,
-        .comparison-table td {
+        .crypto-option {
             padding: 1rem;
-            text-align: left;
-            border-bottom: 1px solid #333;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
         }
 
-        .comparison-table th {
-            background: #1a1a1a;
-            font-weight: bold;
+        .crypto-option.selected {
+            border-color: var(--crypto-gold);
+            background: rgba(247, 147, 30, 0.1);
         }
 
-        .result-checkbox {
-            margin-right: 1rem;
-        }
-
-        .performance-badge {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 0.2rem 0.5rem;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            margin-left: 0.5rem;
-        }
-
-        .realtime-indicator {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background: #4ade80;
+        .crypto-icon {
+            width: 32px;
+            height: 32px;
+            margin: 0 auto 0.5rem;
             border-radius: 50%;
-            margin-right: 0.5rem;
-            animation: pulse 1.5s infinite;
+        }
+
+        /* User Auth Forms */
+        .auth-section {
+            display: none;
+            max-width: 400px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: var(--dark-card);
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        /* Loading States */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Real-time Updates */
+        .realtime-indicator {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: var(--success-gradient);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 50px;
+            font-weight: 600;
+            box-shadow: 0 10px 30px rgba(0, 242, 254, 0.3);
+            z-index: 1000;
+            display: none;
+        }
+
+        .realtime-indicator.active {
+            display: block;
+            animation: pulse 2s ease-in-out infinite;
         }
 
         @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.5; }
-            100% { opacity: 1; }
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
 
-        /* Mobile responsiveness for new features */
+        /* Mobile Responsive */
         @media (max-width: 768px) {
-            .filter-row {
-                flex-direction: column;
-                gap: 0.8rem;
+            .navbar {
+                padding: 1rem;
+            }
+
+            .hero h1 {
+                font-size: 2.5rem;
             }
 
             .search-controls {
-                flex-direction: column;
-                gap: 0.8rem;
+                grid-template-columns: 1fr;
             }
 
-            .comparison-content {
+            .gpu-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .cart-sidebar {
+                width: 100%;
+                right: -100%;
+            }
+
+            .stats-bar {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
                 padding: 1rem;
-                max-width: 95%;
             }
 
-            .comparison-table {
-                font-size: 0.9rem;
+            .payment-methods {
+                grid-template-columns: 1fr;
             }
 
-            .comparison-table th,
-            .comparison-table td {
-                padding: 0.5rem;
+            .crypto-options {
+                grid-template-columns: repeat(2, 1fr);
             }
+        }
+
+        /* Success Animation */
+        .success-checkmark {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--success-gradient);
+            position: relative;
+            margin: 2rem auto;
+        }
+
+        .success-checkmark::after {
+            content: '✓';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        /* Notification Toast */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem 2rem;
+            z-index: 4000;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: none;
+        }
+
+        .toast.success {
+            border-color: var(--success-green);
+            background: rgba(0, 242, 254, 0.1);
+        }
+
+        .toast.error {
+            border-color: #ff4757;
+            background: rgba(255, 71, 87, 0.1);
         }
     </style>
 </head>
 <body>
-    <header>
-        <h1 class="logo gradient-text">GPUDex</h1>
-        <p class="tagline">Real-time GPU price aggregation across 15+ providers</p>
+    <!-- Header & Navigation -->
+    <header class="header">
+        <nav class="navbar">
+            <div class="logo">
+                <i class="fas fa-microchip"></i> GPUDex
+            </div>
+            
+            <div class="nav-links">
+                <a href="#marketplace" class="nav-link">Marketplace</a>
+                <a href="#analytics" class="nav-link">Analytics</a>
+                <a href="#api" class="nav-link">API</a>
+                <a href="#support" class="nav-link">Support</a>
+            </div>
+
+            <div class="user-section">
+                <div class="cart-icon" onclick="toggleCart()">
+                    <i class="fas fa-shopping-cart"></i>
+                    <span class="cart-count" id="cartCount">0</span>
+                </div>
+                
+                <button class="btn btn-secondary" id="authBtn" onclick="toggleAuth()">
+                    <i class="fas fa-user"></i> Sign In
+                </button>
+            </div>
+        </nav>
     </header>
 
-            <div class="stats-bar">
-        <div class="stat">
-            <div class="stat-value">$3.2M</div>
-            <div class="stat-label">Saved This Month</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value" id="providerCount">13</div>
-            <div class="stat-label">Providers</div>
-        </div>
-        <div class="stat">
-            <div class="stat-value">15,847</div>
-            <div class="stat-label">GPUs Available</div>
-        </div>
-    </div>
-
-    <div class="search-section">
-        <div class="search-box">
-            <select class="gpu-select" id="gpuSelect">
-                <option value="4090">RTX 4090 (24GB)</option>
-                <option value="a100">A100 (40GB)</option>
-                <option value="h100">H100 (80GB)</option>
-                <option value="a6000">RTX A6000 (48GB)</option>
-                <option value="a40">RTX A40 (48GB)</option>
-                <option value="v100">Tesla V100 (32GB)</option>
-                <option value="3090">RTX 3090 (24GB)</option>
-                <option value="2080ti">RTX 2080 Ti (11GB)</option>
-                <option value="3060">RTX 3060 (12GB)</option>
-                <option value="3070">RTX 3070 (8GB)</option>
-                <option value="3080">RTX 3080 (10GB)</option>
-            </select>
-            <select id="regionSelect">
-                <option value="us-east">US East</option>
-                <option value="us-west">US West</option>
-                <option value="eu-west">EU West</option>
-                <option value="eu-central">EU Central</option>
-                <option value="asia-pacific">Asia Pacific</option>
-                <option value="global">All Regions</option>
-            </select>
-            <select id="sortSelect">
-                <option value="price">Sort by Price</option>
-                <option value="performance">Sort by Performance</option>
-                <option value="availability">Sort by Availability</option>
-                <option value="provider">Sort by Provider</option>
-            </select>
-            <button onclick="searchGPUs()" id="searchBtn">🔍 Find Best Price</button>
-        </div>
+    <!-- Hero Section -->
+    <section class="hero">
+        <h1 class="gradient-text">The 1inch of Compute</h1>
+        <p class="subtitle">
+            Find the best GPU prices across 15+ providers. Pay with crypto and save 1% on every booking.
+        </p>
         
-        <!-- Advanced Filters -->
-        <div class="advanced-filters" id="advancedFilters" style="display: none;">
-            <div class="filter-row">
-                <input type="number" id="maxPrice" placeholder="Max Price/hr ($)" min="0" step="0.01">
-                <input type="number" id="minMemory" placeholder="Min Memory (GB)" min="1" step="1">
-                <select id="availabilityFilter">
-                    <option value="">Any Availability</option>
-                    <option value="available">Available Now</option>
-                    <option value="limited">Limited Stock</option>
-                </select>
-                <button onclick="toggleAdvancedFilters()" class="filter-toggle">Simple Search</button>
+        <div class="crypto-banner">
+            <i class="fab fa-bitcoin"></i>
+            <div>
+                <strong>Pay with Crypto & Save 1%</strong>
+                <div style="font-size: 0.9rem; color: var(--text-secondary);">
+                    BTC, ETH, USDC, USDT + 7 more currencies
+                </div>
             </div>
         </div>
-        
+
+        <div style="margin-top: 2rem;">
+            <button class="btn btn-primary" onclick="scrollToMarketplace()">
+                <i class="fas fa-rocket"></i> Start Saving Now
+            </button>
+            <button class="btn btn-secondary" onclick="showDemo()">
+                <i class="fas fa-play"></i> Watch Demo
+            </button>
+        </div>
+    </section>
+
+    <!-- Stats Bar -->
+    <section class="stats-bar">
+        <div class="stat">
+            <div class="stat-value" id="providerCount">15+</div>
+            <div class="stat-label">GPU Providers</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="savingsPercent">40%</div>
+            <div class="stat-label">Max Savings</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="responseTime">< 200ms</div>
+            <div class="stat-label">API Response</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="cryptoDiscount">1%</div>
+            <div class="stat-label">Crypto Discount</div>
+        </div>
+    </section>
+
+    <!-- Search & Marketplace -->
+    <section class="search-section" id="marketplace">
+        <div class="search-header">
+            <h2 class="gradient-text">GPU Marketplace</h2>
+            <p>Real-time prices from AWS, GCP, Azure, Vast.ai, RunPod, and 10+ more providers</p>
+        </div>
+
         <div class="search-controls">
-            <button onclick="toggleAdvancedFilters()" class="filter-toggle" id="advancedToggle">⚙️ Advanced Filters</button>
-            <button onclick="toggleRealTimeUpdates()" class="realtime-toggle" id="realtimeBtn">📡 Real-time Updates</button>
-            <button onclick="compareSelected()" class="compare-btn" id="compareBtn" style="display: none;">📊 Compare Selected</button>
+            <div class="control-group">
+                <label for="gpuSelect">GPU Type</label>
+                <select id="gpuSelect" class="form-control">
+                    <option value="">All GPU Types</option>
+                    <option value="RTX 4090">RTX 4090</option>
+                    <option value="A100">A100 (80GB)</option>
+                    <option value="H100">H100 (80GB)</option>
+                    <option value="V100">V100 (32GB)</option>
+                    <option value="RTX 3090">RTX 3090</option>
+                    <option value="RTX 4080">RTX 4080</option>
+                    <option value="A40">A40</option>
+                    <option value="RTX 3080">RTX 3080</option>
+                    <option value="T4">T4</option>
+                    <option value="RTX 3070">RTX 3070</option>
+                    <option value="RTX 3060">RTX 3060</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="regionSelect">Region</label>
+                <select id="regionSelect" class="form-control">
+                    <option value="">All Regions</option>
+                    <option value="us-east">US East</option>
+                    <option value="us-west">US West</option>
+                    <option value="eu-west">EU West</option>
+                    <option value="eu-central">EU Central</option>
+                    <option value="asia-pacific">Asia Pacific</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="sortSelect">Sort By</label>
+                <select id="sortSelect" class="form-control">
+                    <option value="price">Lowest Price</option>
+                    <option value="performance">Best Performance</option>
+                    <option value="provider">Provider</option>
+                    <option value="memory">Memory (High to Low)</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button class="btn btn-primary" onclick="searchGPUs()">
+                    <i class="fas fa-search"></i> Search GPUs
+                </button>
+            </div>
         </div>
 
-        <div class="results" id="results">
-            <div class="loading">Scanning providers for best prices...</div>
-        </div>
-
-        <div class="alert-signup">
-            <input type="email" placeholder="Get alerts when prices drop below target" id="emailInput">
-            <button onclick="setupAlert()">Set Alert</button>
-        </div>
-
-        <!-- Price History Chart -->
-        <div class="chart-container" id="chartContainer" style="display: none;">
-            <div class="chart-header">
-                <div>
-                    <span class="chart-title">Price History</span>
-                    <span class="price-trend" id="priceTrend">
-                        <span id="trendIcon">📈</span>
-                        <span id="trendText">Loading...</span>
-                    </span>
+        <div class="advanced-filters" id="advancedFilters" style="display: none;">
+            <h4>Advanced Filters</h4>
+            
+            <div class="filter-row">
+                <div class="control-group">
+                    <label for="maxPrice">Max Price ($/hour)</label>
+                    <input type="number" id="maxPrice" class="form-control" placeholder="e.g., 2.00" step="0.01">
                 </div>
-                <div class="chart-controls">
-                    <button class="chart-btn active" onclick="updateChart('1h')">1H</button>
-                    <button class="chart-btn" onclick="updateChart('24h')">24H</button>
-                    <button class="chart-btn" onclick="updateChart('7d')">7D</button>
-                    <button class="chart-btn" onclick="updateChart('30d')">30D</button>
+
+                <div class="control-group">
+                    <label for="minMemory">Min Memory (GB)</label>
+                    <input type="number" id="minMemory" class="form-control" placeholder="e.g., 16" step="1">
+                </div>
+
+                <div class="control-group">
+                    <label for="availabilityFilter">Availability</label>
+                    <select id="availabilityFilter" class="form-control">
+                        <option value="">All</option>
+                        <option value="Available">Available Now</option>
+                        <option value="Queue">Queue Available</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label>&nbsp;</label>
+                    <button class="btn btn-secondary" onclick="toggleAdvancedFilters()">
+                        <i class="fas fa-sliders-h"></i> Toggle Filters
+                    </button>
                 </div>
             </div>
-            <div id="priceChart">
-                <canvas class="chart-canvas" id="chartCanvas"></canvas>
+        </div>
+    </section>
+
+    <!-- GPU Results -->
+    <section class="gpu-results">
+        <div class="results-header">
+            <h3 id="resultsTitle">Available GPUs</h3>
+            
+            <div style="display: flex; gap: 1rem; align-items: center;">
+                <button class="btn btn-secondary" onclick="toggleRealTimeUpdates()">
+                    <i class="fas fa-sync-alt"></i> <span id="realtimeText">Enable Real-time</span>
+                </button>
+                
+                <div class="view-toggle">
+                    <button class="view-btn active" onclick="setGridView()">
+                        <i class="fas fa-th"></i>
+                    </button>
+                    <button class="view-btn" onclick="setListView()">
+                        <i class="fas fa-list"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="gpu-grid" id="gpuResults">
+            <!-- GPU cards will be populated here -->
+        </div>
+
+        <div id="loadingState" style="text-align: center; padding: 3rem; display: none;">
+            <div class="loading"></div>
+            <p style="margin-top: 1rem; color: var(--text-secondary);">Finding the best GPU deals...</p>
+        </div>
+    </section>
+
+    <!-- Shopping Cart Sidebar -->
+    <div class="cart-sidebar" id="cartSidebar">
+        <div class="cart-header">
+            <h3><i class="fas fa-shopping-cart"></i> Your Cart</h3>
+            <button class="cart-close" onclick="toggleCart()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="cart-items" id="cartItems">
+            <!-- Cart items will be populated here -->
+        </div>
+
+        <div class="cart-summary">
+            <div class="cart-total">
+                Total: $<span id="cartTotal">0.00</span>
+            </div>
+            <div class="crypto-discount">
+                Save 1% with crypto: -$<span id="cryptoSavings">0.00</span>
+            </div>
+            
+            <button class="btn btn-primary" style="width: 100%; margin-bottom: 1rem;" onclick="proceedToCheckout()">
+                <i class="fas fa-credit-card"></i> Checkout
+            </button>
+            
+            <button class="btn btn-crypto" style="width: 100%;" onclick="checkoutWithCrypto()">
+                <i class="fab fa-bitcoin"></i> Pay with Crypto & Save 1%
+            </button>
+        </div>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div class="modal-overlay" id="checkoutModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2><i class="fas fa-credit-card"></i> Checkout</h2>
+                <p>Complete your GPU rental booking</p>
+            </div>
+
+            <div class="modal-content">
+                <div class="payment-methods">
+                    <div class="payment-method" id="cardPayment" onclick="selectPaymentMethod('card')">
+                        <i class="fas fa-credit-card" style="font-size: 2rem; margin-bottom: 1rem; color: var(--accent-blue);"></i>
+                        <h4>Credit Card</h4>
+                        <p>Visa, Mastercard, Amex</p>
+                    </div>
+
+                    <div class="payment-method crypto" id="cryptoPayment" onclick="selectPaymentMethod('crypto')">
+                        <i class="fab fa-bitcoin" style="font-size: 2rem; margin-bottom: 1rem; color: var(--crypto-gold);"></i>
+                        <h4>Cryptocurrency</h4>
+                        <p><strong>Save 1%</strong> with crypto payments</p>
+                    </div>
+                </div>
+
+                <div class="crypto-options" id="cryptoOptions">
+                    <div class="crypto-option" data-crypto="BTC" onclick="selectCrypto('BTC')">
+                        <div class="crypto-icon" style="background: #f7931e;"></div>
+                        <div>Bitcoin</div>
+                        <small>BTC</small>
+                    </div>
+                    <div class="crypto-option" data-crypto="ETH" onclick="selectCrypto('ETH')">
+                        <div class="crypto-icon" style="background: #627eea;"></div>
+                        <div>Ethereum</div>
+                        <small>ETH</small>
+                    </div>
+                    <div class="crypto-option" data-crypto="USDC" onclick="selectCrypto('USDC')">
+                        <div class="crypto-icon" style="background: #2775ca;"></div>
+                        <div>USD Coin</div>
+                        <small>USDC</small>
+                    </div>
+                </div>
+
+                <div style="margin-top: 2rem; text-align: center;">
+                    <button class="btn btn-primary" onclick="processPayment()" style="margin-right: 1rem;">
+                        <i class="fas fa-lock"></i> Complete Payment
+                    </button>
+                    <button class="btn btn-secondary" onclick="closeCheckout()">
+                        Cancel
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="api-banner">
-        <h3 class="gradient-text">For Developers</h3>
-        <p>Integrate GPU price aggregation into your app</p>
-        <div class="code-snippet">
-            GET http://localhost:8000/api/v1/prices?gpu=a100&region=us-east
+    <!-- User Authentication Modal -->
+    <div class="auth-section" id="authSection">
+        <div id="loginForm">
+            <h3>Sign In to GPUDex</h3>
+            <form onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-sign-in-alt"></i> Sign In
+                </button>
+            </form>
+            <p style="text-align: center; margin-top: 1rem;">
+                Don't have an account? <a href="#" onclick="showRegister()" style="color: var(--accent-blue);">Register</a>
+            </p>
         </div>
-        <button onclick="window.location.href='#api'">Get API Access</button>
+
+        <div id="registerForm" style="display: none;">
+            <h3>Create Account</h3>
+            <form onsubmit="handleRegister(event)">
+                <div class="form-group">
+                    <label for="registerEmail">Email</label>
+                    <input type="email" id="registerEmail" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerPassword">Password</label>
+                    <input type="password" id="registerPassword" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="registerConfirm">Confirm Password</label>
+                    <input type="password" id="registerConfirm" class="form-control" required>
+                </div>
+                <button type="submit" class="btn btn-primary" style="width: 100%;">
+                    <i class="fas fa-user-plus"></i> Create Account
+                </button>
+            </form>
+            <p style="text-align: center; margin-top: 1rem;">
+                Already have an account? <a href="#" onclick="showLogin()" style="color: var(--accent-blue);">Sign In</a>
+            </p>
+        </div>
     </div>
 
-    <div class="footer">
-        <p>Aggregate. Compare. Deploy. Save 70% on GPU costs.</p>
-        <p style="margin-top: 1rem; color: #666;">Launching advanced features soon. Questions? hello@gpudex.io</p>
+    <!-- Real-time Updates Indicator -->
+    <div class="realtime-indicator" id="realtimeIndicator">
+        <i class="fas fa-sync-alt"></i> Live updates active
+    </div>
+
+    <!-- Toast Notifications -->
+    <div class="toast" id="toast">
+        <span id="toastMessage"></span>
     </div>
 
     <script>
+        // Global Configuration
         const API_BASE = 'http://localhost:8000';
-        let currentData = null;
-        let priceChart = null;
-        let currentTimeframe = '24h';
+        let cart = [];
+        let isAuthenticated = false;
+        let currentUser = null;
+        let realtimeEnabled = false;
+        let realtimeInterval = null;
+        let selectedPaymentMethod = 'card';
+        let selectedCrypto = 'BTC';
 
-        async function checkAPIStatus() {
-            try {
-                const response = await fetch(`${API_BASE}/`);
-                const data = await response.json();
-                console.log('API Status:', data);
-                return true;
-            } catch (error) {
-                console.error('API Status Check Failed:', error);
-                return false;
-            }
-        }
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeApp();
+        });
 
-        async function searchGPUs() {
-            const resultsDiv = document.getElementById('results');
-            const searchBtn = document.getElementById('searchBtn');
-            const gpuType = document.getElementById('gpuSelect').value;
-            const region = document.getElementById('regionSelect').value;
-
-            // Show loading state
-            resultsDiv.innerHTML = '<div class="loading">Aggregating prices from providers...</div>';
-            searchBtn.disabled = true;
-            searchBtn.textContent = 'Searching...';
-
-            try {
-                // Check API status first
-                const apiOnline = await checkAPIStatus();
-                if (!apiOnline) {
-                    throw new Error('API is currently unavailable');
-                }
-
-                // Fetch real data from API
-                const response = await fetch(`${API_BASE}/api/v1/prices?gpu=${gpuType}&region=${region}`);
-                
-                if (!response.ok) {
-                    throw new Error(`API returned status ${response.status}`);
-                }
-
-                const data = await response.json();
-                currentData = data;
-
-                // Update provider count
-                document.getElementById('providerCount').textContent = data.total_providers || data.prices.length;
-
-                // Display results
-                displayResults(data);
-
-                // Show arbitrage opportunity if available
-                if (data.arbitrage && data.arbitrage.opportunity) {
-                    showArbitrageAlert(data.arbitrage);
-                }
-
-                // Show and load price history chart
-                showPriceChart(data.gpu_type);
-
-            } catch (error) {
-                console.error('Search failed:', error);
-                resultsDiv.innerHTML = `
-                    <div class="error">
-                        <h3>⚠️ Unable to fetch prices</h3>
-                        <p>${error.message}</p>
-                        <p>Please try again in a few moments.</p>
-                        <button onclick="searchGPUs()" style="margin-top: 1rem;">Retry</button>
-                    </div>
-                `;
-            } finally {
-                searchBtn.disabled = false;
-                searchBtn.textContent = 'Find Best Price';
-            }
-        }
-
-        function displayResults(data) {
-            const resultsDiv = document.getElementById('results');
+        async function initializeApp() {
+            checkAuthStatus();
+            loadCartFromStorage();
+            updateCartDisplay();
+            searchGPUs(); // Load initial GPU data
             
-            if (!data.prices || data.prices.length === 0) {
-                resultsDiv.innerHTML = `
-                    <div class="error">
-                        <h3>No prices found</h3>
-                        <p>No GPU prices available for the selected criteria.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            let html = `
-                <h3>Found ${data.prices.length} offers for ${data.gpu_type.toUpperCase()}</h3>
-                <p style="color: #888; margin-bottom: 1rem;">Last updated: ${new Date(data.timestamp).toLocaleString()}</p>
-            `;
-
-            data.prices.forEach((provider, index) => {
-                const isBestPrice = index === 0;
-                const savingsBadge = provider.savings > 30 ? `<div class="savings-badge">SAVE ${provider.savings}%</div>` : '';
-                
-                html += `
-                    <div class="result-item" style="position: relative; ${isBestPrice ? 'border: 2px solid #4ade80; border-radius: 8px;' : ''}">
-                        ${savingsBadge}
-                        <div class="provider-name">
-                            ${provider.provider}
-                            ${isBestPrice ? ' 🏆' : ''}
-                        </div>
-                        <div class="specs">${provider.specs || 'GPU Instance'}</div>
-                        <div class="price">$${provider.price.toFixed(2)}/hr</div>
-                        <div class="availability ${provider.availability}">${provider.availability}</div>
-                        <button class="cta-button" onclick="deploy('${provider.provider}', ${provider.price})">Deploy →</button>
-                    </div>
-                `;
-            });
-
-            resultsDiv.innerHTML = html;
+            // Enable real-time updates by default
+            toggleRealTimeUpdates();
         }
 
-        function showArbitrageAlert(arbitrage) {
-            const resultsDiv = document.getElementById('results');
-            const alertHtml = `
-                <div class="arbitrage-alert">
-                    <h3>💰 Arbitrage Opportunity Detected!</h3>
-                    <p>Buy from ${arbitrage.buy_from} at $${arbitrage.spread.toFixed(2)}/hr spread</p>
-                    <p>Potential profit: $${arbitrage.potential_hourly_profit.toFixed(2)}/hr</p>
-                </div>
-            `;
-            resultsDiv.insertAdjacentHTML('afterbegin', alertHtml);
+        // Authentication Functions
+        function checkAuthStatus() {
+            const token = localStorage.getItem('authToken');
+            const userData = localStorage.getItem('userData');
+            
+            if (token && userData) {
+                isAuthenticated = true;
+                currentUser = JSON.parse(userData);
+                updateAuthUI();
+            }
         }
 
-        function deploy(provider, price) {
-            alert(`Redirecting to ${provider}...\n\nPrice: $${price.toFixed(2)}/hr\n\nIn production, this would:\n1. Route through our aggregation layer\n2. Handle authentication\n3. Track for analytics\n4. Earn affiliate commission`);
+        function updateAuthUI() {
+            const authBtn = document.getElementById('authBtn');
+            if (isAuthenticated && currentUser) {
+                authBtn.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email}`;
+                authBtn.onclick = showUserMenu;
+            } else {
+                authBtn.innerHTML = '<i class="fas fa-user"></i> Sign In';
+                authBtn.onclick = toggleAuth;
+            }
         }
 
-        async function setupAlert() {
-            const email = document.getElementById('emailInput').value;
-            if (!email) {
-                alert('Please enter your email address');
-                return;
-            }
+        function toggleAuth() {
+            const authSection = document.getElementById('authSection');
+            authSection.style.display = authSection.style.display === 'none' ? 'block' : 'none';
+        }
 
-            if (!currentData) {
-                alert('Please search for prices first to set up an alert');
-                return;
-            }
+        function showLogin() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('registerForm').style.display = 'none';
+        }
 
+        function showRegister() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
             try {
-                const response = await fetch(`${API_BASE}/api/v1/alerts`, {
+                const response = await fetch(`${API_BASE}/api/v1/auth/login`, {
                     method: 'POST',
-                    headers: {
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    localStorage.setItem('authToken', data.access_token);
+                    localStorage.setItem('userData', JSON.stringify(data.user));
+                    
+                    isAuthenticated = true;
+                    currentUser = data.user;
+                    updateAuthUI();
+                    toggleAuth();
+                    showToast('Login successful!', 'success');
+                } else {
+                    showToast('Invalid credentials', 'error');
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                showToast('Login failed. Please try again.', 'error');
+            }
+        }
+
+        async function handleRegister(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const confirm = document.getElementById('registerConfirm').value;
+            
+            if (password !== confirm) {
+                showToast('Passwords do not match', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/auth/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                if (response.ok) {
+                    showToast('Account created! Please sign in.', 'success');
+                    showLogin();
+                } else {
+                    const error = await response.json();
+                    showToast(error.detail || 'Registration failed', 'error');
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                showToast('Registration failed. Please try again.', 'error');
+            }
+        }
+
+        // GPU Search and Display Functions
+        async function searchGPUs() {
+            const loadingState = document.getElementById('loadingState');
+            const resultsContainer = document.getElementById('gpuResults');
+            
+            loadingState.style.display = 'block';
+            resultsContainer.innerHTML = '';
+            
+            try {
+                const gpuType = document.getElementById('gpuSelect').value;
+                const region = document.getElementById('regionSelect').value;
+                const sortBy = document.getElementById('sortSelect').value;
+                
+                let url = `${API_BASE}/api/v1/prices?include_predictions=true`;
+                if (gpuType) url += `&gpu_type=${encodeURIComponent(gpuType)}`;
+                if (region) url += `&region=${encodeURIComponent(region)}`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.success && data.prices) {
+                    displayGPUResults(data.prices, sortBy);
+                    updateResultsTitle(data.prices.length);
+                } else {
+                    displayMockResults();
+                }
+            } catch (error) {
+                console.error('Error fetching GPU prices:', error);
+                displayMockResults();
+            }
+            
+            loadingState.style.display = 'none';
+        }
+
+        function displayGPUResults(prices, sortBy = 'price') {
+            const container = document.getElementById('gpuResults');
+            
+            // Apply filters
+            let filteredPrices = applyFilters(prices);
+            
+            // Sort results
+            filteredPrices = sortGPUResults(filteredPrices, sortBy);
+            
+            container.innerHTML = filteredPrices.map(gpu => `
+                <div class="gpu-card">
+                    <div class="gpu-card-header">
+                        <div class="provider-badge provider-${gpu.provider}">
+                            ${gpu.provider.toUpperCase()}
+                        </div>
+                        <div class="gpu-title">${gpu.gpu_type}</div>
+                        <div class="gpu-specs">
+                            <div class="spec-item">
+                                <div class="spec-label">Memory</div>
+                                <div class="spec-value">${gpu.memory}</div>
+                            </div>
+                            <div class="spec-item">
+                                <div class="spec-label">Region</div>
+                                <div class="spec-value">${gpu.region}</div>
+                            </div>
+                            <div class="spec-item">
+                                <div class="spec-label">Availability</div>
+                                <div class="spec-value">${gpu.availability}</div>
+                            </div>
+                            <div class="spec-item">
+                                <div class="spec-label">CUDA Cores</div>
+                                <div class="spec-value">${gpu.cuda_cores.toLocaleString()}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="gpu-pricing">
+                        <div class="price-main">$${gpu.price_per_hour.toFixed(2)}/hour</div>
+                        <div class="price-crypto">
+                            <i class="fab fa-bitcoin"></i> Crypto: $${(gpu.price_per_hour * 0.99).toFixed(2)}/hour
+                        </div>
+                        
+                        <div class="gpu-actions">
+                            <button class="btn-add-cart" onclick="addToCart('${gpu.provider}', '${gpu.gpu_type}', ${gpu.price_per_hour}, '${gpu.region}', '${gpu.memory}')">
+                                <i class="fas fa-cart-plus"></i> Add to Cart
+                            </button>
+                            <button class="btn-quick-buy" onclick="quickBuy('${gpu.provider}', '${gpu.gpu_type}', ${gpu.price_per_hour})">
+                                <i class="fas fa-bolt"></i> Quick Buy
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            
+            if (filteredPrices.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 3rem; grid-column: 1 / -1;">
+                        <i class="fas fa-search" style="font-size: 3rem; color: var(--text-secondary); margin-bottom: 1rem;"></i>
+                        <h3>No GPUs found</h3>
+                        <p style="color: var(--text-secondary);">Try adjusting your filters or search criteria.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayMockResults() {
+            const mockData = [
+                {
+                    provider: 'vast',
+                    gpu_type: 'RTX 4090',
+                    price_per_hour: 0.45,
+                    memory: '24GB',
+                    region: 'US-East',
+                    availability: 'Available',
+                    cuda_cores: 16384
+                },
+                {
+                    provider: 'aws',
+                    gpu_type: 'A100',
+                    price_per_hour: 3.20,
+                    memory: '80GB',
+                    region: 'us-east-1',
+                    availability: 'Available',
+                    cuda_cores: 6912
+                },
+                {
+                    provider: 'runpod',
+                    gpu_type: 'RTX 3090',
+                    price_per_hour: 0.35,
+                    memory: '24GB',
+                    region: 'Global',
+                    availability: 'Available',
+                    cuda_cores: 10496
+                }
+            ];
+            
+            displayGPUResults(mockData, 'price');
+            showToast('Demo Mode: Showing sample data', 'info');
+        }
+
+        function applyFilters(prices) {
+            const maxPrice = parseFloat(document.getElementById('maxPrice').value) || Infinity;
+            const minMemory = parseInt(document.getElementById('minMemory').value) || 0;
+            const availability = document.getElementById('availabilityFilter').value;
+            
+            return prices.filter(gpu => {
+                const memoryGB = parseInt(gpu.memory.replace('GB', '')) || 0;
+                
+                if (gpu.price_per_hour > maxPrice) return false;
+                if (memoryGB < minMemory) return false;
+                if (availability && gpu.availability !== availability) return false;
+                
+                return true;
+            });
+        }
+
+        function sortGPUResults(prices, sortBy) {
+            switch (sortBy) {
+                case 'price':
+                    return prices.sort((a, b) => a.price_per_hour - b.price_per_hour);
+                case 'performance':
+                    return prices.sort((a, b) => b.cuda_cores - a.cuda_cores);
+                case 'provider':
+                    return prices.sort((a, b) => a.provider.localeCompare(b.provider));
+                case 'memory':
+                    return prices.sort((a, b) => {
+                        const aMemory = parseInt(a.memory.replace('GB', '')) || 0;
+                        const bMemory = parseInt(b.memory.replace('GB', '')) || 0;
+                        return bMemory - aMemory;
+                    });
+                default:
+                    return prices;
+            }
+        }
+
+        function updateResultsTitle(count) {
+            document.getElementById('resultsTitle').textContent = `${count} Available GPUs`;
+        }
+
+        // Shopping Cart Functions
+        function addToCart(provider, gpuType, pricePerHour, region, memory) {
+            const item = {
+                id: Date.now(),
+                provider,
+                gpuType,
+                pricePerHour,
+                region,
+                memory,
+                quantity: 1,
+                duration: 1 // hours
+            };
+            
+            cart.push(item);
+            updateCartDisplay();
+            saveCartToStorage();
+            showToast(`${gpuType} added to cart!`, 'success');
+        }
+
+        function removeFromCart(itemId) {
+            cart = cart.filter(item => item.id !== itemId);
+            updateCartDisplay();
+            saveCartToStorage();
+        }
+
+        function updateCartDisplay() {
+            const cartCount = document.getElementById('cartCount');
+            const cartItems = document.getElementById('cartItems');
+            const cartTotal = document.getElementById('cartTotal');
+            const cryptoSavings = document.getElementById('cryptoSavings');
+            
+            cartCount.textContent = cart.length;
+            
+            if (cart.length === 0) {
+                cartItems.innerHTML = `
+                    <div style="text-align: center; padding: 2rem; color: var(--text-secondary);">
+                        <i class="fas fa-shopping-cart" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                        <p>Your cart is empty</p>
+                        <p style="font-size: 0.9rem;">Add some GPUs to get started!</p>
+                    </div>
+                `;
+            } else {
+                cartItems.innerHTML = cart.map(item => `
+                    <div class="cart-item">
+                        <div style="display: flex; justify-content: between; margin-bottom: 0.5rem;">
+                            <strong>${item.gpuType}</strong>
+                            <button onclick="removeFromCart(${item.id})" style="background: none; border: none; color: var(--text-secondary); cursor: pointer;">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                            ${item.provider.toUpperCase()} • ${item.region} • ${item.memory}
+                        </div>
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                                <input type="number" value="${item.duration}" min="1" max="168" 
+                                       onchange="updateItemDuration(${item.id}, this.value)"
+                                       style="width: 60px; padding: 0.25rem; background: var(--dark-bg); border: 1px solid var(--border-color); border-radius: 4px; color: white;">
+                                <span style="font-size: 0.9rem;">hours</span>
+                            </div>
+                            <div style="font-weight: 600;">
+                                $${(item.pricePerHour * item.duration).toFixed(2)}
+                            </div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+            
+            const total = cart.reduce((sum, item) => sum + (item.pricePerHour * item.duration), 0);
+            const savings = total * 0.01; // 1% crypto discount
+            
+            cartTotal.textContent = total.toFixed(2);
+            cryptoSavings.textContent = savings.toFixed(2);
+        }
+
+        function updateItemDuration(itemId, duration) {
+            const item = cart.find(item => item.id === itemId);
+            if (item) {
+                item.duration = parseInt(duration) || 1;
+                updateCartDisplay();
+                saveCartToStorage();
+            }
+        }
+
+        function toggleCart() {
+            const cartSidebar = document.getElementById('cartSidebar');
+            cartSidebar.classList.toggle('open');
+        }
+
+        function saveCartToStorage() {
+            localStorage.setItem('gpudexCart', JSON.stringify(cart));
+        }
+
+        function loadCartFromStorage() {
+            const savedCart = localStorage.getItem('gpudexCart');
+            if (savedCart) {
+                cart = JSON.parse(savedCart);
+            }
+        }
+
+        // Checkout Functions
+        function proceedToCheckout() {
+            if (cart.length === 0) {
+                showToast('Your cart is empty!', 'error');
+                return;
+            }
+            
+            document.getElementById('checkoutModal').style.display = 'block';
+        }
+
+        function checkoutWithCrypto() {
+            selectPaymentMethod('crypto');
+            proceedToCheckout();
+        }
+
+        function selectPaymentMethod(method) {
+            selectedPaymentMethod = method;
+            
+            const cardPayment = document.getElementById('cardPayment');
+            const cryptoPayment = document.getElementById('cryptoPayment');
+            const cryptoOptions = document.getElementById('cryptoOptions');
+            
+            cardPayment.classList.toggle('selected', method === 'card');
+            cryptoPayment.classList.toggle('selected', method === 'crypto');
+            
+            cryptoOptions.style.display = method === 'crypto' ? 'grid' : 'none';
+        }
+
+        function selectCrypto(crypto) {
+            selectedCrypto = crypto;
+            
+            document.querySelectorAll('.crypto-option').forEach(option => {
+                option.classList.toggle('selected', option.dataset.crypto === crypto);
+            });
+        }
+
+        async function processPayment() {
+            if (!isAuthenticated) {
+                showToast('Please sign in to complete your purchase', 'error');
+                toggleAuth();
+                return;
+            }
+            
+            const total = cart.reduce((sum, item) => sum + (item.pricePerHour * item.duration), 0);
+            
+            try {
+                if (selectedPaymentMethod === 'crypto') {
+                    await processCryptoPayment(total);
+                } else {
+                    await processCardPayment(total);
+                }
+            } catch (error) {
+                console.error('Payment error:', error);
+                showToast('Payment failed. Please try again.', 'error');
+            }
+        }
+
+        async function processCryptoPayment(amount) {
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/crypto/payment`, {
+                    method: 'POST',
+                    headers: { 
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
                     },
                     body: JSON.stringify({
-                        email: email,
-                        gpu_type: currentData.gpu_type,
-                        target_price: currentData.prices[0].price * 0.9 // 10% below current best
+                        amount_usd: amount,
+                        cryptocurrency: selectedCrypto,
+                        user_email: currentUser.email,
+                        order_description: `GPU Rental - ${cart.length} items`,
+                        gpu_booking_details: {
+                            items: cart,
+                            total_amount: amount,
+                            discount_applied: amount * 0.01
+                        }
                     })
                 });
-
+                
                 if (response.ok) {
-                    alert(`Price alert configured!\n\nYou'll be notified when ${currentData.gpu_type.toUpperCase()} prices drop below $${(currentData.prices[0].price * 0.9).toFixed(2)}/hr.`);
-                    document.getElementById('emailInput').value = '';
+                    const paymentData = await response.json();
+                    
+                    // Open CoinGate payment URL
+                    window.open(paymentData.payment_url, '_blank');
+                    
+                    // Show success message
+                    showToast(`Payment created! Complete your ${selectedCrypto} payment in the new window.`, 'success');
+                    
+                    // Clear cart and close modal
+                    cart = [];
+                    updateCartDisplay();
+                    saveCartToStorage();
+                    closeCheckout();
+                    
                 } else {
-                    throw new Error('Failed to create alert');
+                    throw new Error('Crypto payment creation failed');
                 }
             } catch (error) {
-                alert('Failed to set up alert. Please try again.');
+                throw error;
             }
         }
 
-        // Auto-search on load
-        window.onload = () => {
-            searchGPUs();
-        };
+        async function processCardPayment(amount) {
+            try {
+                const response = await fetch(`${API_BASE}/api/v1/payment/create-checkout-session`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                    },
+                    body: JSON.stringify({
+                        amount: amount,
+                        currency: 'usd',
+                        plan_type: 'one_time',
+                        gpu_booking_details: cart
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    
+                    // Redirect to Stripe Checkout
+                    window.location.href = data.url;
+                    
+                } else {
+                    throw new Error('Card payment creation failed');
+                }
+            } catch (error) {
+                throw error;
+            }
+        }
 
-                 // Add event listeners for form submission
-         document.getElementById('gpuSelect').addEventListener('change', searchGPUs);
-         document.getElementById('regionSelect').addEventListener('change', searchGPUs);
+        function closeCheckout() {
+            document.getElementById('checkoutModal').style.display = 'none';
+        }
 
-         // ============ PRICE HISTORY CHART FUNCTIONS ============
+        // Quick Buy Function
+        function quickBuy(provider, gpuType, pricePerHour) {
+            addToCart(provider, gpuType, pricePerHour, 'Unknown', 'Unknown');
+            toggleCart();
+            setTimeout(proceedToCheckout, 500);
+        }
 
-         async function showPriceChart(gpuType) {
-             const chartContainer = document.getElementById('chartContainer');
-             chartContainer.style.display = 'block';
-             
-             // Load initial chart data
-             await loadChartData(gpuType, currentTimeframe);
-         }
+        // Real-time Updates
+        function toggleRealTimeUpdates() {
+            realtimeEnabled = !realtimeEnabled;
+            
+            const realtimeText = document.getElementById('realtimeText');
+            const realtimeIndicator = document.getElementById('realtimeIndicator');
+            
+            if (realtimeEnabled) {
+                realtimeText.textContent = 'Disable Real-time';
+                realtimeIndicator.classList.add('active');
+                
+                realtimeInterval = setInterval(searchGPUs, 30000); // Update every 30 seconds
+                showToast('Real-time updates enabled', 'success');
+            } else {
+                realtimeText.textContent = 'Enable Real-time';
+                realtimeIndicator.classList.remove('active');
+                
+                if (realtimeInterval) {
+                    clearInterval(realtimeInterval);
+                    realtimeInterval = null;
+                }
+                showToast('Real-time updates disabled', 'info');
+            }
+        }
 
-         async function loadChartData(gpuType, timeframe) {
-             try {
-                 // Convert timeframe to hours for API
-                 const hoursMap = {
-                     '1h': 1,
-                     '24h': 24,
-                     '7d': 168,
-                     '30d': 720
-                 };
+        // Utility Functions
+        function toggleAdvancedFilters() {
+            const filters = document.getElementById('advancedFilters');
+            filters.style.display = filters.style.display === 'none' ? 'block' : 'none';
+        }
 
-                 const hours = hoursMap[timeframe];
-                 const response = await fetch(`${API_BASE}/api/v1/history/${gpuType}?hours=${hours}`);
-                 
-                 if (!response.ok) {
-                     throw new Error(`Failed to fetch history: ${response.status}`);
-                 }
+        function scrollToMarketplace() {
+            document.getElementById('marketplace').scrollIntoView({ behavior: 'smooth' });
+        }
 
-                 const historyData = await response.json();
-                 updatePriceChart(historyData, gpuType, timeframe);
-             } catch (error) {
-                 console.error('Failed to load chart data:', error);
-                 showMockChartData(gpuType, timeframe);
-             }
-         }
+        function showDemo() {
+            showToast('Demo coming soon!', 'info');
+        }
 
-         function showMockChartData(gpuType, timeframe) {
-             // Generate mock historical data for demo
-             const now = new Date();
-             const dataPoints = timeframe === '1h' ? 12 : timeframe === '24h' ? 24 : timeframe === '7d' ? 168 : 720;
-             const interval = timeframe === '1h' ? 5 : timeframe === '24h' ? 60 : timeframe === '7d' ? 60 : 60;
-             
-             const basePrice = currentData?.best_price?.price || 1.0;
-             const mockData = [];
-             
-             for (let i = dataPoints; i >= 0; i--) {
-                 const timestamp = new Date(now.getTime() - (i * interval * 60 * 1000));
-                 const volatility = 0.1 + Math.random() * 0.2; // 10-30% volatility
-                 const trend = Math.sin(i / 10) * 0.05; // Gentle trend
-                 const price = basePrice * (1 + trend + (Math.random() - 0.5) * volatility);
-                 
-                 mockData.push({
-                     timestamp: timestamp.toISOString(),
-                     price: Math.max(0.1, price), // Ensure positive price
-                     provider: 'TensorDock'
-                 });
-             }
+        function setGridView() {
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            // Grid view is default
+        }
 
-             updatePriceChart({ history: mockData }, gpuType, timeframe);
-         }
+        function setListView() {
+            document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            // TODO: Implement list view
+        }
 
-         function updatePriceChart(historyData, gpuType, timeframe) {
-             const ctx = document.getElementById('chartCanvas');
-             
-             if (!historyData.history || historyData.history.length === 0) {
-                 showMockChartData(gpuType, timeframe);
-                 return;
-             }
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            const toastMessage = document.getElementById('toastMessage');
+            
+            toastMessage.textContent = message;
+            toast.className = `toast ${type}`;
+            toast.style.display = 'block';
+            
+            setTimeout(() => {
+                toast.style.display = 'none';
+            }, 5000);
+        }
 
-             // Process data for chart
-             const chartData = historyData.history.map(item => ({
-                 x: new Date(item.timestamp),
-                 y: item.price
-             })).sort((a, b) => a.x - b.x);
+        function showUserMenu() {
+            // TODO: Implement user menu with logout, profile, etc.
+            showToast('User menu coming soon!', 'info');
+        }
 
-             // Calculate trend
-             if (chartData.length >= 2) {
-                 const firstPrice = chartData[0].y;
-                 const lastPrice = chartData[chartData.length - 1].y;
-                 const changePercent = ((lastPrice - firstPrice) / firstPrice * 100);
-                 updatePriceTrend(changePercent, timeframe);
-             }
+        // Handle modal clicks
+        document.addEventListener('click', function(event) {
+            const checkoutModal = document.getElementById('checkoutModal');
+            if (event.target === checkoutModal) {
+                closeCheckout();
+            }
+        });
 
-             // Destroy existing chart
-             if (priceChart) {
-                 priceChart.destroy();
-             }
-
-             // Create new chart
-             priceChart = new Chart(ctx, {
-                 type: 'line',
-                 data: {
-                     datasets: [{
-                         label: `${gpuType.toUpperCase()} Price`,
-                         data: chartData,
-                         borderColor: '#667eea',
-                         backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                         fill: true,
-                         tension: 0.4,
-                         pointRadius: 0,
-                         pointHoverRadius: 8,
-                         borderWidth: 3
-                     }]
-                 },
-                 options: {
-                     responsive: true,
-                     maintainAspectRatio: false,
-                     plugins: {
-                         legend: {
-                             display: false
-                         }
-                     },
-                     scales: {
-                         x: {
-                             type: 'time',
-                             time: {
-                                 displayFormats: {
-                                     hour: 'HH:mm',
-                                     day: 'MMM dd',
-                                     week: 'MMM dd',
-                                     month: 'MMM yyyy'
-                                 }
-                             },
-                             grid: {
-                                 color: '#333'
-                             },
-                             ticks: {
-                                 color: '#888'
-                             }
-                         },
-                         y: {
-                             beginAtZero: false,
-                             grid: {
-                                 color: '#333'
-                             },
-                             ticks: {
-                                 color: '#888',
-                                 callback: function(value) {
-                                     return '$' + value.toFixed(2);
-                                 }
-                             }
-                         }
-                     },
-                     interaction: {
-                         intersect: false,
-                         mode: 'index'
-                     },
-                     animation: {
-                         duration: 1000,
-                         easing: 'easeInOutQuart'
-                     }
-                 }
-             });
-         }
-
-         function updatePriceTrend(changePercent, timeframe) {
-             const trendIcon = document.getElementById('trendIcon');
-             const trendText = document.getElementById('trendText');
-             const priceTrend = document.getElementById('priceTrend');
-
-             const absChange = Math.abs(changePercent);
-             const direction = changePercent > 0 ? 'up' : changePercent < 0 ? 'down' : 'neutral';
-
-             // Update icon and text
-             if (direction === 'up') {
-                 trendIcon.textContent = '📈';
-                 trendText.textContent = `+${absChange.toFixed(1)}% (${timeframe})`;
-                 priceTrend.className = 'price-trend trend-up';
-             } else if (direction === 'down') {
-                 trendIcon.textContent = '📉';
-                 trendText.textContent = `-${absChange.toFixed(1)}% (${timeframe})`;
-                 priceTrend.className = 'price-trend trend-down';
-             } else {
-                 trendIcon.textContent = '➡️';
-                 trendText.textContent = `${absChange.toFixed(1)}% (${timeframe})`;
-                 priceTrend.className = 'price-trend trend-neutral';
-             }
-         }
-
-         async function updateChart(timeframe) {
-             // Update active button
-             document.querySelectorAll('.chart-btn').forEach(btn => btn.classList.remove('active'));
-             event.target.classList.add('active');
-
-             currentTimeframe = timeframe;
-
-             if (currentData) {
-                 await loadChartData(currentData.gpu_type, timeframe);
-             }
-         }
-
-         // ============ ADVANCED FEATURES ============
-
-         let realtimeEnabled = false;
-         let realtimeInterval = null;
-         let selectedProviders = new Set();
-
-         function toggleAdvancedFilters() {
-             const filters = document.getElementById('advancedFilters');
-             const toggle = document.getElementById('advancedToggle');
-             
-             if (filters.style.display === 'none') {
-                 filters.style.display = 'block';
-                 toggle.textContent = '⚙️ Simple Search';
-             } else {
-                 filters.style.display = 'none';
-                 toggle.textContent = '⚙️ Advanced Filters';
-             }
-         }
-
-         function toggleRealTimeUpdates() {
-             const btn = document.getElementById('realtimeBtn');
-             
-             if (realtimeEnabled) {
-                 // Disable real-time updates
-                 realtimeEnabled = false;
-                 clearInterval(realtimeInterval);
-                 btn.classList.remove('active');
-                 btn.innerHTML = '📡 Real-time Updates';
-             } else {
-                 // Enable real-time updates
-                 realtimeEnabled = true;
-                 btn.classList.add('active');
-                 btn.innerHTML = '<span class="realtime-indicator"></span>Live Updates';
-                 
-                 // Update every 30 seconds
-                 realtimeInterval = setInterval(() => {
-                     if (currentData) {
-                         searchGPUs();
-                     }
-                 }, 30000);
-             }
-         }
-
-         function toggleProviderSelection(providerId, checkbox) {
-             if (checkbox.checked) {
-                 selectedProviders.add(providerId);
-             } else {
-                 selectedProviders.delete(providerId);
-             }
-             
-             const compareBtn = document.getElementById('compareBtn');
-             if (selectedProviders.size >= 2) {
-                 compareBtn.style.display = 'inline-block';
-             } else {
-                 compareBtn.style.display = 'none';
-             }
-         }
-
-         function compareSelected() {
-             if (selectedProviders.size < 2) {
-                 alert('Please select at least 2 providers to compare');
-                 return;
-             }
-
-             const comparison = Array.from(selectedProviders).map(id => {
-                 return currentData.prices.find(p => p.provider === id);
-             }).filter(Boolean);
-
-             showComparisonModal(comparison);
-         }
-
-         function showComparisonModal(providers) {
-             const modal = document.createElement('div');
-             modal.className = 'comparison-modal';
-             
-             const content = `
-                 <div class="comparison-content">
-                     <span class="close-comparison" onclick="this.parentElement.parentElement.remove()">&times;</span>
-                     <h2 class="gradient-text">Provider Comparison</h2>
-                     <table class="comparison-table">
-                         <thead>
-                             <tr>
-                                 <th>Provider</th>
-                                 <th>Price/hr</th>
-                                 <th>Availability</th>
-                                 <th>Specs</th>
-                                 <th>Performance</th>
-                                 <th>Action</th>
-                             </tr>
-                         </thead>
-                         <tbody>
-                             ${providers.map(p => `
-                                 <tr>
-                                     <td><strong>${p.provider}</strong></td>
-                                     <td>$${p.price.toFixed(2)}</td>
-                                     <td><span class="availability ${p.availability}">${p.availability}</span></td>
-                                     <td>${p.specs || 'Standard Instance'}</td>
-                                     <td>${p.performance || 'N/A'}<span class="performance-badge">CUDA</span></td>
-                                     <td><button onclick="deploy('${p.provider}', ${p.price})">Deploy</button></td>
-                                 </tr>
-                             `).join('')}
-                         </tbody>
-                     </table>
-                 </div>
-             `;
-             
-             modal.innerHTML = content;
-             document.body.appendChild(modal);
-         }
-
-         // Enhanced search function with filters
-         async function searchGPUsAdvanced() {
-             const gpu = document.getElementById('gpuSelect').value;
-             const region = document.getElementById('regionSelect').value;
-             const sort = document.getElementById('sortSelect').value;
-             const maxPrice = document.getElementById('maxPrice')?.value;
-             const minMemory = document.getElementById('minMemory')?.value;
-             const availability = document.getElementById('availabilityFilter')?.value;
-
-             let params = new URLSearchParams({
-                 gpu: gpu,
-                 region: region,
-                 sort: sort
-             });
-
-             if (maxPrice) params.append('max_price', maxPrice);
-             if (minMemory) params.append('min_memory', minMemory);
-             if (availability) params.append('availability', availability);
-
-             try {
-                 const response = await fetch(`${API_BASE}/api/v1/prices?${params.toString()}`);
-                 
-                 if (!response.ok) {
-                     throw new Error(`HTTP ${response.status}`);
-                 }
-
-                 const data = await response.json();
-                 displayAdvancedResults(data);
-                 currentData = data;
-                 
-                 if (data.prices && data.prices.length > 0) {
-                     showPriceChart(gpu);
-                 }
-             } catch (error) {
-                 console.error('Search failed:', error);
-                 displayMockResults(gpu);
-             }
-         }
-
-         function displayAdvancedResults(data) {
-             const resultsDiv = document.getElementById('results');
-             
-             if (!data.prices || data.prices.length === 0) {
-                 resultsDiv.innerHTML = '<div class="error">No providers found matching your criteria</div>';
-                 return;
-             }
-
-             const html = data.prices.map((provider, index) => {
-                 const isBestPrice = index === 0;
-                 const savingsBadge = provider.savings > 30 ? `<div class="savings-badge">SAVE ${provider.savings}%</div>` : '';
-                 const performanceBadge = provider.performance ? `<span class="performance-badge">${provider.performance}</span>` : '';
-                 
-                 return `
-                     <div class="result-item" style="position: relative; ${isBestPrice ? 'border: 2px solid #4ade80; border-radius: 8px;' : ''}">
-                         <input type="checkbox" class="result-checkbox" onchange="toggleProviderSelection('${provider.provider}', this)">
-                         <div class="provider-name">
-                             <strong>${provider.provider}</strong>
-                             ${isBestPrice ? '<span style="color: #4ade80; margin-left: 8px;">🏆 Best Price</span>' : ''}
-                             ${performanceBadge}
-                         </div>
-                         <div class="specs">${provider.specs || 'GPU Instance'}${provider.memory ? ` • ${provider.memory}GB` : ''}</div>
-                         <div class="price">$${provider.price.toFixed(2)}/hr</div>
-                         <div class="availability ${provider.availability}">${provider.availability}</div>
-                         <button onclick="deploy('${provider.provider}', ${provider.price})">Deploy</button>
-                         ${savingsBadge}
-                     </div>
-                 `;
-             }).join('');
-
-             resultsDiv.innerHTML = html;
-         }
-
-         // Override the original searchGPUs to use the enhanced version
-         async function searchGPUs() {
-             const resultsDiv = document.getElementById('results');
-             resultsDiv.innerHTML = '<div class="loading">🔍 Scanning providers for best prices...</div>';
-             
-             // Add small delay for better UX
-             setTimeout(() => {
-                 searchGPUsAdvanced();
-             }, 500);
-         }
-
-         // Mock results fallback function
-         function displayMockResults(gpuType) {
-             const resultsDiv = document.getElementById('results');
-             
-             // Mock data for demonstration
-             const mockProviders = [
-                 { provider: "AWS", price: 3.20, availability: "available", specs: `${gpuType.toUpperCase()} Instance`, savings: 0 },
-                 { provider: "Google Cloud", price: 3.45, availability: "available", specs: `${gpuType.toUpperCase()} Instance`, savings: 15 },
-                 { provider: "Azure", price: 3.80, availability: "limited", specs: `${gpuType.toUpperCase()} Instance`, savings: 25 },
-                 { provider: "Vast.ai", price: 2.95, availability: "available", specs: `${gpuType.toUpperCase()} Instance`, savings: 35 },
-                 { provider: "RunPod", price: 3.10, availability: "available", specs: `${gpuType.toUpperCase()} Instance`, savings: 20 }
-             ];
-
-             // Sort by price
-             mockProviders.sort((a, b) => a.price - b.price);
-
-             // Display mock results
-             const html = mockProviders.map((provider, index) => {
-                 const isBestPrice = index === 0;
-                 const savingsBadge = provider.savings > 30 ? `<div class="savings-badge">SAVE ${provider.savings}%</div>` : '';
-                 
-                 return `
-                     <div class="result-item" style="position: relative; ${isBestPrice ? 'border: 2px solid #4ade80; border-radius: 8px;' : ''}">
-                         <input type="checkbox" class="result-checkbox" onchange="toggleProviderSelection('${provider.provider}', this)">
-                         <div class="provider-name">
-                             <strong>${provider.provider}</strong>
-                             ${isBestPrice ? '<span style="color: #4ade80; margin-left: 8px;">🏆 Best Price</span>' : ''}
-                         </div>
-                         <div class="specs">${provider.specs}</div>
-                         <div class="price">$${provider.price.toFixed(2)}/hr</div>
-                         <div class="availability ${provider.availability}">${provider.availability}</div>
-                         <button onclick="deploy('${provider.provider}', ${provider.price})">Deploy</button>
-                         ${savingsBadge}
-                     </div>
-                 `;
-             }).join('');
-
-             resultsDiv.innerHTML = `
-                 <div style="background: #1a1a1a; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #333;">
-                     <h3 style="color: #fbbf24; margin-bottom: 0.5rem;">⚠️ Demo Mode</h3>
-                     <p style="color: #888; margin: 0;">API connection failed. Showing demo data for ${gpuType.toUpperCase()}.</p>
-                 </div>
-                 ${html}
-             `;
-
-             // Set mock data for other functions
-             currentData = {
-                 gpu_type: gpuType,
-                 prices: mockProviders
-             };
-         }
+        // Handle keyboard shortcuts
+        document.addEventListener('keydown', function(event) {
+            if (event.key === 'Escape') {
+                closeCheckout();
+                
+                const cartSidebar = document.getElementById('cartSidebar');
+                if (cartSidebar.classList.contains('open')) {
+                    toggleCart();
+                }
+                
+                const authSection = document.getElementById('authSection');
+                if (authSection.style.display === 'block') {
+                    toggleAuth();
+                }
+            }
+        });
     </script>
 </body>
 </html>
