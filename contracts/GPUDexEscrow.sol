@@ -40,7 +40,7 @@ contract GPUDexEscrow is ReentrancyGuard, Ownable {
         address provider;
         string gpuType;
         uint256 pricePerHour;
-        uint256 hours;
+        uint256 duration; // Duration in hours
         uint256 totalAmount;
         uint256 depositAmount;
         address paymentToken;       // ERC20 token (USDC, USDT, etc.)
@@ -147,17 +147,17 @@ contract GPUDexEscrow is ReentrancyGuard, Ownable {
         address _provider,
         string memory _gpuType,
         uint256 _pricePerHour,
-        uint256 _hours,
+        uint256 _duration,
         address _paymentToken,
         bool _autoRelease
     ) external returns (uint256) {
         require(_provider != address(0), "Invalid provider");
         require(_provider != msg.sender, "Cannot rent from yourself");
         require(_pricePerHour > 0, "Invalid price");
-        require(_hours > 0, "Invalid hours");
+        require(_duration > 0, "Invalid duration");
         require(providerStakes[_provider] >= minimumStake, "Provider not staked");
         
-        uint256 totalAmount = _pricePerHour * _hours;
+        uint256 totalAmount = _pricePerHour * _duration;
         uint256 depositAmount = totalAmount + (totalAmount * 20 / 100); // 20% security deposit
         
         uint256 rentalId = nextRentalId++;
@@ -168,7 +168,7 @@ contract GPUDexEscrow is ReentrancyGuard, Ownable {
             provider: _provider,
             gpuType: _gpuType,
             pricePerHour: _pricePerHour,
-            hours: _hours,
+            duration: _duration,
             totalAmount: totalAmount,
             depositAmount: depositAmount,
             paymentToken: _paymentToken,
