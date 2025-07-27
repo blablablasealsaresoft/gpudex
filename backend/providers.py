@@ -71,10 +71,12 @@ class CloudProviderIntegrator:
         """Scrape GPU prices from Vast.ai"""
         try:
             if not self.vast_api_key:
-                return await self._mock_vast_data()
+                logger.warning("Vast.ai API key not configured, skipping Vast.ai")
+                return []
             
-            url = "https://console.vast.ai/api/v0/instances"
-            headers = {"Authorization": f"Bearer {self.vast_api_key}"}
+            # Use the correct API endpoint that works with our manual tests
+            url = f"https://console.vast.ai/api/v0/bundles/?api_key={self.vast_api_key}"
+            headers = {"Accept": "application/json"}
             
             async with self.session.get(url, headers=headers) as response:
                 if response.status == 200:
@@ -82,11 +84,11 @@ class CloudProviderIntegrator:
                     return self._parse_vast_data(data)
                 else:
                     logger.warning(f"Vast.ai API returned status {response.status}")
-                    return await self._mock_vast_data()
+                    return []
                     
         except Exception as e:
             logger.error(f"Error scraping Vast.ai: {e}")
-            return await self._mock_vast_data()
+            return []  # Return empty list instead of mock data
 
     async def _mock_vast_data(self) -> List[GPUPriceData]:
         """Mock data for Vast.ai when API is not available"""
@@ -120,28 +122,32 @@ class CloudProviderIntegrator:
         ]
 
     def _parse_vast_data(self, data: Dict) -> List[GPUPriceData]:
-        """Parse Vast.ai API response"""
+        """Parse Vast.ai API response from bundles endpoint"""
         prices = []
-        for instance in data.get('instances', []):
+        # The /bundles/ endpoint returns offers, not instances
+        for offer in data.get('offers', []):
             try:
-                gpu_name = instance.get('gpu_name', 'Unknown')
-                price = float(instance.get('dph_total', 0))
+                gpu_name = offer.get('gpu_name', 'Unknown')
+                price = float(offer.get('dph_total', 0))
                 
                 prices.append(GPUPriceData(
                     provider="vast",
                     gpu_type=gpu_name,
                     price_per_hour=price,
-                    availability="Available" if instance.get('rentable') else "Unavailable",
-                    region=instance.get('geolocation', 'Unknown'),
-                    memory=f"{instance.get('gpu_mem_bw', 0)}GB",
-                    cuda_cores=instance.get('cuda_max_good', 0),
-                    specifications={"reliability": instance.get('reliability2', 0)},
+                    availability="Available" if offer.get('rentable') else "Unavailable",
+                    region=offer.get('geolocation', 'Unknown'),
+                    memory=f"{offer.get('gpu_ram', 0)}GB",
+                    cuda_cores=offer.get('cuda_max_good', 0),
+                    specifications={
+                        "reliability": offer.get('reliability2', 0),
+                        "score": offer.get('score', 0)
+                    },
                     last_updated=datetime.now(),
                     url="https://vast.ai",
-                    instance_type=instance.get('id', '')
+                    instance_type=str(offer.get('id', ''))
                 ))
             except Exception as e:
-                logger.error(f"Error parsing Vast.ai instance: {e}")
+                logger.error(f"Error parsing Vast.ai offer: {e}")
                 
         return prices
 
@@ -150,7 +156,8 @@ class CloudProviderIntegrator:
         """Scrape GPU prices from RunPod"""
         try:
             if not self.runpod_api_key:
-                return await self._mock_runpod_data()
+                logger.warning("RunPod API key not configured, skipping RunPod")
+                return []
             
             url = "https://api.runpod.io/graphql"
             headers = {"Authorization": f"Bearer {self.runpod_api_key}"}
@@ -177,11 +184,12 @@ class CloudProviderIntegrator:
                     data = await response.json()
                     return self._parse_runpod_data(data)
                 else:
-                    return await self._mock_runpod_data()
+                    logger.warning(f"RunPod API returned status {response.status}")
+                    return []
                     
         except Exception as e:
             logger.error(f"Error scraping RunPod: {e}")
-            return await self._mock_runpod_data()
+            return []
 
     async def _mock_runpod_data(self) -> List[GPUPriceData]:
         """Mock data for RunPod"""
@@ -238,14 +246,14 @@ class CloudProviderIntegrator:
         """Scrape GPU prices from AWS EC2"""
         try:
             if not self.aws_access_key or not self.aws_secret_key:
-                logger.info("AWS credentials not configured, using mock data")
-                return await self._mock_aws_data()
+                logger.info("AWS credentials not configured, skipping AWS provider")
+                return []  # Return empty list instead of mock data
             
             # Use boto3 to get real AWS pricing
             return await self._get_real_aws_pricing()
         except Exception as e:
             logger.error(f"Error scraping AWS: {e}")
-            return await self._mock_aws_data()
+            return []  # Return empty list instead of mock data
 
     async def _get_real_aws_pricing(self) -> List[GPUPriceData]:
         """Get real AWS EC2 GPU instance pricing"""
@@ -345,17 +353,17 @@ class CloudProviderIntegrator:
                     continue
             
             logger.info(f"Retrieved {len(prices)} real AWS GPU prices")
-            return prices if prices else await self._mock_aws_data()
+            return prices  # Return real prices only, no mock fallback
             
         except (NoCredentialsError, ClientError) as e:
-            logger.warning(f"AWS credentials error: {e}, falling back to mock data")
-            return await self._mock_aws_data()
+            logger.warning(f"AWS credentials error: {e}, skipping AWS")
+            return []
         except ImportError:
-            logger.warning("boto3 not installed, using mock AWS data")
-            return await self._mock_aws_data()
+            logger.warning("boto3 not installed, skipping AWS")
+            return []
         except Exception as e:
             logger.error(f"Unexpected error getting real AWS pricing: {e}")
-            return await self._mock_aws_data()
+            return []
 
     def _get_aws_gpu_info(self, instance_type: str) -> Dict[str, Any]:
         """Get GPU specifications for AWS instance types"""
@@ -530,21 +538,27 @@ class CloudProviderIntegrator:
         """Scrape GPU prices from Lambda Labs"""
         try:
             if not self.lambda_api_key:
-                return await self._mock_lambda_data()
+                logger.warning("Lambda Labs API key not configured, skipping Lambda Labs")
+                return []
+            
+            # Lambda Labs uses Basic Authentication with API key as username
+            import base64
+            auth_string = base64.b64encode(f"{self.lambda_api_key}:".encode()).decode()
             
             url = "https://cloud.lambdalabs.com/api/v1/instance-types"
-            headers = {"Authorization": f"Bearer {self.lambda_api_key}"}
+            headers = {"Authorization": f"Basic {auth_string}"}
             
             async with self.session.get(url, headers=headers) as response:
                 if response.status == 200:
                     data = await response.json()
                     return self._parse_lambda_data(data)
                 else:
-                    return await self._mock_lambda_data()
+                    logger.warning(f"Lambda Labs API returned status {response.status}")
+                    return []
                     
         except Exception as e:
             logger.error(f"Error scraping Lambda Labs: {e}")
-            return await self._mock_lambda_data()
+            return []
 
     async def _mock_lambda_data(self) -> List[GPUPriceData]:
         """Mock data for Lambda Labs"""
@@ -584,20 +598,27 @@ class CloudProviderIntegrator:
         
         for instance_id, instance_info in instance_types.items():
             try:
-                price = float(instance_info.get('price_cents_per_hour', 0)) / 100
-                gpu_info = instance_info.get('instance_type', {})
+                # Extract instance details
+                instance_type = instance_info.get('instance_type', {})
+                price_cents = instance_type.get('price_cents_per_hour', 0)
+                price = price_cents / 100.0 if price_cents else 0  # Convert cents to dollars
+                
+                gpu_info = instance_type  # Use the instance_type directly
+                
+                specs = gpu_info.get('specs', {})
                 
                 prices.append(GPUPriceData(
                     provider="lambda",
-                    gpu_type=gpu_info.get('name', 'Unknown'),
+                    gpu_type=gpu_info.get('description', 'Unknown'),
                     price_per_hour=price,
-                    availability="Available",
-                    region="US-West",
-                    memory=gpu_info.get('memory_gib', '0GB'),
-                    cuda_cores=0,  # Not provided
+                    availability="Available" if instance_info.get('regions_with_capacity_available') else "Queue",
+                    region="Multi-Region",
+                    memory=f"{specs.get('memory_gib', 0)}GB",
+                    cuda_cores=0,  # Not provided by Lambda API
                     specifications={
-                        "vcpus": gpu_info.get('vcpus', 0),
-                        "storage_gib": gpu_info.get('storage_gib', 0)
+                        "vcpus": specs.get('vcpus', 0),
+                        "storage_gib": specs.get('storage_gib', 0),
+                        "gpus": specs.get('gpus', 0)
                     },
                     last_updated=datetime.now(),
                     url="https://lambdalabs.com/service/gpu-cloud",

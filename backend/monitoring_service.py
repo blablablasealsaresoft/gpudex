@@ -205,9 +205,9 @@ class MonitoringService:
         """Check external API endpoints health"""
         checks = []
         
-        # Test endpoints for various providers
+        # Test endpoints for various providers (match actual scraping URLs)
         test_endpoints = [
-            ("vast_api", "https://vast.ai/api/v0/instances", {"timeout": 10}),
+            ("vast_api", "https://console.vast.ai/api/v0/bundles/", {"timeout": 10}),
             ("runpod_api", "https://api.runpod.io/graphql", {"timeout": 10}),
             ("lambda_api", "https://cloud.lambdalabs.com/api/v1/instance-types", {"timeout": 10})
         ]
@@ -220,19 +220,44 @@ class MonitoringService:
                 
                 try:
                     timeout = aiohttp.ClientTimeout(total=options.get("timeout", 10))
-                    async with session.get(url, timeout=timeout) as response:
-                        response_time = time.time() - start_time
+                    
+                    # Add authentication headers like actual API calls
+                    headers = {}
+                    modified_url = url
+                    if name == "vast_api" and os.getenv('VAST_API_KEY'):
+                        # Vast.ai uses query parameter authentication
+                        modified_url = f"{url}?api_key={os.getenv('VAST_API_KEY')}"
+                        headers['Accept'] = 'application/json'
+                    elif name == "lambda_api" and os.getenv('LAMBDA_API_KEY'):
+                        # Lambda Labs uses Basic Authentication with API key as username
+                        import base64
+                        auth_string = base64.b64encode(f"{os.getenv('LAMBDA_API_KEY')}:".encode()).decode()
+                        headers['Authorization'] = f"Basic {auth_string}"
+                    elif name == "runpod_api" and os.getenv('RUNPOD_API_KEY'):
+                        headers['Authorization'] = f"Bearer {os.getenv('RUNPOD_API_KEY')}"
+                    
+                    # Use POST for RunPod GraphQL like actual API calls
+                    if name == "runpod_api":
+                        query = {"query": "query { gpuTypes { id displayName } }"}
+                        async with session.post(modified_url, headers=headers, json=query, timeout=timeout) as response:
+                            response_time = time.time() - start_time
+                            status = "healthy" if response.status == 200 and response_time < 5.0 else "warning"
+                    else:
+                        async with session.get(modified_url, headers=headers, timeout=timeout) as response:
+                            response_time = time.time() - start_time
+                            status = "healthy" if response.status == 200 and response_time < 5.0 else "warning"
                         
-                        checks.append(HealthCheck(
-                            service=name,
-                            status="healthy" if response.status == 200 and response_time < 5.0 else "warning",
-                            last_check=datetime.now(),
-                            response_time=response_time,
-                            details={
-                                "status_code": response.status,
-                                "url": url
-                            }
-                        ))
+                    checks.append(HealthCheck(
+                        service=name,
+                        status=status,
+                        last_check=datetime.now(),
+                        response_time=response_time,
+                        details={
+                            "status_code": response.status,
+                            "url": url,
+                            "authenticated": bool(headers)
+                        }
+                    ))
                         
                 except Exception as e:
                     response_time = time.time() - start_time
@@ -348,18 +373,24 @@ class MonitoringService:
         api_checks = await self.check_external_apis_health()
         health_checks["external_apis"] = [self._serialize_datetime_dict(asdict(check)) for check in api_checks]
         
-        # Overall status
-        all_statuses = [health_checks["system"]["status"], db_check.status, redis_check.status]
-        all_statuses.extend([check.status for check in api_checks])
+        # Overall status - only consider core services critical
+        # External API failures are expected when using demo keys
+        core_statuses = [health_checks["system"]["status"], db_check.status, redis_check.status]
+        api_statuses = [check.status for check in api_checks]
         
-        if "critical" in all_statuses:
+        # Core services determine overall health
+        if "critical" in core_statuses:
             overall_status = "critical"
-        elif "warning" in all_statuses:
+        elif "warning" in core_statuses:
             overall_status = "warning"
+        # Only consider external APIs for warning level if majority fail
+        elif api_statuses.count("critical") > len(api_statuses) // 2:
+            overall_status = "warning" 
         else:
             overall_status = "healthy"
         
-        # Update active alerts count
+        # Update active alerts count  
+        all_statuses = core_statuses + api_statuses
         active_alert_count = len(alerts) + len([s for s in all_statuses if s in ["warning", "critical"]])
         self.active_alerts.set(active_alert_count)
         

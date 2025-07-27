@@ -1261,9 +1261,10 @@
                 const response = await fetch(url);
                 const data = await response.json();
                 
-                if (data.success && data.prices) {
+                if (data.success !== false && data.prices) {
                     displayGPUResults(data.prices, sortBy);
                     updateResultsTitle(data.prices.length);
+                    updateStatsBar(data.prices);
                 } else {
                     displayMockResults();
                 }
@@ -1284,50 +1285,90 @@
             // Sort results
             filteredPrices = sortGPUResults(filteredPrices, sortBy);
             
-            container.innerHTML = filteredPrices.map(gpu => `
-                <div class="gpu-card">
-                    <div class="gpu-card-header">
-                        <div class="provider-badge provider-${gpu.provider}">
-                            ${gpu.provider.toUpperCase()}
-                        </div>
-                        <div class="gpu-title">${gpu.gpu_type}</div>
-                        <div class="gpu-specs">
-                            <div class="spec-item">
-                                <div class="spec-label">Memory</div>
-                                <div class="spec-value">${gpu.memory}</div>
+            container.innerHTML = filteredPrices.map(gpu => {
+                // Format price properly for small amounts
+                const hourlyPrice = parseFloat(gpu.price_per_hour) || 0;
+                const formattedPrice = hourlyPrice < 0.01 ? 
+                    (hourlyPrice * 1000).toFixed(2) + '¢' : 
+                    '$' + hourlyPrice.toFixed(3);
+                
+                const cryptoPrice = hourlyPrice < 0.01 ? 
+                    ((hourlyPrice * 0.99) * 1000).toFixed(2) + '¢' : 
+                    '$' + (hourlyPrice * 0.99).toFixed(3);
+                
+                // Get availability status color
+                const availabilityColor = gpu.availability === 'Available' ? 'var(--success-green)' : 
+                                        gpu.availability === 'Queue' ? 'var(--warning-color)' : 'var(--text-secondary)';
+                
+                // Create memory display
+                const memoryDisplay = gpu.memory || '0GB';
+                const regionDisplay = gpu.region || 'Unknown';
+                
+                return `
+                    <div class="gpu-card" data-provider="${gpu.provider}" data-price="${hourlyPrice}">
+                        <div class="gpu-card-header">
+                            <div class="provider-badge provider-${gpu.provider}">
+                                ${gpu.provider.toUpperCase()}
+                                ${hourlyPrice > 0 ? '<i class="fas fa-check-circle" style="margin-left: 0.5rem; color: var(--success-green);"></i>' : '<i class="fas fa-exclamation-triangle" style="margin-left: 0.5rem; color: orange;"></i>'}
                             </div>
-                            <div class="spec-item">
-                                <div class="spec-label">Region</div>
-                                <div class="spec-value">${gpu.region}</div>
+                            <div class="gpu-title">${gpu.gpu_type}</div>
+                            <div class="gpu-specs">
+                                <div class="spec-item">
+                                    <div class="spec-label">Memory</div>
+                                    <div class="spec-value">${memoryDisplay}</div>
+                                </div>
+                                <div class="spec-item">
+                                    <div class="spec-label">Region</div>
+                                    <div class="spec-value">${regionDisplay}</div>
+                                </div>
+                                <div class="spec-item">
+                                    <div class="spec-label">Availability</div>
+                                    <div class="spec-value" style="color: ${availabilityColor}">
+                                        ${gpu.availability || 'Unknown'}
+                                    </div>
+                                </div>
+                                <div class="spec-item">
+                                    <div class="spec-label">CUDA Cores</div>
+                                    <div class="spec-value">${(gpu.cuda_cores || 0).toLocaleString()}</div>
+                                </div>
                             </div>
-                            <div class="spec-item">
-                                <div class="spec-label">Availability</div>
-                                <div class="spec-value">${gpu.availability}</div>
-                            </div>
-                            <div class="spec-item">
-                                <div class="spec-label">CUDA Cores</div>
-                                <div class="spec-value">${gpu.cuda_cores.toLocaleString()}</div>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="gpu-pricing">
-                        <div class="price-main">$${gpu.price_per_hour.toFixed(2)}/hour</div>
-                        <div class="price-crypto">
-                            <i class="fab fa-bitcoin"></i> Crypto: $${(gpu.price_per_hour * 0.99).toFixed(2)}/hour
+                            
+                            ${gpu.specifications ? `
+                                <div class="additional-specs">
+                                    ${gpu.specifications.vcpus ? `<small>vCPUs: ${gpu.specifications.vcpus}</small>` : ''}
+                                    ${gpu.specifications.gpus ? `<small>GPUs: ${gpu.specifications.gpus}</small>` : ''}
+                                </div>
+                            ` : ''}
                         </div>
                         
-                        <div class="gpu-actions">
-                            <button class="btn-add-cart" onclick="addToCart('${gpu.provider}', '${gpu.gpu_type}', ${gpu.price_per_hour}, '${gpu.region}', '${gpu.memory}')">
-                                <i class="fas fa-cart-plus"></i> Add to Cart
-                            </button>
-                            <button class="btn-quick-buy" onclick="quickBuy('${gpu.provider}', '${gpu.gpu_type}', ${gpu.price_per_hour})">
-                                <i class="fas fa-bolt"></i> Quick Buy
-                            </button>
+                        <div class="gpu-pricing">
+                            <div class="price-main">
+                                ${formattedPrice}/hour
+                                ${hourlyPrice > 0 ? '' : '<span style="color: orange; font-size: 0.8rem;">(Demo)</span>'}
+                            </div>
+                            <div class="price-crypto">
+                                <i class="fab fa-bitcoin"></i> Crypto: ${cryptoPrice}/hour
+                            </div>
+                            
+                            ${hourlyPrice > 0 ? `
+                                <div class="price-comparison" style="font-size: 0.9rem; color: var(--text-secondary); margin: 0.5rem 0;">
+                                    Daily: ${hourlyPrice < 0.01 ? ((hourlyPrice * 24) * 1000).toFixed(1) + '¢' : '$' + (hourlyPrice * 24).toFixed(2)} • 
+                                    Weekly: ${hourlyPrice < 0.01 ? '$' + ((hourlyPrice * 24 * 7)).toFixed(2) : '$' + (hourlyPrice * 24 * 7).toFixed(2)}
+                                </div>
+                            ` : ''}
+                            
+                            <div class="gpu-actions">
+                                <button class="btn-add-cart" onclick="addToCart('${gpu.provider}', '${gpu.gpu_type.replace(/'/g, '\\\'').replace(/"/g, '\\"')}', ${hourlyPrice}, '${regionDisplay}', '${memoryDisplay}')" ${hourlyPrice === 0 ? 'disabled title="Demo mode - no real booking"' : ''}>
+                                    <i class="fas fa-cart-plus"></i> ${hourlyPrice === 0 ? 'Demo Mode' : 'Add to Cart'}
+                                </button>
+                                <button class="btn-quick-buy" onclick="quickBuy('${gpu.provider}', '${gpu.gpu_type.replace(/'/g, '\\\'').replace(/"/g, '\\"')}', ${hourlyPrice})" ${hourlyPrice === 0 ? 'disabled title="Demo mode - no real booking"' : ''}>
+                                    <i class="fas fa-bolt"></i> ${hourlyPrice === 0 ? 'Demo' : 'Quick Buy'}
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            `).join('');
+                `;
+            }).join('');
             
             if (filteredPrices.length === 0) {
                 container.innerHTML = `
@@ -1337,6 +1378,29 @@
                         <p style="color: var(--text-secondary);">Try adjusting your filters or search criteria.</p>
                     </div>
                 `;
+            }
+        }
+
+        function updateStatsBar(prices) {
+            // Update real-time stats based on actual data
+            const realPrices = prices.filter(p => parseFloat(p.price_per_hour) > 0);
+            const providers = [...new Set(prices.map(p => p.provider))];
+            
+            document.getElementById('providerCount').textContent = providers.length;
+            
+            if (realPrices.length > 0) {
+                const priceValues = realPrices.map(p => parseFloat(p.price_per_hour));
+                const minPrice = Math.min(...priceValues);
+                const maxPrice = Math.max(...priceValues);
+                const savings = ((maxPrice - minPrice) / maxPrice * 100).toFixed(0);
+                
+                document.getElementById('savingsPercent').textContent = savings + '%';
+                
+                // Show real data indicator
+                showToast(`Live data: ${realPrices.length} real prices from ${providers.length} providers`, 'success');
+            } else {
+                // Demo mode
+                showToast(`Demo mode: Showing ${prices.length} sample GPUs from ${providers.length} providers`, 'info');
             }
         }
 
@@ -1368,11 +1432,21 @@
                     region: 'Global',
                     availability: 'Available',
                     cuda_cores: 10496
+                },
+                {
+                    provider: 'lambda',
+                    gpu_type: 'H100 (80GB)',
+                    price_per_hour: 1.49,
+                    memory: '80GB',
+                    region: 'Multi-Region',
+                    availability: 'Queue',
+                    cuda_cores: 0
                 }
             ];
             
             displayGPUResults(mockData, 'price');
-            showToast('Demo Mode: Showing sample data', 'info');
+            updateStatsBar(mockData);
+            showToast('Demo Mode: Showing sample data - Connect to real APIs for live prices', 'info');
         }
 
         function applyFilters(prices) {

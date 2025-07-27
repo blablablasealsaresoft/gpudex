@@ -169,7 +169,7 @@ async def get_gpu_prices(
                 price_dict = {
                     "provider": price_data.provider,
                     "gpu_type": price_data.gpu_type,
-                    "price": price_data.price_per_hour,
+                    "price_per_hour": price_data.price_per_hour,  # Fixed field name!
                     "availability": price_data.availability,
                     "region": price_data.region,
                     "memory": price_data.memory,
@@ -190,7 +190,7 @@ async def get_gpu_prices(
                 prices_dict = [p for p in prices_dict if region.lower() in p["region"].lower()]
             
             # Sort by price
-            prices_dict.sort(key=lambda x: x["price"])
+            prices_dict.sort(key=lambda x: x["price_per_hour"])
             
             # Calculate arbitrage opportunities
             arbitrage_opportunities = provider_integrator.calculate_arbitrage(all_prices)
@@ -253,7 +253,7 @@ async def filter_gpu_prices(
                 result.append({
                     "provider": price_data.provider,
                     "gpu_type": price_data.gpu_type,
-                    "price": price_data.price_per_hour,
+                    "price_per_hour": price_data.price_per_hour,  # Fixed field name!
                     "availability": price_data.availability,
                     "region": price_data.region,
                     "memory": price_data.memory,
