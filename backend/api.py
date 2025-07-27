@@ -810,6 +810,525 @@ async def crypto_discount_calculator(amount_usd: float = Query(..., description=
         logger.error(f"Error calculating crypto discount: {e}")
         raise HTTPException(status_code=500, detail="Calculation failed")
 
+# GPU Rental Endpoints
+class GPURentalRequest(BaseModel):
+    gpu_type: str
+    provider: str
+    hours: float
+    region: Optional[str] = None
+    user_email: str
+    payment_method: str  # 'crypto', 'stripe', 'coinbase'
+    wallet_address: Optional[str] = None
+
+class GPURentalResponse(BaseModel):
+    rental_id: str
+    gpu_type: str
+    provider: str
+    hours: float
+    price_per_hour: float
+    total_cost: float
+    discount_applied: float
+    final_cost: float
+    status: str
+    connection_details: Optional[Dict[str, Any]] = None
+    expires_at: datetime
+
+@app.post("/api/v1/rentals", response_model=GPURentalResponse)
+@basic_rate_limit
+async def create_gpu_rental(
+    request: Request,
+    rental_request: GPURentalRequest
+):
+    """Create a new GPU rental"""
+    try:
+        # Validate GPU availability
+        async with CloudProviderIntegrator() as provider_integrator:
+            all_prices = await provider_integrator.get_all_prices()
+            
+            # Find the specific GPU
+            gpu_found = None
+            for price in all_prices:
+                if (price.provider.lower() == rental_request.provider.lower() and 
+                    price.gpu_type.lower() == rental_request.gpu_type.lower()):
+                    gpu_found = price
+                    break
+            
+            if not gpu_found:
+                raise HTTPException(status_code=404, detail="GPU not available")
+            
+            if gpu_found.availability != "Available":
+                raise HTTPException(status_code=400, detail="GPU is not currently available")
+        
+        # Calculate pricing
+        price_per_hour = gpu_found.price_per_hour
+        total_cost = price_per_hour * rental_request.hours
+        
+        # Apply crypto discount
+        discount_applied = 0
+        if rental_request.payment_method == 'crypto':
+            discount_applied = total_cost * 0.01  # 1% crypto discount
+        
+        final_cost = total_cost - discount_applied
+        
+        # Generate rental ID
+        import uuid
+        rental_id = f"rental_{uuid.uuid4().hex[:12]}"
+        
+        # Store rental in database (simplified for now)
+        rental_data = {
+            "rental_id": rental_id,
+            "gpu_type": rental_request.gpu_type,
+            "provider": rental_request.provider,
+            "hours": rental_request.hours,
+            "price_per_hour": price_per_hour,
+            "total_cost": total_cost,
+            "discount_applied": discount_applied,
+            "final_cost": final_cost,
+            "user_email": rental_request.user_email,
+            "payment_method": rental_request.payment_method,
+            "wallet_address": rental_request.wallet_address,
+            "status": "pending_payment",
+            "created_at": datetime.now(),
+            "expires_at": datetime.now().replace(hour=23, minute=59, second=59)
+        }
+        
+        # TODO: Store in actual database
+        logger.info(f"Created rental: {rental_id} for {rental_request.user_email}")
+        
+        return GPURentalResponse(
+            rental_id=rental_id,
+            gpu_type=rental_request.gpu_type,
+            provider=rental_request.provider,
+            hours=rental_request.hours,
+            price_per_hour=price_per_hour,
+            total_cost=total_cost,
+            discount_applied=discount_applied,
+            final_cost=final_cost,
+            status="pending_payment",
+            expires_at=datetime.now().replace(hour=23, minute=59, second=59)
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error creating GPU rental: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create rental")
+
+@app.get("/api/v1/rentals/{rental_id}")
+@basic_rate_limit
+async def get_rental_status(
+    request: Request,
+    rental_id: str
+):
+    """Get rental status and connection details"""
+    try:
+        # TODO: Get from actual database
+        # For now, return simulated data
+        return {
+            "rental_id": rental_id,
+            "status": "active",
+            "connection_details": {
+                "ssh_host": f"gpu-{rental_id[:8]}.gpudex.ai",
+                "ssh_port": 22,
+                "username": "gpudex",
+                "password": f"temp_{rental_id[:8]}",
+                "jupyter_url": f"https://jupyter-{rental_id[:8]}.gpudex.ai",
+                "vscode_url": f"https://vscode-{rental_id[:8]}.gpudex.ai"
+            },
+            "remaining_hours": 23.5,
+            "gpu_info": {
+                "gpu_type": "RTX 4090",
+                "memory": "24GB",
+                "cuda_version": "12.2",
+                "driver_version": "535.86"
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting rental status: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get rental status")
+
+@app.post("/api/v1/rentals/{rental_id}/payment")
+@basic_rate_limit
+async def process_rental_payment(
+    request: Request,
+    rental_id: str,
+    payment_data: Dict[str, Any]
+):
+    """Process payment for GPU rental"""
+    try:
+        # TODO: Process actual payment based on method
+        payment_method = payment_data.get("payment_method")
+        
+        if payment_method == "crypto":
+            # Create crypto payment
+            crypto_payment = await create_crypto_payment(CryptoPaymentRequest(
+                amount_usd=payment_data["amount"],
+                cryptocurrency=payment_data["cryptocurrency"],
+                user_email=payment_data["user_email"],
+                order_description=f"GPU Rental {rental_id}",
+                gpu_booking_details={
+                    "rental_id": rental_id,
+                    "gpu_type": payment_data.get("gpu_type"),
+                    "hours": payment_data.get("hours")
+                }
+            ))
+            
+            return {
+                "payment_id": crypto_payment.payment_id,
+                "payment_url": crypto_payment.payment_url,
+                "wallet_address": crypto_payment.wallet_address,
+                "amount": crypto_payment.payment_amount,
+                "cryptocurrency": crypto_payment.cryptocurrency
+            }
+        
+        elif payment_method == "stripe":
+            # TODO: Implement Stripe payment
+            return {"message": "Stripe payment not yet implemented"}
+        
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported payment method")
+        
+    except Exception as e:
+        logger.error(f"Error processing rental payment: {e}")
+        raise HTTPException(status_code=500, detail="Payment processing failed")
+
+@app.get("/api/v1/analytics/overview")
+@basic_rate_limit
+async def get_analytics_overview(request: Request):
+    """Get analytics overview data"""
+    try:
+        async with CloudProviderIntegrator() as provider_integrator:
+            all_prices = await provider_integrator.get_all_prices()
+            
+            # Calculate analytics
+            total_gpus = len(all_prices)
+            available_gpus = len([p for p in all_prices if p.availability == "Available"])
+            avg_price = sum(p.price_per_hour for p in all_prices) / len(all_prices) if all_prices else 0
+            
+            # Provider distribution
+            provider_counts = {}
+            for price in all_prices:
+                provider_counts[price.provider] = provider_counts.get(price.provider, 0) + 1
+            
+            # GPU type distribution
+            gpu_type_counts = {}
+            for price in all_prices:
+                gpu_type_counts[price.gpu_type] = gpu_type_counts.get(price.gpu_type, 0) + 1
+            
+            # Price ranges
+            prices = [p.price_per_hour for p in all_prices]
+            min_price = min(prices) if prices else 0
+            max_price = max(prices) if prices else 0
+            
+            return {
+                "total_gpus": total_gpus,
+                "available_gpus": available_gpus,
+                "average_price": round(avg_price, 2),
+                "min_price": round(min_price, 2),
+                "max_price": round(max_price, 2),
+                "provider_distribution": provider_counts,
+                "gpu_type_distribution": gpu_type_counts,
+                "last_updated": datetime.now().isoformat()
+            }
+            
+    except Exception as e:
+        logger.error(f"Error getting analytics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get analytics")
+
+# Enterprise API Management Endpoints
+from enterprise_api_management import (
+    enterprise_api_manager, 
+    APIKeyRequest, TeamInviteRequest, UsageAnalytics,
+    APIKeyScope, PlanType, require_scope, enterprise_rate_limiter
+)
+
+@app.post("/api/v1/enterprise/organizations", response_model=Dict[str, Any])
+async def create_organization(
+    name: str,
+    owner_email: str,
+    plan: PlanType = PlanType.FREE
+):
+    """Create a new organization for enterprise API management"""
+    try:
+        return await enterprise_api_manager.create_organization(name, owner_email, plan)
+    except Exception as e:
+        logger.error(f"Error creating organization: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create organization")
+
+@app.post("/api/v1/enterprise/api-keys", response_model=Dict[str, Any])
+async def create_api_key(
+    org_id: str,
+    user_email: str,
+    key_request: APIKeyRequest,
+    current_user = Depends(require_scope(APIKeyScope.ADMIN))
+):
+    """Create a new API key with scopes and permissions"""
+    try:
+        return await enterprise_api_manager.create_api_key(org_id, user_email, key_request)
+    except Exception as e:
+        logger.error(f"Error creating API key: {e}")
+        raise HTTPException(status_code=500, detail="Failed to create API key")
+
+@app.get("/api/v1/enterprise/api-keys/{org_id}", response_model=List[Dict])
+async def list_api_keys(
+    org_id: str,
+    current_user = Depends(require_scope(APIKeyScope.READ_ANALYTICS))
+):
+    """List all API keys for an organization"""
+    try:
+        db_manager = DatabaseManager()
+        
+        query = """
+            SELECT id, name, scopes, created_by, expires_at, last_used_at, 
+                   usage_count, is_active, created_at
+            FROM api_keys_v2 
+            WHERE organization_id = %s
+            ORDER BY created_at DESC
+        """
+        
+        result = db_manager.db.execute(query, (org_id,))
+        rows = result.fetchall()
+        db_manager.close()
+        
+        return [
+            {
+                "id": row[0],
+                "name": row[1],
+                "scopes": json.loads(row[2]) if row[2] else [],
+                "created_by": row[3],
+                "expires_at": row[4],
+                "last_used_at": row[5],
+                "usage_count": row[6],
+                "is_active": row[7],
+                "created_at": row[8]
+            }
+            for row in rows
+        ]
+        
+    except Exception as e:
+        logger.error(f"Error listing API keys: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list API keys")
+
+@app.post("/api/v1/enterprise/api-keys/{key_id}/rotate", response_model=Dict[str, Any])
+async def rotate_api_key(
+    key_id: str,
+    org_id: str,
+    current_user = Depends(require_scope(APIKeyScope.ADMIN))
+):
+    """Rotate an API key (generate new key, invalidate old)"""
+    try:
+        return await enterprise_api_manager.rotate_api_key(key_id, org_id)
+    except Exception as e:
+        logger.error(f"Error rotating API key: {e}")
+        raise HTTPException(status_code=500, detail="Failed to rotate API key")
+
+@app.delete("/api/v1/enterprise/api-keys/{key_id}")
+async def revoke_api_key(
+    key_id: str,
+    org_id: str,
+    current_user = Depends(require_scope(APIKeyScope.ADMIN))
+):
+    """Revoke an API key"""
+    try:
+        db_manager = DatabaseManager()
+        
+        query = """
+            UPDATE api_keys_v2 
+            SET is_active = false, updated_at = CURRENT_TIMESTAMP
+            WHERE id = %s AND organization_id = %s
+        """
+        
+        result = db_manager.db.execute(query, (key_id, org_id))
+        db_manager.db.commit()
+        db_manager.close()
+        
+        return {"message": "API key revoked successfully", "key_id": key_id}
+        
+    except Exception as e:
+        logger.error(f"Error revoking API key: {e}")
+        raise HTTPException(status_code=500, detail="Failed to revoke API key")
+
+@app.get("/api/v1/enterprise/usage/{org_id}", response_model=UsageAnalytics)
+async def get_usage_analytics(
+    org_id: str,
+    period: str = "30d",
+    current_user = Depends(require_scope(APIKeyScope.READ_ANALYTICS))
+):
+    """Get comprehensive usage analytics for an organization"""
+    try:
+        return await enterprise_api_manager.get_usage_analytics(org_id, period)
+    except Exception as e:
+        logger.error(f"Error getting usage analytics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get usage analytics")
+
+@app.post("/api/v1/enterprise/team/{org_id}/invite")
+async def invite_team_member(
+    org_id: str,
+    invite_request: TeamInviteRequest,
+    current_user = Depends(require_scope(APIKeyScope.ADMIN))
+):
+    """Invite a team member to an organization"""
+    try:
+        await enterprise_api_manager.add_team_member(
+            org_id, 
+            invite_request.email, 
+            invite_request.role, 
+            invite_request.scopes
+        )
+        
+        # TODO: Send invitation email
+        
+        return {
+            "message": "Team member invited successfully",
+            "email": invite_request.email,
+            "role": invite_request.role
+        }
+        
+    except Exception as e:
+        logger.error(f"Error inviting team member: {e}")
+        raise HTTPException(status_code=500, detail="Failed to invite team member")
+
+@app.get("/api/v1/enterprise/team/{org_id}")
+async def list_team_members(
+    org_id: str,
+    current_user = Depends(require_scope(APIKeyScope.READ_ANALYTICS))
+):
+    """List team members for an organization"""
+    try:
+        db_manager = DatabaseManager()
+        
+        query = """
+            SELECT email, role, scopes, invited_at, joined_at, is_active
+            FROM team_members 
+            WHERE organization_id = %s
+            ORDER BY invited_at DESC
+        """
+        
+        result = db_manager.db.execute(query, (org_id,))
+        rows = result.fetchall()
+        db_manager.close()
+        
+        return [
+            {
+                "email": row[0],
+                "role": row[1],
+                "scopes": json.loads(row[2]) if row[2] else [],
+                "invited_at": row[3],
+                "joined_at": row[4],
+                "is_active": row[5]
+            }
+            for row in rows
+        ]
+        
+    except Exception as e:
+        logger.error(f"Error listing team members: {e}")
+        raise HTTPException(status_code=500, detail="Failed to list team members")
+
+@app.get("/api/v1/enterprise/billing/{org_id}")
+async def get_billing_info(
+    org_id: str,
+    current_user = Depends(require_scope(APIKeyScope.BILLING))
+):
+    """Get billing information and current usage"""
+    try:
+        db_manager = DatabaseManager()
+        
+        # Get current month usage
+        current_month = datetime.now().replace(day=1)
+        next_month = (current_month + timedelta(days=32)).replace(day=1)
+        
+        usage_query = """
+            SELECT COUNT(*) as requests, SUM(billing_units) as units
+            FROM api_usage_logs 
+            WHERE organization_id = %s 
+              AND timestamp >= %s 
+              AND timestamp < %s
+        """
+        
+        result = db_manager.db.execute(usage_query, (org_id, current_month, next_month))
+        usage_row = result.fetchone()
+        
+        # Get organization info
+        org_query = """
+            SELECT name, plan_type, stripe_customer_id 
+            FROM organizations 
+            WHERE id = %s
+        """
+        
+        result = db_manager.db.execute(org_query, (org_id,))
+        org_row = result.fetchone()
+        
+        # Get recent invoices
+        invoice_query = """
+            SELECT invoice_number, total_amount, status, period_start, period_end, due_date
+            FROM invoices 
+            WHERE organization_id = %s
+            ORDER BY created_at DESC
+            LIMIT 12
+        """
+        
+        result = db_manager.db.execute(invoice_query, (org_id,))
+        invoice_rows = result.fetchall()
+        
+        db_manager.close()
+        
+        return {
+            "organization": {
+                "name": org_row[0] if org_row else "",
+                "plan": org_row[1] if org_row else "free",
+                "stripe_customer_id": org_row[2] if org_row else None
+            },
+            "current_usage": {
+                "api_requests": usage_row[0] if usage_row else 0,
+                "billing_units": float(usage_row[1]) if usage_row and usage_row[1] else 0,
+                "period_start": current_month.isoformat(),
+                "period_end": next_month.isoformat()
+            },
+            "recent_invoices": [
+                {
+                    "invoice_number": row[0],
+                    "amount": float(row[1]),
+                    "status": row[2],
+                    "period_start": row[3].isoformat() if row[3] else None,
+                    "period_end": row[4].isoformat() if row[4] else None,
+                    "due_date": row[5].isoformat() if row[5] else None
+                }
+                for row in invoice_rows
+            ]
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting billing info: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get billing information")
+
+@app.get("/api/v1/enterprise/plans")
+async def get_available_plans():
+    """Get available subscription plans and their features"""
+    try:
+        from enterprise_api_management import PLAN_LIMITS
+        
+        plans = {}
+        for plan_type, limits in PLAN_LIMITS.items():
+            plans[plan_type.value] = {
+                "name": plan_type.value.title(),
+                "price_usd": limits.price_usd,
+                "requests_per_hour": limits.requests_per_hour,
+                "requests_per_day": limits.requests_per_day,
+                "requests_per_month": limits.requests_per_month,
+                "max_team_members": limits.max_team_members,
+                "max_api_keys": limits.max_api_keys,
+                "gpu_hour_credits": limits.gpu_hour_credits,
+                "support_level": limits.support_level,
+                "features": [scope.value for scope in limits.scopes]
+            }
+        
+        return {"plans": plans}
+        
+    except Exception as e:
+        logger.error(f"Error getting plans: {e}")
+        raise HTTPException(status_code=500, detail="Failed to get plans")
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
