@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GPUDex - The 1inch of Compute | Rent GPUs with Crypto</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://js.stripe.com/v3/"></script>
+    <script src="https://unpkg.com/web3@latest/dist/web3.min.js"></script>
+    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
@@ -775,6 +776,168 @@
             border-color: #ff4757;
             background: rgba(255, 71, 87, 0.1);
         }
+
+        /* Wallet Connection Styles */
+        .wallet-options {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .wallet-option {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--dark-bg);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+            width: 100%;
+        }
+
+        .wallet-option:hover {
+            border-color: var(--accent-blue);
+            background: rgba(102, 126, 234, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .wallet-name {
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.2rem;
+        }
+
+        .wallet-desc {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .wallet-benefits {
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+            padding: 1.5rem;
+            border: 1px solid rgba(102, 126, 234, 0.3);
+        }
+
+        .wallet-benefits h4 {
+            margin-bottom: 1rem;
+            color: var(--accent-blue);
+        }
+
+        .wallet-benefits ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .wallet-benefits li {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+
+        .wallet-benefits .fas {
+            color: var(--success-green);
+        }
+
+        .connected-wallet {
+            background: var(--dark-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid var(--success-green);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .wallet-info {
+            flex: 1;
+        }
+
+        .wallet-address {
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--accent-blue);
+            margin-bottom: 0.5rem;
+        }
+
+        .wallet-balance {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .crypto-payment-section {
+            background: linear-gradient(135deg, rgba(247, 147, 30, 0.1) 0%, rgba(255, 107, 53, 0.1) 100%);
+            border: 1px solid rgba(247, 147, 30, 0.3);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .crypto-payment-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+
+        .payment-amount {
+            text-align: center;
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+        }
+
+        .amount-usd {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--text-primary);
+        }
+
+        .amount-crypto {
+            font-size: 1.1rem;
+            color: var(--crypto-gold);
+            margin-top: 0.5rem;
+        }
+
+        .crypto-discount-highlight {
+            background: var(--success-gradient);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            text-align: center;
+            margin: 1rem 0;
+        }
+
+        .btn-crypto {
+            background: linear-gradient(135deg, #f7931e 0%, #ff6b35 100%);
+            border: none;
+            color: white;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-crypto:hover {
+            background: linear-gradient(135deg, #e6851b 0%, #e55a2b 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(247, 147, 30, 0.3);
+        }
+
+        .crypto-section-highlight {
+            background: linear-gradient(135deg, rgba(247, 147, 30, 0.15) 0%, rgba(255, 107, 53, 0.15) 100%);
+            border: 1px solid rgba(247, 147, 30, 0.3);
+            border-radius: 12px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
     </style>
 </head>
 <body>
@@ -798,8 +961,8 @@
                     <span class="cart-count" id="cartCount">0</span>
                 </div>
                 
-                <button class="btn btn-secondary" id="authBtn" onclick="toggleAuth()">
-                    <i class="fas fa-user"></i> Sign In
+                <button class="btn btn-secondary" id="walletBtn" onclick="connectWallet()">
+                    <i class="fas fa-wallet"></i> Connect Wallet
                 </button>
             </div>
         </nav>
@@ -986,19 +1149,29 @@
         </div>
 
         <div class="cart-summary">
-            <div class="cart-total">
-                Total: $<span id="cartTotal">0.00</span>
-            </div>
-            <div class="crypto-discount">
-                Save 1% with crypto: -$<span id="cryptoSavings">0.00</span>
+            <h4>Order Summary</h4>
+            <div id="cartSummary"></div>
+            
+            <div class="crypto-section-highlight">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span>Subtotal:</span>
+                    <span id="cartSubtotal">$0.00</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; color: var(--crypto-gold);">
+                    <span>Crypto Discount (1%):</span>
+                    <span id="cartDiscount">-$0.00</span>
+                </div>
+                <div class="cart-total" style="border-top: 1px solid rgba(255,255,255,0.2); padding-top: 0.5rem; font-size: 1.2rem; font-weight: bold;">
+                    Total: $<span id="cartTotal">0.00</span>
+                </div>
             </div>
             
-            <button class="btn btn-primary" style="width: 100%; margin-bottom: 1rem;" onclick="proceedToCheckout()">
-                <i class="fas fa-credit-card"></i> Checkout
+            <button class="btn btn-crypto" style="width: 100%; margin-bottom: 1rem;" onclick="checkoutWithCrypto()">
+                <i class="fas fa-wallet"></i> Pay with Wallet & Save 1%
             </button>
             
             <button class="btn btn-crypto" style="width: 100%;" onclick="checkoutWithCrypto()">
-                <i class="fab fa-bitcoin"></i> Pay with Crypto & Save 1%
+                <i class="fas fa-wallet"></i> Pay with Wallet & Save 1%
             </button>
         </div>
     </div>
@@ -1012,94 +1185,114 @@
             </div>
 
             <div class="modal-content">
-                <div class="payment-methods">
-                    <div class="payment-method" id="cardPayment" onclick="selectPaymentMethod('card')">
-                        <i class="fas fa-credit-card" style="font-size: 2rem; margin-bottom: 1rem; color: var(--accent-blue);"></i>
-                        <h4>Credit Card</h4>
-                        <p>Visa, Mastercard, Amex</p>
+                <div class="crypto-payment-section">
+                    <div class="crypto-discount-highlight">
+                        🎉 Save 1% with crypto wallet payments!
                     </div>
-
-                    <div class="payment-method crypto" id="cryptoPayment" onclick="selectPaymentMethod('crypto')">
-                        <i class="fab fa-bitcoin" style="font-size: 2rem; margin-bottom: 1rem; color: var(--crypto-gold);"></i>
-                        <h4>Cryptocurrency</h4>
-                        <p><strong>Save 1%</strong> with crypto payments</p>
+                    
+                    <div id="walletRequiredMessage" style="text-align: center; margin: 2rem 0; display: none;">
+                        <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                            Connect your crypto wallet to complete payment
+                        </p>
+                        <button class="btn btn-secondary" onclick="connectWallet(); closeCheckout();">
+                            <i class="fas fa-wallet"></i> Connect Wallet
+                        </button>
                     </div>
-                </div>
-
-                <div class="crypto-options" id="cryptoOptions">
-                    <div class="crypto-option" data-crypto="BTC" onclick="selectCrypto('BTC')">
-                        <div class="crypto-icon" style="background: #f7931e;"></div>
-                        <div>Bitcoin</div>
-                        <small>BTC</small>
+                    
+                    <div id="walletPaymentSection" style="display: none;">
+                        <div class="connected-wallet" style="margin-bottom: 2rem;">
+                            <div class="wallet-info">
+                                <div style="display: flex; align-items: center; gap: 1rem;">
+                                    <i class="fas fa-wallet" style="color: var(--success-green);"></i>
+                                    <div>
+                                        <div class="wallet-name" id="checkoutWalletType">MetaMask</div>
+                                        <div class="wallet-address" id="checkoutWalletAddress">0x1234...5678</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="crypto-payment-details">
+                            <div class="payment-amount">
+                                <div class="amount-usd" id="totalUSD">$0.00</div>
+                                <div>Total</div>
+                            </div>
+                            <div class="payment-amount">
+                                <div class="amount-usd" id="discountedUSD" style="color: var(--success-green);">$0.00</div>
+                                <div>With 1% crypto discount</div>
+                            </div>
+                        </div>
+                        
+                        <div style="text-align: center; margin: 2rem 0;">
+                            <button class="btn btn-crypto" onclick="processPayment()" style="margin-right: 1rem; width: 200px;">
+                                <i class="fab fa-ethereum"></i> Pay with Crypto
+                            </button>
+                            <button class="btn btn-secondary" onclick="closeCheckout()">
+                                Cancel
+                            </button>
+                        </div>
                     </div>
-                    <div class="crypto-option" data-crypto="ETH" onclick="selectCrypto('ETH')">
-                        <div class="crypto-icon" style="background: #627eea;"></div>
-                        <div>Ethereum</div>
-                        <small>ETH</small>
-                    </div>
-                    <div class="crypto-option" data-crypto="USDC" onclick="selectCrypto('USDC')">
-                        <div class="crypto-icon" style="background: #2775ca;"></div>
-                        <div>USD Coin</div>
-                        <small>USDC</small>
-                    </div>
-                </div>
-
-                <div style="margin-top: 2rem; text-align: center;">
-                    <button class="btn btn-primary" onclick="processPayment()" style="margin-right: 1rem;">
-                        <i class="fas fa-lock"></i> Complete Payment
-                    </button>
-                    <button class="btn btn-secondary" onclick="closeCheckout()">
-                        Cancel
-                    </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- User Authentication Modal -->
-    <div class="auth-section" id="authSection">
-        <div id="loginForm">
-            <h3>Sign In to GPUDex</h3>
-            <form onsubmit="handleLogin(event)">
-                <div class="form-group">
-                    <label for="loginEmail">Email</label>
-                    <input type="email" id="loginEmail" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label for="loginPassword">Password</label>
-                    <input type="password" id="loginPassword" class="form-control" required>
-                </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">
-                    <i class="fas fa-sign-in-alt"></i> Sign In
-                </button>
-            </form>
-            <p style="text-align: center; margin-top: 1rem;">
-                Don't have an account? <a href="#" onclick="showRegister()" style="color: var(--accent-blue);">Register</a>
+    <!-- Wallet Connection Modal -->
+    <div class="auth-section" id="walletSection">
+        <div id="walletConnection">
+            <h3><i class="fas fa-wallet"></i> Connect Your Wallet</h3>
+            <p style="color: var(--text-secondary); margin-bottom: 2rem;">
+                Connect your crypto wallet to pay for GPU rentals. No account required!
             </p>
+            
+            <div class="wallet-options">
+                <button class="wallet-option" onclick="connectMetaMask()">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSI+PHBhdGggZD0iTTI5LjU2IDQuNzJsLTguOTEgNi42NC0xLjY0LTMuOTN6IiBmaWxsPSIjRTI3NjFCIi8+PC9zdmc+" alt="MetaMask" width="32" height="32">
+                    <div>
+                        <div class="wallet-name">MetaMask</div>
+                        <div class="wallet-desc">Most popular browser wallet</div>
+                    </div>
+                </button>
+                
+                <button class="wallet-option" onclick="connectCoinbaseWallet()">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iMTYiIGZpbGw9IiMwMDUyRkYiLz48L3N2Zz4=" alt="Coinbase" width="32" height="32">
+                    <div>
+                        <div class="wallet-name">Coinbase Wallet</div>
+                        <div class="wallet-desc">Secure & easy to use</div>
+                    </div>
+                </button>
+                
+                <button class="wallet-option" onclick="connectWalletConnect()">
+                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSI+PHBhdGggZD0iTTggMTJjNC00IDEyLTQgMTYgMGwyIDJjLjUuNS41IDEgMCAxLjVsLTMgM2MtLjIuMi0uNS4yLS43IDBsLTItMmMtMy0zLTgtMy0xMSAwbC0yIDJjLS4yLjItLjUuMi0uNyAwbC0zLTNjLS41LS41LS41LTEgMC0xLjVsMi0yeiIgZmlsbD0iIzM5ODlGRiIvPjwvc3ZnPg==" alt="WalletConnect" width="32" height="32">
+                    <div>
+                        <div class="wallet-name">WalletConnect</div>
+                        <div class="wallet-desc">Connect mobile wallets</div>
+                    </div>
+                </button>
+            </div>
+            
+            <div class="wallet-benefits">
+                <h4>Why Connect Your Wallet?</h4>
+                <ul>
+                    <li><i class="fas fa-check"></i> No registration required</li>
+                    <li><i class="fas fa-check"></i> Direct crypto payments</li>
+                    <li><i class="fas fa-check"></i> 1% discount on all purchases</li>
+                    <li><i class="fas fa-check"></i> Secure & decentralized</li>
+                </ul>
+            </div>
         </div>
-
-        <div id="registerForm" style="display: none;">
-            <h3>Create Account</h3>
-            <form onsubmit="handleRegister(event)">
-                <div class="form-group">
-                    <label for="registerEmail">Email</label>
-                    <input type="email" id="registerEmail" class="form-control" required>
+        
+        <div id="walletConnected" style="display: none;">
+            <h3><i class="fas fa-check-circle"></i> Wallet Connected</h3>
+            <div class="connected-wallet">
+                <div class="wallet-info">
+                    <div class="wallet-address" id="connectedAddress">0x1234...5678</div>
+                    <div class="wallet-balance" id="walletBalance">Loading balance...</div>
                 </div>
-                <div class="form-group">
-                    <label for="registerPassword">Password</label>
-                    <input type="password" id="registerPassword" class="form-control" required>
-                </div>
-                <div class="form-group">
-                    <label for="registerConfirm">Confirm Password</label>
-                    <input type="password" id="registerConfirm" class="form-control" required>
-                </div>
-                <button type="submit" class="btn btn-primary" style="width: 100%;">
-                    <i class="fas fa-user-plus"></i> Create Account
+                <button class="btn btn-secondary" onclick="disconnectWallet()">
+                    <i class="fas fa-sign-out-alt"></i> Disconnect
                 </button>
-            </form>
-            <p style="text-align: center; margin-top: 1rem;">
-                Already have an account? <a href="#" onclick="showLogin()" style="color: var(--accent-blue);">Sign In</a>
-            </p>
+            </div>
         </div>
     </div>
 
@@ -1117,12 +1310,14 @@
         // Global Configuration
         const API_BASE = 'http://localhost:8000';
         let cart = [];
-        let isAuthenticated = false;
-        let currentUser = null;
+        let isWalletConnected = false;
+        let connectedWallet = null;
+        let walletAddress = null;
+        let web3 = null;
         let realtimeEnabled = false;
         let realtimeInterval = null;
-        let selectedPaymentMethod = 'card';
-        let selectedCrypto = 'BTC';
+        let selectedPaymentMethod = 'crypto';
+        let selectedCrypto = 'ETH';
 
         // Initialize the application
         document.addEventListener('DOMContentLoaded', function() {
@@ -1130,7 +1325,7 @@
         });
 
         async function initializeApp() {
-            checkAuthStatus();
+            checkWalletConnection();
             loadCartFromStorage();
             updateCartDisplay();
             searchGPUs(); // Load initial GPU data
@@ -1139,106 +1334,157 @@
             toggleRealTimeUpdates();
         }
 
-        // Authentication Functions
-        function checkAuthStatus() {
-            const token = localStorage.getItem('authToken');
-            const userData = localStorage.getItem('userData');
+        // Wallet Connection Functions
+        function checkWalletConnection() {
+            const savedWallet = localStorage.getItem('connectedWallet');
+            const savedAddress = localStorage.getItem('walletAddress');
             
-            if (token && userData) {
-                isAuthenticated = true;
-                currentUser = JSON.parse(userData);
-                updateAuthUI();
+            if (savedWallet && savedAddress) {
+                connectedWallet = savedWallet;
+                walletAddress = savedAddress;
+                isWalletConnected = true;
+                updateWalletUI();
+                initializeWeb3();
             }
         }
 
-        function updateAuthUI() {
-            const authBtn = document.getElementById('authBtn');
-            if (isAuthenticated && currentUser) {
-                authBtn.innerHTML = `<i class="fas fa-user"></i> ${currentUser.email}`;
-                authBtn.onclick = showUserMenu;
+        function updateWalletUI() {
+            const walletBtn = document.getElementById('walletBtn');
+            if (isWalletConnected && walletAddress) {
+                const shortAddress = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
+                walletBtn.innerHTML = `<i class="fas fa-wallet"></i> ${shortAddress}`;
+                walletBtn.onclick = showWalletMenu;
             } else {
-                authBtn.innerHTML = '<i class="fas fa-user"></i> Sign In';
-                authBtn.onclick = toggleAuth;
+                walletBtn.innerHTML = '<i class="fas fa-wallet"></i> Connect Wallet';
+                walletBtn.onclick = connectWallet;
             }
         }
 
-        function toggleAuth() {
-            const authSection = document.getElementById('authSection');
-            authSection.style.display = authSection.style.display === 'none' ? 'block' : 'none';
+        function connectWallet() {
+            const walletSection = document.getElementById('walletSection');
+            walletSection.style.display = walletSection.style.display === 'none' ? 'block' : 'none';
         }
 
-        function showLogin() {
-            document.getElementById('loginForm').style.display = 'block';
-            document.getElementById('registerForm').style.display = 'none';
-        }
-
-        function showRegister() {
-            document.getElementById('loginForm').style.display = 'none';
-            document.getElementById('registerForm').style.display = 'block';
-        }
-
-        async function handleLogin(event) {
-            event.preventDefault();
-            
-            const email = document.getElementById('loginEmail').value;
-            const password = document.getElementById('loginPassword').value;
-            
+        async function connectMetaMask() {
             try {
-                const response = await fetch(`${API_BASE}/api/v1/auth/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    localStorage.setItem('authToken', data.access_token);
-                    localStorage.setItem('userData', JSON.stringify(data.user));
+                if (typeof window.ethereum !== 'undefined') {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
                     
-                    isAuthenticated = true;
-                    currentUser = data.user;
-                    updateAuthUI();
-                    toggleAuth();
-                    showToast('Login successful!', 'success');
+                    if (accounts.length > 0) {
+                        await handleWalletConnected('MetaMask', accounts[0]);
+                    }
                 } else {
-                    showToast('Invalid credentials', 'error');
+                    showToast('MetaMask not installed. Please install MetaMask extension.', 'error');
+                    window.open('https://metamask.io/download/', '_blank');
                 }
             } catch (error) {
-                console.error('Login error:', error);
-                showToast('Login failed. Please try again.', 'error');
+                console.error('MetaMask connection error:', error);
+                showToast('Failed to connect MetaMask', 'error');
             }
         }
 
-        async function handleRegister(event) {
-            event.preventDefault();
-            
-            const email = document.getElementById('registerEmail').value;
-            const password = document.getElementById('registerPassword').value;
-            const confirm = document.getElementById('registerConfirm').value;
-            
-            if (password !== confirm) {
-                showToast('Passwords do not match', 'error');
-                return;
-            }
-            
+        async function connectCoinbaseWallet() {
             try {
-                const response = await fetch(`${API_BASE}/api/v1/auth/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password })
-                });
-                
-                if (response.ok) {
-                    showToast('Account created! Please sign in.', 'success');
-                    showLogin();
+                // For Coinbase Wallet, we'll use the same Web3 provider
+                if (typeof window.ethereum !== 'undefined' && window.ethereum.isCoinbaseWallet) {
+                    await window.ethereum.request({ method: 'eth_requestAccounts' });
+                    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+                    
+                    if (accounts.length > 0) {
+                        await handleWalletConnected('Coinbase Wallet', accounts[0]);
+                    }
                 } else {
-                    const error = await response.json();
-                    showToast(error.detail || 'Registration failed', 'error');
+                    showToast('Coinbase Wallet not detected. Please install Coinbase Wallet.', 'error');
+                    window.open('https://www.coinbase.com/wallet', '_blank');
                 }
             } catch (error) {
-                console.error('Registration error:', error);
-                showToast('Registration failed. Please try again.', 'error');
+                console.error('Coinbase Wallet connection error:', error);
+                showToast('Failed to connect Coinbase Wallet', 'error');
             }
+        }
+
+        async function connectWalletConnect() {
+            try {
+                showToast('WalletConnect integration coming soon!', 'info');
+                // TODO: Implement WalletConnect
+            } catch (error) {
+                console.error('WalletConnect error:', error);
+                showToast('Failed to connect via WalletConnect', 'error');
+            }
+        }
+
+        async function handleWalletConnected(walletType, address) {
+            try {
+                connectedWallet = walletType;
+                walletAddress = address;
+                isWalletConnected = true;
+                
+                // Save to localStorage
+                localStorage.setItem('connectedWallet', walletType);
+                localStorage.setItem('walletAddress', address);
+                
+                // Initialize Web3
+                await initializeWeb3();
+                
+                // Update UI
+                updateWalletUI();
+                showWalletConnected();
+                connectWallet(); // Close modal
+                
+                showToast(`${walletType} connected successfully!`, 'success');
+            } catch (error) {
+                console.error('Error handling wallet connection:', error);
+                showToast('Error connecting wallet', 'error');
+            }
+        }
+
+        async function initializeWeb3() {
+            try {
+                if (typeof window.ethereum !== 'undefined') {
+                    web3 = new Web3(window.ethereum);
+                    
+                    // Get balance
+                    const balance = await web3.eth.getBalance(walletAddress);
+                    const ethBalance = web3.utils.fromWei(balance, 'ether');
+                    
+                    document.getElementById('walletBalance').textContent = `${parseFloat(ethBalance).toFixed(4)} ETH`;
+                }
+            } catch (error) {
+                console.error('Web3 initialization error:', error);
+            }
+        }
+
+        function showWalletConnected() {
+            document.getElementById('walletConnection').style.display = 'none';
+            document.getElementById('walletConnected').style.display = 'block';
+            
+            const shortAddress = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
+            document.getElementById('connectedAddress').textContent = shortAddress;
+        }
+
+        function disconnectWallet() {
+            isWalletConnected = false;
+            connectedWallet = null;
+            walletAddress = null;
+            web3 = null;
+            
+            // Clear localStorage
+            localStorage.removeItem('connectedWallet');
+            localStorage.removeItem('walletAddress');
+            
+            // Reset UI
+            updateWalletUI();
+            document.getElementById('walletConnection').style.display = 'block';
+            document.getElementById('walletConnected').style.display = 'none';
+            connectWallet(); // Close modal
+            
+            showToast('Wallet disconnected', 'info');
+        }
+
+        function showWalletMenu() {
+            connectWallet();
+            showWalletConnected();
         }
 
         // GPU Search and Display Functions
@@ -1595,11 +1841,37 @@
                 return;
             }
             
+            const total = cart.reduce((sum, item) => sum + (item.pricePerHour * item.duration), 0);
+            const discountedTotal = total * 0.99;
+            
+            // Update checkout amounts
+            document.getElementById('totalUSD').textContent = `$${total.toFixed(2)}`;
+            document.getElementById('discountedUSD').textContent = `$${discountedTotal.toFixed(2)}`;
+            
+            // Show appropriate section based on wallet connection
+            if (isWalletConnected) {
+                document.getElementById('walletRequiredMessage').style.display = 'none';
+                document.getElementById('walletPaymentSection').style.display = 'block';
+                
+                // Update wallet info
+                document.getElementById('checkoutWalletType').textContent = connectedWallet || 'Wallet';
+                document.getElementById('checkoutWalletAddress').textContent = 
+                    walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : 'Not connected';
+            } else {
+                document.getElementById('walletRequiredMessage').style.display = 'block';
+                document.getElementById('walletPaymentSection').style.display = 'none';
+            }
+            
             document.getElementById('checkoutModal').style.display = 'block';
         }
 
         function checkoutWithCrypto() {
-            selectPaymentMethod('crypto');
+            if (!isWalletConnected) {
+                showToast('Please connect your wallet first', 'error');
+                connectWallet();
+                return;
+            }
+            selectedPaymentMethod = 'crypto';
             proceedToCheckout();
         }
 
@@ -1625,20 +1897,17 @@
         }
 
         async function processPayment() {
-            if (!isAuthenticated) {
-                showToast('Please sign in to complete your purchase', 'error');
-                toggleAuth();
+            if (!isWalletConnected) {
+                showToast('Please connect your wallet to complete payment', 'error');
+                connectWallet();
                 return;
             }
             
             const total = cart.reduce((sum, item) => sum + (item.pricePerHour * item.duration), 0);
+            const discountedTotal = total * 0.99; // 1% crypto discount
             
             try {
-                if (selectedPaymentMethod === 'crypto') {
-                    await processCryptoPayment(total);
-                } else {
-                    await processCardPayment(total);
-                }
+                await processCryptoPayment(discountedTotal);
             } catch (error) {
                 console.error('Payment error:', error);
                 showToast('Payment failed. Please try again.', 'error');
@@ -1647,21 +1916,22 @@
 
         async function processCryptoPayment(amount) {
             try {
-                const response = await fetch(`${API_BASE}/api/v1/crypto/payment`, {
+                // Create Coinbase Commerce charge
+                const response = await fetch(`${API_BASE}/api/v1/crypto/coinbase-payment`, {
                     method: 'POST',
                     headers: { 
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         amount_usd: amount,
-                        cryptocurrency: selectedCrypto,
-                        user_email: currentUser.email,
+                        wallet_address: walletAddress,
+                        wallet_type: connectedWallet,
                         order_description: `GPU Rental - ${cart.length} items`,
                         gpu_booking_details: {
                             items: cart,
                             total_amount: amount,
-                            discount_applied: amount * 0.01
+                            discount_applied: amount - (amount / 0.99), // Show actual discount
+                            payment_method: 'crypto_wallet'
                         }
                     })
                 });
@@ -1669,24 +1939,104 @@
                 if (response.ok) {
                     const paymentData = await response.json();
                     
-                    // Open CoinGate payment URL
-                    window.open(paymentData.payment_url, '_blank');
-                    
-                    // Show success message
-                    showToast(`Payment created! Complete your ${selectedCrypto} payment in the new window.`, 'success');
-                    
-                    // Clear cart and close modal
-                    cart = [];
-                    updateCartDisplay();
-                    saveCartToStorage();
-                    closeCheckout();
+                    // Show crypto payment modal
+                    showCryptoPaymentModal(paymentData);
                     
                 } else {
-                    throw new Error('Crypto payment creation failed');
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Crypto payment creation failed');
                 }
             } catch (error) {
+                console.error('Crypto payment error:', error);
                 throw error;
             }
+        }
+
+        function showCryptoPaymentModal(paymentData) {
+            // Close checkout modal
+            closeCheckout();
+            
+            // Create crypto payment modal
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay';
+            modal.style.display = 'block';
+            modal.innerHTML = `
+                <div class="modal">
+                    <div class="modal-header">
+                        <h2><i class="fab fa-bitcoin"></i> Complete Crypto Payment</h2>
+                        <p>Pay with your connected wallet to complete the order</p>
+                    </div>
+                    <div class="modal-content">
+                        <div class="crypto-payment-section">
+                            <div class="crypto-discount-highlight">
+                                🎉 Save 1% with crypto payment!
+                            </div>
+                            
+                            <div class="crypto-payment-details">
+                                <div class="payment-amount">
+                                    <div class="amount-usd">$${paymentData.amount_usd.toFixed(2)}</div>
+                                    <div>Total (with 1% discount)</div>
+                                </div>
+                                <div class="payment-amount">
+                                    <div class="amount-crypto">${paymentData.amount_crypto.toFixed(6)} ${paymentData.cryptocurrency}</div>
+                                    <div>Amount in crypto</div>
+                                </div>
+                            </div>
+                            
+                            <div style="text-align: center; margin: 2rem 0;">
+                                <button class="btn btn-crypto" onclick="openCoinbaseCommerce('${paymentData.hosted_url}')" style="margin-right: 1rem;">
+                                    <i class="fas fa-external-link-alt"></i> Pay with Coinbase Commerce
+                                </button>
+                                <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove()">
+                                    Cancel
+                                </button>
+                            </div>
+                            
+                            <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-size: 0.9rem;">
+                                <strong>Order Details:</strong><br>
+                                ${cart.map(item => `• ${item.gpuType} (${item.duration}h) - $${(item.pricePerHour * item.duration).toFixed(2)}`).join('<br>')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            showToast(`Crypto payment created! Complete payment to start your GPU rental.`, 'success');
+        }
+
+        function openCoinbaseCommerce(url) {
+            window.open(url, '_blank', 'width=500,height=700');
+            
+            // Start polling for payment completion
+            pollPaymentStatus();
+        }
+
+        async function pollPaymentStatus() {
+            // Simple polling mechanism - in production you'd use webhooks
+            const checkInterval = setInterval(async () => {
+                try {
+                    // Check if user wants to verify payment manually
+                    const shouldCheck = confirm('Click OK if you completed the payment, or Cancel to keep waiting.');
+                    
+                    if (shouldCheck) {
+                        clearInterval(checkInterval);
+                        
+                        // Clear cart and show success
+                        cart = [];
+                        updateCartDisplay();
+                        saveCartToStorage();
+                        
+                        // Close modal
+                        document.querySelector('.modal-overlay')?.remove();
+                        
+                        showToast('🎉 Payment successful! Your GPU rental is being prepared.', 'success');
+                    }
+                } catch (error) {
+                    clearInterval(checkInterval);
+                }
+            }, 10000); // Check every 10 seconds
         }
 
         async function processCardPayment(amount) {
@@ -1825,4 +2175,5 @@
         });
     </script>
 </body>
+</html>
 </html>

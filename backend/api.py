@@ -16,6 +16,7 @@ import time
 # Import our services
 from database import DatabaseManager
 from providers import CloudProviderIntegrator
+from coinbase_payment_service import coinbase_commerce_service, CoinbaseCommercePayment
 from email_service import EmailService
 from alert_checker import start_alert_service
 from rate_limiting import (
@@ -695,6 +696,95 @@ async def handle_crypto_webhook(request: Request):
             
     except Exception as e:
         logger.error(f"Error handling crypto webhook: {e}")
+        raise HTTPException(status_code=500, detail="Webhook processing failed")
+
+@app.post("/api/v1/crypto/coinbase-payment", response_model=Dict[str, Any])
+@basic_rate_limit
+async def create_coinbase_payment(
+    request: Request,
+    payment_request: CoinbaseCommercePayment
+):
+    """Create Coinbase Commerce payment for Web3 users"""
+    try:
+        monitoring_service.record_api_call("coinbase_payment", "success")
+        
+        # Create Coinbase Commerce charge
+        charge_data = await coinbase_commerce_service.create_charge(payment_request)
+        
+        # Log the payment creation
+        logger.info(f"Coinbase Commerce charge created for wallet {payment_request.wallet_address}: ${payment_request.amount_usd}")
+        
+        return {
+            "success": True,
+            "charge_id": charge_data["charge_id"],
+            "hosted_url": charge_data["hosted_url"],
+            "amount_usd": charge_data["amount_usd"],
+            "amount_crypto": charge_data["amount_crypto"],
+            "cryptocurrency": charge_data["cryptocurrency"],
+            "expires_at": charge_data["expires_at"],
+            "payment_url": charge_data["payment_url"],
+            "demo_mode": charge_data.get("demo_mode", False),
+            "message": "Crypto payment created successfully" if not charge_data.get("demo_mode") else "Demo payment created (add COINBASE_COMMERCE_API_KEY for real payments)"
+        }
+        
+    except Exception as e:
+        monitoring_service.record_api_call("coinbase_payment", "error")
+        logger.error(f"Error creating Coinbase Commerce payment: {e}")
+        raise HTTPException(status_code=500, detail=f"Error creating crypto payment: {str(e)}")
+
+@app.get("/api/v1/crypto/payment-status/{charge_id}", response_model=Dict[str, Any])
+@basic_rate_limit
+async def get_coinbase_payment_status(
+    request: Request,
+    charge_id: str
+):
+    """Get Coinbase Commerce payment status"""
+    try:
+        status_data = await coinbase_commerce_service.get_charge_status(charge_id)
+        return {
+            "success": True,
+            "charge_id": charge_id,
+            "status": status_data["status"],
+            "payments": status_data.get("payments", []),
+            "demo_mode": status_data.get("demo_mode", False)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting payment status: {e}")
+        raise HTTPException(status_code=500, detail=f"Error getting payment status: {str(e)}")
+
+@app.post("/api/v1/crypto/coinbase-webhook")
+async def coinbase_commerce_webhook(
+    request: Request
+):
+    """Handle Coinbase Commerce webhooks"""
+    try:
+        # Get raw body and signature
+        body = await request.body()
+        signature = request.headers.get('X-CC-Webhook-Signature', '')
+        
+        # Validate webhook
+        if not coinbase_commerce_service.validate_webhook(body, signature):
+            raise HTTPException(status_code=400, detail="Invalid webhook signature")
+        
+        # Process webhook data
+        webhook_data = await request.json()
+        event_type = webhook_data.get('event', {}).get('type')
+        
+        logger.info(f"Received Coinbase Commerce webhook: {event_type}")
+        
+        # Handle different event types
+        if event_type == 'charge:confirmed':
+            # Payment confirmed - process the order
+            charge_data = webhook_data.get('event', {}).get('data', {})
+            logger.info(f"Payment confirmed for charge: {charge_data.get('id')}")
+            
+            # TODO: Process the GPU rental order
+            
+        return {"success": True, "message": "Webhook processed"}
+        
+    except Exception as e:
+        logger.error(f"Error processing Coinbase webhook: {e}")
         raise HTTPException(status_code=500, detail="Webhook processing failed")
 
 @app.get("/api/v1/crypto/calculator")
