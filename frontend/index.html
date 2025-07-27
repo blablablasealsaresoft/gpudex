@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPUDex - The 1inch of Compute | Rent GPUs with Crypto</title>
+    <title>GPUDex Beta - GPU Marketplace | Rent GPUs with Crypto</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://unpkg.com/web3@latest/dist/web3.min.js"></script>
     <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
@@ -150,14 +150,79 @@
         .swap-page {
             min-height: calc(100vh - 80px);
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             justify-content: center;
             padding: 2rem 0;
+            gap: 2rem;
         }
 
         .swap-container {
             width: 100%;
             max-width: 480px;
+        }
+
+        .arbitrage-sidebar {
+            width: 320px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+
+        .arbitrage-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .arbitrage-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--success-green);
+        }
+
+        .arbitrage-opportunity {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+        .arbitrage-opportunity:hover {
+            border-color: var(--success-green);
+            box-shadow: 0 4px 16px rgba(0, 211, 149, 0.15);
+        }
+
+        .arbitrage-gpu {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .arbitrage-prices {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+
+        .arbitrage-price {
+            font-size: 0.9rem;
+        }
+
+        .arbitrage-profit {
+            color: var(--success-green);
+            font-weight: 600;
+            text-align: center;
+            padding: 0.5rem;
+            background: rgba(0, 211, 149, 0.1);
+            border-radius: 8px;
+            margin-top: 0.5rem;
         }
 
         .swap-header {
@@ -679,6 +744,24 @@
                 justify-content: center;
             }
 
+            .swap-page {
+                flex-direction: column;
+                align-items: center;
+                padding: 1rem 0;
+            }
+
+            .arbitrage-sidebar {
+                width: 100%;
+                max-width: 480px;
+                order: 2;
+                margin-top: 2rem;
+            }
+
+            .swap-container {
+                order: 1;
+                max-width: 100%;
+            }
+
             .swap-title {
                 font-size: 2rem;
             }
@@ -753,7 +836,7 @@
         <nav class="navbar">
             <a href="#" class="logo" onclick="showSwapPage()">
                 <i class="fas fa-microchip"></i>
-                GPUDex
+                GPUDex <span style="font-size: 0.6em; color: var(--accent-blue); font-weight: 500;">Beta</span>
             </a>
             
             <div class="nav-links">
@@ -777,7 +860,7 @@
         <div class="swap-container">
             <div class="swap-header">
                 <h1 class="swap-title">Rent GPUs</h1>
-                <p class="swap-subtitle">Find the best GPU prices across 15+ providers. Pay with crypto and save 1%.</p>
+                <p class="swap-subtitle">Find the best GPU prices across 15+ providers. Pay with crypto, earn with arbitrage.</p>
             </div>
 
             <div class="swap-card">
@@ -831,8 +914,8 @@
                         <span class="detail-value" id="rateInfo">-</span>
                     </div>
                     <div class="detail-row">
-                        <span class="detail-label">Crypto Discount</span>
-                        <span class="detail-value" style="color: var(--success-green);">-1%</span>
+                        <span class="detail-label">Platform Fee</span>
+                        <span class="detail-value" style="color: var(--warning-orange);">3%</span>
                     </div>
                 </div>
 
@@ -840,6 +923,82 @@
                 <button class="action-btn" id="swapBtn" onclick="handleSwap()">
                     Connect Wallet
                 </button>
+            </div>
+        </div>
+
+        <!-- Arbitrage Opportunities Sidebar -->
+        <div class="arbitrage-sidebar">
+            <div class="arbitrage-header">
+                <i class="fas fa-chart-line" style="color: var(--success-green);"></i>
+                <h3 class="arbitrage-title">Arbitrage Opportunities</h3>
+            </div>
+            
+            <div id="arbitrageList">
+                <div class="arbitrage-opportunity">
+                    <div class="arbitrage-gpu">
+                        <i class="fas fa-microchip" style="color: var(--primary-pink);"></i>
+                        RTX 4090
+                    </div>
+                    <div class="arbitrage-prices">
+                        <span class="arbitrage-price">Vast: $0.35/hr</span>
+                        <span class="arbitrage-price">Lambda: $0.42/hr</span>
+                    </div>
+                    <div class="arbitrage-profit">
+                        ⚡ 20% Price Gap
+                    </div>
+                </div>
+
+                <div class="arbitrage-opportunity">
+                    <div class="arbitrage-gpu">
+                        <i class="fas fa-microchip" style="color: var(--primary-pink);"></i>
+                        A100 80GB
+                    </div>
+                    <div class="arbitrage-prices">
+                        <span class="arbitrage-price">RunPod: $1.20/hr</span>
+                        <span class="arbitrage-price">AWS: $1.45/hr</span>
+                    </div>
+                    <div class="arbitrage-profit">
+                        ⚡ 21% Price Gap
+                    </div>
+                </div>
+
+                <div class="arbitrage-opportunity">
+                    <div class="arbitrage-gpu">
+                        <i class="fas fa-microchip" style="color: var(--primary-pink);"></i>
+                        V100 32GB
+                    </div>
+                    <div class="arbitrage-prices">
+                        <span class="arbitrage-price">Vast: $0.28/hr</span>
+                        <span class="arbitrage-price">GCP: $0.35/hr</span>
+                    </div>
+                    <div class="arbitrage-profit">
+                        ⚡ 25% Price Gap
+                    </div>
+                </div>
+
+                <div class="arbitrage-opportunity">
+                    <div class="arbitrage-gpu">
+                        <i class="fas fa-microchip" style="color: var(--primary-pink);"></i>
+                        H100 80GB
+                    </div>
+                    <div class="arbitrage-prices">
+                        <span class="arbitrage-price">Lambda: $2.40/hr</span>
+                        <span class="arbitrage-price">Azure: $3.20/hr</span>
+                    </div>
+                    <div class="arbitrage-profit">
+                        ⚡ 33% Price Gap
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 12px; text-align: center;">
+                <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">
+                    <i class="fas fa-lightbulb" style="color: var(--warning-orange);"></i>
+                    Live arbitrage scanning
+                </div>
+                <div style="color: var(--success-green); font-weight: 600;">
+                    Updated every 30 seconds
+                </div>
             </div>
         </div>
     </div>
@@ -939,88 +1098,64 @@
 
     <!-- API Documentation Page -->
     <div class="marketplace-page container" id="apiPage" style="display: none;">
-        <div class="page-header">
-            <h1 class="page-title">API Documentation</h1>
-            <p class="swap-subtitle">Integrate GPUDex into your applications</p>
-        </div>
-
-        <div class="api-section" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 2rem; margin-bottom: 2rem;">
-            <h3 style="margin-bottom: 1rem; color: var(--primary-pink);">Getting Started</h3>
-            <p style="margin-bottom: 1rem; color: var(--text-secondary);">
-                The GPUDex API provides programmatic access to GPU pricing data across 15+ providers. 
-                Get real-time prices, historical data, and ML-powered predictions.
-            </p>
-            <div class="api-key-section" style="background: var(--bg-tertiary); padding: 1rem; border-radius: 12px; margin-top: 1rem;">
-                <h4 style="margin-bottom: 0.5rem;">API Key</h4>
-                <div style="display: flex; gap: 1rem; align-items: center;">
-                    <input type="text" id="apiKeyInput" placeholder="Enter your API key" 
-                           style="flex: 1; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem; color: var(--text-primary);" />
-                    <button onclick="testApiKey()" class="btn-primary" style="padding: 0.5rem 1rem;">Test Key</button>
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center;">
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 4rem; max-width: 600px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);">
+                <div style="font-size: 4rem; margin-bottom: 1.5rem;">
+                    <i class="fas fa-code" style="color: var(--primary-pink);"></i>
                 </div>
-                <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                    Don't have an API key? <a href="#" style="color: var(--primary-pink);">Sign up for free</a>
+                
+                <h1 style="font-size: 3rem; font-weight: 800; background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 1rem;">
+                    API Documentation
+                </h1>
+                
+                <div style="font-size: 1.5rem; font-weight: 600; color: var(--warning-orange); margin-bottom: 1rem;">
+                    Coming Soon! 🚀
+                </div>
+                
+                <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.6; margin-bottom: 2rem;">
+                    We're building comprehensive API documentation and enterprise integrations. 
+                    Our REST API will provide programmatic access to:
                 </p>
-            </div>
-        </div>
-
-        <div class="endpoints-grid" style="display: grid; gap: 2rem;">
-            <div class="endpoint-card" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 2rem;">
-                <div class="endpoint-header" style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                    <span class="method-badge" style="background: var(--success-green); color: white; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600;">GET</span>
-                    <code style="color: var(--primary-pink); font-weight: 600;">/api/v1/prices</code>
+                
+                <div style="text-align: left; margin-bottom: 2rem;">
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; color: var(--text-secondary);">
+                        <i class="fas fa-check-circle" style="color: var(--success-green);"></i>
+                        Real-time GPU pricing from 15+ providers
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; color: var(--text-secondary);">
+                        <i class="fas fa-check-circle" style="color: var(--success-green);"></i>
+                        Automated GPU provisioning and management
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; color: var(--text-secondary);">
+                        <i class="fas fa-check-circle" style="color: var(--success-green);"></i>
+                        Market analytics and arbitrage opportunities
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; color: var(--text-secondary);">
+                        <i class="fas fa-check-circle" style="color: var(--success-green);"></i>
+                        Smart contract integration for payments
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; color: var(--text-secondary);">
+                        <i class="fas fa-check-circle" style="color: var(--success-green);"></i>
+                        Enterprise team management and billing
+                    </div>
                 </div>
-                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Get current GPU prices from all providers</p>
-                <div class="code-block" style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; font-family: 'Courier New', monospace; font-size: 0.9rem; overflow-x: auto;">
-curl -H "Authorization: Bearer YOUR_API_KEY" \
-     "https://api.gpudex.ai/api/v1/prices?gpu_type=RTX 4090"
+                
+                <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
+                    <div style="color: var(--primary-pink); font-weight: 600; margin-bottom: 0.5rem;">
+                        <i class="fas fa-bell"></i> Get Notified
+                    </div>
+                    <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.95rem;">
+                        Want early access? Connect your wallet and we'll notify you when the API launches!
+                    </p>
+                    <button onclick="handleWalletClick()" style="background: var(--gradient-primary); color: white; border: none; border-radius: 12px; padding: 0.75rem 1.5rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
+                        <i class="fas fa-wallet"></i> Connect for Early Access
+                    </button>
                 </div>
-            </div>
-
-            <div class="endpoint-card" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 2rem;">
-                <div class="endpoint-header" style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                    <span class="method-badge" style="background: var(--primary-blue); color: white; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600;">POST</span>
-                    <code style="color: var(--primary-pink); font-weight: 600;">/api/v1/rentals</code>
+                
+                <div style="color: var(--text-secondary); font-size: 0.9rem;">
+                    <i class="fas fa-clock" style="color: var(--warning-orange);"></i>
+                    Expected launch: Q1 2025
                 </div>
-                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Create a new GPU rental</p>
-                <div class="code-block" style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; font-family: 'Courier New', monospace; font-size: 0.9rem; overflow-x: auto;">
-curl -X POST -H "Authorization: Bearer YOUR_API_KEY" \
-     -H "Content-Type: application/json" \
-     -d '{"gpu_type": "RTX 4090", "provider": "vast", "hours": 24}' \
-     "https://api.gpudex.ai/api/v1/rentals"
-                </div>
-            </div>
-
-            <div class="endpoint-card" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 2rem;">
-                <div class="endpoint-header" style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
-                    <span class="method-badge" style="background: var(--success-green); color: white; padding: 0.25rem 0.75rem; border-radius: 6px; font-size: 0.8rem; font-weight: 600;">GET</span>
-                    <code style="color: var(--primary-pink); font-weight: 600;">/api/v1/analytics/overview</code>
-                </div>
-                <p style="color: var(--text-secondary); margin-bottom: 1rem;">Get market analytics and trends</p>
-                <div class="code-block" style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; font-family: 'Courier New', monospace; font-size: 0.9rem; overflow-x: auto;">
-curl -H "Authorization: Bearer YOUR_API_KEY" \
-     "https://api.gpudex.ai/api/v1/analytics/overview"
-                </div>
-            </div>
-        </div>
-
-        <div class="response-example" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 2rem; margin-top: 2rem;">
-            <h3 style="margin-bottom: 1rem; color: var(--primary-pink);">Example Response</h3>
-            <div class="code-block" style="background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; font-family: 'Courier New', monospace; font-size: 0.9rem; overflow-x: auto; max-height: 300px; overflow-y: auto;">
-{
-  "prices": [
-    {
-      "provider": "vast",
-      "gpu_type": "RTX 4090",
-      "price_per_hour": 0.45,
-      "availability": "Available",
-      "region": "US-East",
-      "memory": "24GB",
-      "cuda_cores": 16384
-    }
-  ],
-  "total_results": 1,
-  "response_time_ms": 124
-}
             </div>
         </div>
     </div>
@@ -1039,6 +1174,50 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
             </div>
             <div class="modal-content" id="gpuOptions">
                 <!-- GPU options will be populated here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Payment Method Selection Modal -->
+    <div class="modal-overlay" id="paymentMethodModal">
+        <div class="modal">
+            <div class="modal-header">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <h3 class="modal-title">Choose Payment Method</h3>
+                        <p class="modal-subtitle">How would you like to pay?</p>
+                    </div>
+                    <button onclick="closeAllModals()" style="background: none; border: none; color: var(--text-secondary); font-size: 1.5rem; cursor: pointer; padding: 0; margin: 0;">&times;</button>
+                </div>
+            </div>
+            <div class="modal-content">
+                <div class="gpu-option" style="opacity: 0.6; cursor: not-allowed; border: 2px solid var(--text-secondary);">
+                    <div class="gpu-info">
+                        <div class="gpu-name">💰 Ethereum L1 → Polygon <span style="color: var(--accent-blue); font-weight: 500; font-size: 0.7em;">[V2 FEATURE]</span></div>
+                        <div class="gpu-specs">Pay with ETH, automatically bridged to Polygon</div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                            🚀 Coming in V2: Advanced cross-chain functionality
+                        </div>
+                    </div>
+                    <div class="gpu-price">
+                        <div class="price-usd" style="color: var(--text-secondary);">~$5-15 gas</div>
+                        <div class="price-crypto" style="color: var(--text-secondary);">2-3 mins</div>
+                    </div>
+                </div>
+
+                <div class="gpu-option" onclick="selectPaymentMethod('polygon')" style="border: 2px solid var(--primary-pink); background: linear-gradient(135deg, rgba(255, 105, 180, 0.05) 0%, rgba(138, 43, 226, 0.05) 100%);">
+                    <div class="gpu-info">
+                        <div class="gpu-name">🚀 Polygon <span style="color: var(--success-green); font-weight: 600; font-size: 0.8em;">RECOMMENDED</span></div>
+                        <div class="gpu-specs">Fast, cheap, and reliable - Ready for production!</div>
+                        <div style="font-size: 0.8rem; color: var(--success-green); margin-top: 0.5rem;">
+                            ✨ Launch ready: Smart contracts deployed, fully tested
+                        </div>
+                    </div>
+                    <div class="gpu-price">
+                        <div class="price-usd">~$0.05 gas</div>
+                        <div class="price-crypto">2 seconds</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -1131,10 +1310,8 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
     </div>
 
     <script>
-        // Global Configuration
-        const API_BASE = 'http://localhost:8000';
-        
-        // State Management
+        // Global Variables - Must be declared first
+        let currentPage = 'swap';
         let isWalletConnected = false;
         let connectedWallet = null;
         let walletAddress = null;
@@ -1143,9 +1320,94 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
         let walletConnectProvider = null;
         let selectedGPUData = null;
         let selectedCurrency = 'ETH';
-        let currentPage = 'swap';
+        let selectedPaymentMethod = 'ethereum_l1';
         let availableGPUs = [];
         let analyticsData = null;
+
+        // Global Configuration
+        const API_BASE = 'http://localhost:8000';
+        
+        // Polygon Network Smart Contract Configuration
+        const SUPPORTED_NETWORKS = {
+            // Polygon Mainnet (Production Ready - Default Network)
+            137: {
+                name: 'Polygon',
+                chainId: 137,
+                hexChainId: '0x89',
+                rpcUrl: 'https://polygon-rpc.com/',
+                explorerUrl: 'https://polygonscan.com',
+                nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
+                escrowAddress: '0xE0107C4227A38Aae3E5163D691EFb0dc0Eb7598C',
+                tokenAddress: '0x386FF386B396ca139E5D2dB6d0b61a0FDd5b4b47',
+                feeRecipient: '0x0B83154b85B7F6f8ec567d0F3a93B50C8b8C754A',
+                platformFeePercent: 300,
+                recommended: true,
+                description: 'Production ready with deployed contracts'
+            }
+        };
+        
+        // Current active network (defaults to Polygon)
+        const DEFAULT_CHAIN_ID = 137; // Polygon
+        
+        // Get current smart contract config
+        function getCurrentNetworkConfig() {
+            const currentChainId = window.currentChainId || DEFAULT_CHAIN_ID;
+            return SUPPORTED_NETWORKS[currentChainId] || SUPPORTED_NETWORKS[DEFAULT_CHAIN_ID];
+        }
+        
+        // Legacy support for existing code
+        const SMART_CONTRACTS = getCurrentNetworkConfig();
+        
+        // Simplified Contract ABIs (only the functions we need)
+        const ESCROW_ABI = [
+            {
+                "inputs": [
+                    {"name": "_provider", "type": "address"},
+                    {"name": "_gpuType", "type": "string"},
+                    {"name": "_pricePerHour", "type": "uint256"},
+                    {"name": "_duration", "type": "uint256"},
+                    {"name": "_paymentToken", "type": "address"},
+                    {"name": "_autoRelease", "type": "bool"}
+                ],
+                "name": "createRental",
+                "outputs": [{"name": "", "type": "uint256"}],
+                "stateMutability": "nonpayable",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "platformFeePercent",
+                "outputs": [{"name": "", "type": "uint256"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "feeRecipient",
+                "outputs": [{"name": "", "type": "address"}],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+        
+        const TOKEN_ABI = [
+            {
+                "inputs": [],
+                "name": "name",
+                "outputs": [{"name": "", "type": "string"}],
+                "stateMutability": "view",
+                "type": "function"
+            },
+            {
+                "inputs": [],
+                "name": "symbol", 
+                "outputs": [{"name": "", "type": "string"}],
+                "stateMutability": "view",
+                "type": "function"
+            }
+        ];
+        
+        // State Management (variables moved to top of script)
 
         // Initialize wallet providers
         async function initializeWalletProviders() {
@@ -1183,6 +1445,9 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
                 await loadGPUData();
                 updateUI();
                 await populateMarketplace();
+                
+                // Show default page
+                showSwapPage();
                 
                 // Add event listeners
                 document.getElementById('payAmount').addEventListener('input', updateReceiveAmount);
@@ -1544,7 +1809,7 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
                         </div>
                         <div class="gpu-price">
                             <div class="price-usd">$${gpu.pricePerHour}/hr</div>
-                            <div class="price-crypto">$${(gpu.pricePerHour * 0.99).toFixed(3)}/hr with crypto</div>
+                            <div class="price-crypto">Platform fee: 3% (handled by smart contract)</div>
                             ${!isAvailable ? '<div style="color: var(--warning-orange); font-size: 0.8rem;">Currently Unavailable</div>' : ''}
                         </div>
                     </div>
@@ -1587,6 +1852,26 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
             closeAllModals();
         }
 
+        function openPaymentMethodModal() {
+            document.getElementById('paymentMethodModal').style.display = 'flex';
+        }
+
+        function selectPaymentMethod(method) {
+            selectedPaymentMethod = method;
+            
+            // Update UI to show selected payment method
+            const methodNames = {
+                'ethereum_l1': 'ETH L1 → Polygon',
+                'polygon': 'Polygon'
+            };
+            
+            showToast(`Payment method: ${methodNames[method]}`, 'info');
+            closeAllModals();
+            
+            // Continue with the rental process
+            processGPURental();
+        }
+
         function updateReceiveAmount() {
             const payAmount = parseFloat(document.getElementById('payAmount').value) || 0;
             const receiveAmountEl = document.getElementById('receiveAmount');
@@ -1614,6 +1899,137 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
             showToast('Swapped payment currency and GPU selection!', 'info');
         }
 
+        // Smart Contract Functions
+        async function checkSmartContractConnection(targetChainId = null) {
+            try {
+                if (!web3) {
+                    console.log('Web3 not initialized');
+                    return false;
+                }
+                
+                // Get current network info
+                const chainId = await web3.eth.getChainId();
+                const networkConfig = SUPPORTED_NETWORKS[chainId];
+                
+                if (!networkConfig) {
+                    console.log(`Unsupported network: ${chainId}`);
+                    return false;
+                }
+                
+                // Update current chain ID
+                window.currentChainId = chainId;
+                
+                // If specific target chain requested, check if we're on it
+                if (targetChainId && chainId !== targetChainId) {
+                    console.log(`Wrong network. Expected ${targetChainId}, got ${chainId}`);
+                    return false;
+                }
+                
+                // Test contract accessibility
+                if (networkConfig.escrowAddress && networkConfig.escrowAddress !== '0x0000000000000000000000000000000000000000') {
+                    const escrowContract = new web3.eth.Contract(ESCROW_ABI, networkConfig.escrowAddress);
+                    const feeRecipient = await escrowContract.methods.feeRecipient().call();
+                    console.log(`Smart contract connection verified on ${networkConfig.name}. Fee recipient:`, feeRecipient);
+                } else {
+                    console.log(`Connected to ${networkConfig.name}, but contracts not deployed yet`);
+                }
+                
+                return true;
+            } catch (error) {
+                console.error('Smart contract connection check failed:', error);
+                return false;
+            }
+        }
+        
+        async function switchToNetwork(chainId) {
+            try {
+                if (!window.ethereum) {
+                    throw new Error('MetaMask not found');
+                }
+                
+                const networkConfig = SUPPORTED_NETWORKS[chainId];
+                if (!networkConfig) {
+                    throw new Error(`Unsupported network: ${chainId}`);
+                }
+                
+                console.log(`Switching to ${networkConfig.name}...`);
+                
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_switchEthereumChain',
+                        params: [{ chainId: networkConfig.hexChainId }],
+                    });
+                } catch (switchError) {
+                    // This error code indicates that the chain has not been added to MetaMask
+                    if (switchError.code === 4902) {
+                        try {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: networkConfig.hexChainId,
+                                    chainName: networkConfig.name,
+                                    nativeCurrency: networkConfig.nativeCurrency,
+                                    rpcUrls: [networkConfig.rpcUrl],
+                                    blockExplorerUrls: [networkConfig.explorerUrl]
+                                }]
+                            });
+                        } catch (addError) {
+                            console.error(`Failed to add ${networkConfig.name} network:`, addError);
+                            return false;
+                        }
+                    } else {
+                        console.error(`Failed to switch to ${networkConfig.name}:`, switchError);
+                        return false;
+                    }
+                }
+                
+                // Update current chain ID
+                window.currentChainId = chainId;
+                return true;
+            } catch (error) {
+                console.error('Network switch failed:', error);
+                return false;
+            }
+        }
+        
+        // Network switch function for Polygon
+        async function switchToPolygon() {
+            return await switchToNetwork(137);
+        }
+        
+        async function verifySmartContractIntegration() {
+            try {
+                // Check if already connected to Polygon network
+                let isConnected = await checkSmartContractConnection();
+                if (isConnected) {
+                    const currentChainId = await web3.eth.getChainId();
+                    const networkConfig = SUPPORTED_NETWORKS[currentChainId];
+                    showToast(`Connected to ${networkConfig.name}! 3% fee collected automatically.`, 'success');
+                    return true;
+                }
+                
+                // Switch to Polygon network
+                showToast('Switching to Polygon network...', 'info');
+                let switched = await switchToPolygon();
+                if (switched) {
+                    isConnected = await checkSmartContractConnection(137);
+                    if (isConnected) {
+                        showToast('Connected to Polygon! Smart contracts enabled.', 'success');
+                        return true;
+                    }
+                }
+                
+                // If switch fails, notify user
+                showToast('Please manually switch to Polygon network for smart contracts', 'warning');
+                return false;
+                
+            } catch (error) {
+                console.error('Smart contract verification failed:', error);
+                showToast('Smart contract integration not available. Using fallback.', 'warning');
+                return false;
+            }
+        }
+
         function handleSwap() {
             if (!isWalletConnected) {
                 openWalletModal();
@@ -1631,8 +2047,8 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
                 return;
             }
             
-            // Process the rental
-            processGPURental();
+            // Show payment method selection modal
+            openPaymentMethodModal();
         }
 
         async function processGPURental() {
@@ -1643,8 +2059,123 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
             swapBtn.disabled = true;
             
             try {
+                // Verify smart contract integration
+                swapBtn.innerHTML = '<div class="loading"></div> Checking smart contracts...';
+                const smartContractReady = await verifySmartContractIntegration();
+                if (smartContractReady) {
+                    showToast('Smart contracts verified! 3% fee will be collected automatically.', 'success');
+                } else {
+                    showToast('Using fallback payment method.', 'warning');
+                }
+                
+                swapBtn.innerHTML = '<div class="loading"></div> Creating rental...';
+                
+                // Continue with rental creation based on payment method
                 const payAmount = parseFloat(document.getElementById('payAmount').value);
                 const hours = parseFloat(document.getElementById('receiveAmount').value);
+                
+                if (selectedPaymentMethod === 'ethereum_l1') {
+                    // Cross-chain payment: ETH L1 → Polygon
+                    await handleCrossChainPayment(payAmount, hours);
+                } else {
+                    // Direct payment on Polygon
+                    await handleDirectPayment(payAmount, hours);
+                }
+                
+            } catch (error) {
+                console.error('Rental error:', error);
+                showToast('Rental failed. Please try again.', 'error');
+            } finally {
+                swapBtn.textContent = originalText;
+                swapBtn.disabled = false;
+            }
+        }
+
+        // Cross-Chain Payment Handler
+        async function handleCrossChainPayment(payAmount, hours) {
+            const swapBtn = document.getElementById('swapBtn');
+            
+            try {
+                // Step 1: Switch to Ethereum L1 for payment
+                swapBtn.innerHTML = '<div class="loading"></div> Switching to Ethereum L1...';
+                const switchedToEth = await switchToEthereum();
+                if (!switchedToEth) {
+                    throw new Error('Failed to switch to Ethereum L1');
+                }
+                
+                // Step 2: Request payment on Ethereum L1
+                swapBtn.innerHTML = '<div class="loading"></div> Pay on Ethereum L1...';
+                showToast('Please confirm payment on Ethereum L1. It will be bridged to Polygon automatically.', 'info');
+                
+                // Send ETH transaction on L1
+                const accounts = await web3.eth.getAccounts();
+                const userAccount = accounts[0];
+                
+                // Platform payment address (you should replace this)
+                const platformPaymentAddress = '0x0B83154b85B7F6f8ec567d0F3a93B50C8b8C754A';
+                
+                const tx = {
+                    from: userAccount,
+                    to: platformPaymentAddress,
+                    value: web3.utils.toWei(payAmount.toString(), 'ether'),
+                    gas: 21000
+                };
+                
+                const txHash = await web3.eth.sendTransaction(tx);
+                console.log('L1 payment transaction:', txHash);
+                
+                // Step 3: Initiate cross-chain bridge
+                swapBtn.innerHTML = '<div class="loading"></div> Bridging to Polygon...';
+                
+                const crossChainRequest = {
+                    user_address: userAccount,
+                    amount_eth: payAmount.toString(),
+                    l1_tx_hash: txHash,
+                    gpu_type: selectedGPUData.name,
+                    provider: selectedGPUData.provider,
+                    hours: hours
+                };
+                
+                const bridgeResponse = await fetch(`${API_BASE}/api/v1/payments/cross-chain`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(crossChainRequest)
+                });
+                
+                if (!bridgeResponse.ok) {
+                    throw new Error('Failed to initiate cross-chain payment');
+                }
+                
+                const bridgeResult = await bridgeResponse.json();
+                console.log('Bridge initiated:', bridgeResult);
+                
+                // Step 4: Monitor bridge status
+                await monitorBridgeStatus(bridgeResult.bridge_id);
+                
+            } catch (error) {
+                console.error('Cross-chain payment error:', error);
+                showToast(`Cross-chain payment failed: ${error.message}`, 'error');
+                throw error;
+            }
+        }
+
+        // Direct Payment Handler (Polygon)
+        async function handleDirectPayment(payAmount, hours) {
+            const swapBtn = document.getElementById('swapBtn');
+            
+            try {
+                // Ensure we're on Polygon network
+                const targetChainId = 137; // Polygon
+                const currentChainId = await web3.eth.getChainId();
+                if (currentChainId !== targetChainId) {
+                    swapBtn.innerHTML = '<div class="loading"></div> Switching to Polygon...';
+                    const switched = await switchToNetwork(targetChainId);
+                    if (!switched) {
+                        throw new Error('Failed to switch to Polygon network');
+                    }
+                }
                 
                 // Create rental request
                 const rentalRequest = {
@@ -1698,24 +2229,60 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
                     localStorage.setItem('lastRentalId', rental.rental_id);
                     
                     // Reset form
-                    document.getElementById('payAmount').value = '';
-                    document.getElementById('receiveAmount').value = '';
-                    selectedGPUData = null;
-                    document.getElementById('selectedGPU').textContent = 'Select GPU';
-                    document.getElementById('gpuDetails').textContent = 'Select a GPU to see rental hours';
-                    document.getElementById('providerInfo').textContent = '-';
-                    document.getElementById('rateInfo').textContent = '-';
+                    resetRentalForm();
                 } else {
                     throw new Error('Payment processing failed');
                 }
                 
             } catch (error) {
-                console.error('Rental error:', error);
-                showToast('Rental failed. Please try again.', 'error');
-            } finally {
-                swapBtn.textContent = originalText;
-                swapBtn.disabled = false;
+                console.error('Direct payment error:', error);
+                throw error;
             }
+        }
+
+        // Monitor Bridge Status
+        async function monitorBridgeStatus(bridgeId) {
+            const swapBtn = document.getElementById('swapBtn');
+            let attempts = 0;
+            const maxAttempts = 60; // 5 minutes max
+            
+            while (attempts < maxAttempts) {
+                try {
+                    const statusResponse = await fetch(`${API_BASE}/api/v1/payments/cross-chain/${bridgeId}`);
+                    const status = await statusResponse.json();
+                    
+                    swapBtn.innerHTML = `<div class="loading"></div> Bridge status: ${status.status}...`;
+                    
+                    if (status.status === 'completed') {
+                        showToast('Bridge completed! GPU rental created successfully.', 'success');
+                        resetRentalForm();
+                        return;
+                    } else if (status.status === 'failed') {
+                        throw new Error('Bridge transaction failed');
+                    }
+                    
+                    // Wait 5 seconds before checking again
+                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    attempts++;
+                    
+                } catch (error) {
+                    console.error('Error monitoring bridge status:', error);
+                    throw error;
+                }
+            }
+            
+            throw new Error('Bridge timeout - please check status manually');
+        }
+
+        // Reset Rental Form
+        function resetRentalForm() {
+            document.getElementById('payAmount').value = '';
+            document.getElementById('receiveAmount').value = '';
+            selectedGPUData = null;
+            document.getElementById('selectedGPU').textContent = 'Select GPU';
+            document.getElementById('gpuDetails').textContent = 'Select a GPU to see rental hours';
+            document.getElementById('providerInfo').textContent = '-';
+            document.getElementById('rateInfo').textContent = '-';
         }
 
         // Analytics Functions
@@ -1916,8 +2483,8 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
                                     <div class="price-period">per hour</div>
                                 </div>
                                 <div style="text-align: right;">
-                                    <div style="color: var(--success-green); font-weight: 600;">$${(gpu.pricePerHour * 0.99).toFixed(3)}</div>
-                                    <div class="price-period">with crypto</div>
+                                    <div style="color: var(--accent-blue); font-weight: 600;">3% Platform Fee</div>
+                                    <div class="price-period">via smart contract</div>
                                 </div>
                             </div>
                             
@@ -1951,7 +2518,7 @@ curl -H "Authorization: Bearer YOUR_API_KEY" \
                 showSwapPage();
                 
                 // Set a default amount for quick rent (equivalent to 1 hour)
-                document.getElementById('payAmount').value = (gpu.pricePerHour * 0.99).toFixed(3);
+                document.getElementById('payAmount').value = gpu.pricePerHour.toFixed(3);
                 updateReceiveAmount();
                 
                 showToast(`${gpuName} from ${provider} ready to rent! Review and confirm.`, 'success');

@@ -1,0 +1,72 @@
+{
+  "name": "gpudex-contracts",
+  "version": "1.0.0",
+  "description": "GPUDex Smart Contracts for decentralized GPU rental marketplace",
+  "main": "hardhat.config.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "test-etherscan": "node test-etherscan-v2.js",
+    "deploy:local": "hardhat run scripts/deploy.js --network localhost",
+    "deploy:mumbai": "hardhat run scripts/deploy.js --network mumbai",
+    "deploy:polygon": "hardhat run scripts/deploy.js --network polygon",
+    "deploy:mainnet": "hardhat run scripts/deploy.js --network mainnet",
+    "deploy:zksync": "hardhat deploy-zksync --script deploy.js --network zkSyncEra",
+    "deploy:zksync-testnet": "hardhat deploy-zksync --script deploy.js --network zkSyncGoerli",
+    "verify:polygon": "hardhat verify --network polygon",
+    "verify:mumbai": "hardhat verify --network mumbai",
+    "verify:mainnet": "hardhat verify --network mainnet",
+    "verify:zksync": "hardhat verify --network zkSyncEra",
+    "node": "hardhat node",
+    "clean": "hardhat clean"
+  },
+  "keywords": [
+    "gpu",
+    "rental",
+    "blockchain",
+    "ethereum",
+    "polygon",
+    "zksync",
+    "layer2",
+    "defi",
+    "escrow",
+    "smart-contracts"
+  ],
+  "author": "GPUDex Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@matterlabs/hardhat-zksync-deploy": "^0.6.6",
+    "@matterlabs/hardhat-zksync-solc": "^0.4.2",
+    "@matterlabs/hardhat-zksync-verify": "^0.2.2",
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "@nomiclabs/hardhat-etherscan": "^3.1.7",
+    "@nomiclabs/hardhat-waffle": "^2.0.6",
+    "@openzeppelin/hardhat-upgrades": "^1.28.0",
+    "@typechain/ethers-v5": "^10.2.1",
+    "@typechain/hardhat": "^6.1.6",
+    "chai": "^4.3.8",
+    "ethereum-waffle": "^4.0.10",
+    "ethers": "^5.7.2",
+    "hardhat": "^2.17.1",
+    "hardhat-gas-reporter": "^1.0.9",
+    "solidity-coverage": "^0.8.4",
+    "typechain": "^8.3.1",
+    "zksync-web3": "^0.14.4"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.9.3",
+    "dotenv": "^16.3.1",
+    "node-fetch": "^2.6.7"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gpudex/gpudex-contracts"
+  },
+  "bugs": {
+    "url": "https://github.com/gpudex/gpudex-contracts/issues"
+  },
+  "homepage": "https://gpudex.ai"
+}

@@ -11,6 +11,12 @@ services:
       - ENVIRONMENT=production
       - WORKERS=4
       - LOG_LEVEL=info
+      - ESCROW_CONTRACT_ADDRESS=0xE0107C4227A38Aae3E5163D691EFb0dc0Eb7598C
+      - TOKEN_CONTRACT_ADDRESS=0x386FF386B396ca139E5D2dB6d0b61a0FDd5b4b47
+      - PLATFORM_FEE_RECIPIENT=0x0B83154b85B7F6f8ec567d0F3a93B50C8b8C754A
+      - BLOCKCHAIN_NETWORK=polygon
+      - CHAIN_ID=137
+      - PLATFORM_FEE_PERCENT=300
     depends_on:
       - postgres
       - redis
@@ -40,7 +46,7 @@ services:
     ports:
       - "5432:5432"
     env_file:
-      - docker-quickstart.env
+      - production.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql

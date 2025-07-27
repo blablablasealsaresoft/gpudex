@@ -1,0 +1,16 @@
+{
+  "network": "polygon",
+  "chainId": 137,
+  "timestamp": "2025-07-27T09:55:34.498Z",
+  "deployer": "0x0B83154b85B7F6f8ec567d0F3a93B50C8b8C754A",
+  "feeRecipient": "0x0B83154b85B7F6f8ec567d0F3a93B50C8b8C754A",
+  "contracts": {
+    "GPUDexToken": "0x386FF386B396ca139E5D2dB6d0b61a0FDd5b4b47",
+    "GPUDexEscrow": "0xE0107C4227A38Aae3E5163D691EFb0dc0Eb7598C"
+  },
+  "configuration": {
+    "platformFeePercent": 300,
+    "tokenSupply": "1000000000000000000000000000",
+    "minimumStake": "1000000000000000000000"
+  }
+}
