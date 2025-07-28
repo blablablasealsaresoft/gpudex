@@ -1,0 +1,211 @@
+# Digital Ocean App Platform Specification for GPUDex
+# Upload this file to: https://cloud.digitalocean.com/apps
+
+name: gpudex-production
+region: nyc
+
+services:
+  # Frontend - Static Site
+  - name: frontend
+    source_dir: /frontend
+    github:
+      repo: blablablasealsaresoft/gpudex
+      branch: release/v2.0.0
+      deploy_on_push: true
+    type: static_site
+    build_command: echo "Frontend ready"
+    output_dir: /
+    routes:
+      - path: /
+    environment_slug: node-js
+    instance_count: 1
+    instance_size_slug: basic-xxs
+
+  # Main API Service
+  - name: api
+    source_dir: /
+    github:
+      repo: blablablasealsaresoft/gpudex
+      branch: release/v2.0.0
+      deploy_on_push: true
+    type: service
+    dockerfile_path: Dockerfile.appplatform
+    http_port: 8000
+    instance_count: 1
+    instance_size_slug: basic-s
+    health_check:
+      http_path: /health
+    routes:
+      - path: /api
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: REDIS_URL
+        scope: RUN_AND_BUILD_TIME  
+        type: SECRET
+      - key: NODE_ENV
+        value: production
+        scope: RUN_AND_BUILD_TIME
+      - key: PYTHONPATH
+        value: /app
+        scope: RUN_AND_BUILD_TIME
+      - key: SERVICE_NAME
+        value: api_service
+        scope: RUN_AND_BUILD_TIME
+
+  # Real API Service
+  - name: real-api
+    source_dir: /
+    github:
+      repo: blablablasealsaresoft/gpudex
+      branch: release/v2.0.0
+      deploy_on_push: true
+    type: service
+    dockerfile_path: Dockerfile.appplatform
+    http_port: 8001
+    instance_count: 1
+    instance_size_slug: basic-s
+    health_check:
+      http_path: /health
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: REDIS_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: SERVICE_NAME
+        value: real_api_service
+        scope: RUN_AND_BUILD_TIME
+      - key: PYTHONPATH
+        value: /app
+        scope: RUN_AND_BUILD_TIME
+
+  # Community Onboarding Service
+  - name: community-onboarding
+    source_dir: /
+    github:
+      repo: blablablasealsaresoft/gpudex
+      branch: release/v2.0.0
+      deploy_on_push: true
+    type: service
+    dockerfile_path: Dockerfile.appplatform
+    http_port: 8007
+    instance_count: 1
+    instance_size_slug: basic-s
+    health_check:
+      http_path: /health
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: REDIS_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: SERVICE_NAME
+        value: community_onboarding_service
+        scope: RUN_AND_BUILD_TIME
+      - key: PYTHONPATH
+        value: /app
+        scope: RUN_AND_BUILD_TIME
+
+  # Enterprise API Integration
+  - name: enterprise-api
+    source_dir: /
+    github:
+      repo: blablablasealsaresoft/gpudex
+      branch: release/v2.0.0
+      deploy_on_push: true
+    type: service
+    dockerfile_path: Dockerfile.appplatform
+    http_port: 8003
+    instance_count: 1
+    instance_size_slug: basic-s
+    health_check:
+      http_path: /health
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: REDIS_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: SERVICE_NAME
+        value: enterprise_api_integration
+        scope: RUN_AND_BUILD_TIME
+      - key: PYTHONPATH
+        value: /app
+        scope: RUN_AND_BUILD_TIME
+
+  # GPU Provisioning Service
+  - name: gpu-provisioning
+    source_dir: /
+    github:
+      repo: blablablasealsaresoft/gpudex
+      branch: release/v2.0.0
+      deploy_on_push: true
+    type: service
+    dockerfile_path: Dockerfile.appplatform
+    http_port: 8004
+    instance_count: 1
+    instance_size_slug: basic-s
+    health_check:
+      http_path: /health
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: REDIS_URL
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+      - key: SERVICE_NAME
+        value: gpu_provisioning_service
+        scope: RUN_AND_BUILD_TIME
+      - key: PYTHONPATH
+        value: /app
+        scope: RUN_AND_BUILD_TIME
+
+# Managed Databases
+databases:
+  - name: gpudex-db
+    engine: PG
+    version: "15"
+    size: db-s-1vcpu-1gb
+    num_nodes: 1
+
+  - name: gpudex-redis
+    engine: REDIS
+    version: "7"
+    size: db-s-1vcpu-1gb
+    num_nodes: 1
+
+# Custom Domain Configuration
+domains:
+  - domain: yourdomain.com
+    type: PRIMARY
+  - domain: www.yourdomain.com
+    type: ALIAS
+
+# Environment Variables (Add these in App Platform Dashboard)
+# Go to Settings → App-Level Environment Variables
+#
+# REQUIRED SECRETS (set as type: SECRET):
+# - JWT_SECRET: your_super_strong_jwt_secret_here
+# - ENCRYPTION_KEY: your_encryption_key_here
+# - COINGECKO_API_KEY: your_coingecko_api_key (optional)
+# - WALLETCONNECT_PROJECT_ID: your_walletconnect_project_id
+#
+# SMART CONTRACT ADDRESSES:
+# - CHAIN_ID: 137
+# - TOKEN_CONTRACT_ADDRESS: 0x386FF386B396ca139E5D2dB6d0b61a0FDd5b4b47
+# - ESCROW_CONTRACT_ADDRESS: 0xE0107C4227A38Aae3E5163D691EFb0dc0Eb7598C
+
+# Monitoring & Alerts
+alerts:
+  - rule: CPU_UTILIZATION
+    value: 80
+  - rule: MEM_UTILIZATION  
+    value: 80
+  - rule: RESTART_COUNT
+    value: 5 
