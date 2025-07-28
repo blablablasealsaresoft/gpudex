@@ -2,6 +2,11 @@
 GPUDex Cryptocurrency Payment Service
 Integrates with CoinGate to support BTC, ETH, USDC, and 50+ other cryptocurrencies
 Provides 1% extra discount for crypto payments as advertised in README
+
+Enhanced with live price feeds from multiple sources:
+- CoinGecko API for real-time prices
+- CoinGate for payment processing
+- Automatic price updates every 30 seconds
 """
 
 import asyncio
@@ -343,7 +348,78 @@ class CryptoPaymentService:
             logger.error(f"Error processing successful payment: {e}")
 
     async def get_supported_cryptocurrencies(self) -> List[Dict[str, Any]]:
-        """Get list of supported cryptocurrencies with current rates"""
+        """Get list of supported cryptocurrencies with live market rates"""
+        try:
+            # First try to get live prices from CoinGecko (free tier)
+            live_prices = await self._get_live_prices_coingecko()
+            
+            if live_prices:
+                # Use live prices from CoinGecko
+                supported = []
+                crypto_mapping = {
+                    "BTC": {"id": "bitcoin", "name": "Bitcoin"},
+                    "ETH": {"id": "ethereum", "name": "Ethereum"},
+                    "MATIC": {"id": "matic-network", "name": "Polygon"},
+                    "POL": {"id": "matic-network", "name": "Polygon"},  # POL is new Polygon token
+                    "USDC": {"id": "usd-coin", "name": "USD Coin"},
+                    "USDT": {"id": "tether", "name": "Tether"},
+                    "LTC": {"id": "litecoin", "name": "Litecoin"},
+                    "BCH": {"id": "bitcoin-cash", "name": "Bitcoin Cash"},
+                    "DOGE": {"id": "dogecoin", "name": "Dogecoin"}
+                }
+                
+                for symbol, info in crypto_mapping.items():
+                    if info["id"] in live_prices:
+                        price_data = live_prices[info["id"]]
+                        supported.append({
+                            "symbol": symbol,
+                            "name": info["name"],
+                            "current_price": price_data["usd"],
+                            "price_change_24h": price_data.get("usd_24h_change", 0),
+                            "market_cap": price_data.get("usd_market_cap", 0),
+                            "volume_24h": price_data.get("usd_24h_vol", 0),
+                            "rate_usd": price_data["usd"],  # For backward compatibility
+                            "discount_rate": self.crypto_discount_rate,
+                            "logo_url": f"https://cryptoicons.org/api/icon/{symbol.lower()}/200",
+                            "icon": f"https://cryptoicons.org/api/icon/{symbol.lower()}/200",
+                            "last_updated": datetime.now().isoformat()
+                        })
+                
+                return supported
+            else:
+                # Fallback to CoinGate rates
+                return await self._get_coingate_rates()
+                    
+        except Exception as e:
+            logger.error(f"Error getting live crypto rates: {e}")
+            return self._get_default_crypto_list()
+
+    async def _get_live_prices_coingecko(self) -> Optional[Dict[str, Any]]:
+        """Get live prices from CoinGecko API (free tier)"""
+        try:
+            # CoinGecko API endpoint for live prices
+            coingecko_url = "https://api.coingecko.com/api/v3/simple/price"
+            params = {
+                "ids": "bitcoin,ethereum,matic-network,usd-coin,tether,litecoin,bitcoin-cash,dogecoin",
+                "vs_currencies": "usd",
+                "include_market_cap": "true",
+                "include_24hr_vol": "true",
+                "include_24hr_change": "true",
+                "include_last_updated_at": "true"
+            }
+            
+            async with self.session.get(coingecko_url, params=params) as response:
+                if response.status == 200:
+                    return await response.json()
+                else:
+                    logger.warning(f"CoinGecko API returned status {response.status}")
+                    return None
+        except Exception as e:
+            logger.error(f"Error fetching from CoinGecko: {e}")
+            return None
+
+    async def _get_coingate_rates(self) -> List[Dict[str, Any]]:
+        """Fallback to CoinGate rates"""
         try:
             headers = self._get_auth_headers()
             
@@ -362,18 +438,20 @@ class CryptoPaymentService:
                             supported.append({
                                 "symbol": crypto.value,
                                 "name": self._get_crypto_name(crypto.value),
+                                "current_price": rates[crypto.value],
                                 "rate_usd": rates[crypto.value],
                                 "discount_rate": self.crypto_discount_rate,
-                                "logo_url": f"https://cryptoicons.org/api/icon/{crypto.value.lower()}/200"
+                                "logo_url": f"https://cryptoicons.org/api/icon/{crypto.value.lower()}/200",
+                                "icon": f"https://cryptoicons.org/api/icon/{crypto.value.lower()}/200",
+                                "last_updated": datetime.now().isoformat()
                             })
                     
                     return supported
                 else:
-                    # Return default list if API unavailable
                     return self._get_default_crypto_list()
                     
         except Exception as e:
-            logger.error(f"Error getting crypto rates: {e}")
+            logger.error(f"Error getting CoinGate rates: {e}")
             return self._get_default_crypto_list()
 
     def _get_crypto_name(self, symbol: str) -> str:
