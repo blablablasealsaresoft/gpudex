@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPUDex Institutional Staking Portal - Enterprise Blockchain Investments</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .gradient-text { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .glass-morphism { backdrop-filter: blur(16px) saturate(180%); background-color: rgba(255, 255, 255, 0.75); border: 1px solid rgba(255, 255, 255, 0.125); }
+        .dark .glass-morphism { background-color: rgba(17, 25, 40, 0.75); border: 1px solid rgba(255, 255, 255, 0.125); }
+        
+        .institutional-card { 
+            background: linear-gradient(145deg, #f8fafc, #e2e8f0);
+            border: 2px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        .institutional-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 20px 40px rgba(102, 126, 234, 0.15);
+            transform: translateY(-4px);
+        }
+        .dark .institutional-card {
+            background: linear-gradient(145deg, #1e293b, #334155);
+            border-color: #475569;
+        }
+        
+        .tier-enterprise { @apply bg-gradient-to-r from-blue-500 to-blue-700; }
+        .tier-institutional { @apply bg-gradient-to-r from-purple-500 to-indigo-700; }
+        .tier-sovereign { @apply bg-gradient-to-r from-amber-500 to-orange-600; }
+        .tier-treasury { @apply bg-gradient-to-r from-emerald-500 to-teal-600; }
+        
+        .apy-display { font-size: 3rem; font-weight: 900; }
+        .staking-amount { font-size: 2.5rem; font-weight: 800; }
+        
+        .security-badge {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            animation: pulse-security 2s ease-in-out infinite alternate;
+        }
+        @keyframes pulse-security {
+            from { box-shadow: 0 0 20px rgba(16, 185, 129, 0.3); }
+            to { box-shadow: 0 0 40px rgba(16, 185, 129, 0.6); }
+        }
+        
+        .institutional-benefits {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            border-left: 4px solid #667eea;
+        }
+    </style>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#667eea',
+                        secondary: '#764ba2',
+                        accent: '#f093fb'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass-morphism">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-xl flex items-center justify-center">
+                            <i class="fas fa-university text-white text-xl"></i>
+                        </div>
+                        <span class="ml-3 text-2xl font-bold gradient-text">GPUDex</span>
+                        <span class="ml-2 text-sm bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent font-bold">INSTITUTIONAL</span>
+                    </div>
+                    
+                    <!-- Navigation Links -->
+                    <div class="hidden md:flex items-center space-x-8 ml-8">
+                        <a href="#" onclick="showSection('overview')" class="nav-link text-gray-900 font-medium">Overview</a>
+                        <a href="#" onclick="showSection('programs')" class="nav-link text-gray-500 hover:text-gray-900">Programs</a>
+                        <a href="#" onclick="showSection('portfolio')" class="nav-link text-gray-500 hover:text-gray-900">Portfolio</a>
+                        <a href="#" onclick="showSection('analytics')" class="nav-link text-gray-500 hover:text-gray-900">Analytics</a>
+                        <a href="#" onclick="showSection('compliance')" class="nav-link text-gray-500 hover:text-gray-900">Compliance</a>
+                    </div>
+                </div>
+                
+                <!-- Right Side -->
+                <div class="flex items-center space-x-4">
+                    <!-- Institution Status -->
+                    <div class="flex items-center space-x-2 bg-green-100 dark:bg-green-900 rounded-lg px-3 py-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <span class="text-sm text-green-600 font-semibold" id="institution-status">Verified Institution</span>
+                    </div>
+                    
+                    <!-- Total Staked Display -->
+                    <div class="flex items-center space-x-2 bg-purple-100 dark:bg-purple-900 rounded-lg px-3 py-2">
+                        <i class="fas fa-coins text-purple-600"></i>
+                        <span class="text-sm font-semibold text-purple-600" id="total-staked">$0.00</span>
+                    </div>
+                    
+                    <!-- Connect Institutional Wallet -->
+                    <button id="connect-institutional-wallet" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all duration-300">
+                        Connect Institutional Wallet
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <div class="pt-16">
+        
+        <!-- Overview Section -->
+        <section id="overview-section" class="section-content">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                
+                <!-- Welcome Header -->
+                <div class="gradient-bg text-white rounded-2xl p-8 mb-8">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h1 class="text-4xl font-bold mb-2">Institutional Staking Portal</h1>
+                            <p class="text-xl opacity-90 mb-4">Enterprise-grade blockchain investments with guaranteed returns</p>
+                            <div class="flex items-center space-x-6">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-shield-alt text-2xl"></i>
+                                    <div>
+                                        <div class="text-sm opacity-80">Security Rating</div>
+                                        <div class="text-2xl font-bold">AAA+</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-chart-line text-2xl"></i>
+                                    <div>
+                                        <div class="text-sm opacity-80">Current APY</div>
+                                        <div class="text-2xl font-bold" id="current-apy">15.8%</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-clock text-2xl"></i>
+                                    <div>
+                                        <div class="text-sm opacity-80">Lock Period</div>
+                                        <div class="text-2xl font-bold" id="lock-period">12 Months</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <div class="security-badge text-white rounded-xl px-6 py-3">
+                                <div class="text-sm opacity-90">Institutional Grade</div>
+                                <div class="text-xl font-bold">SECURE</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Key Metrics Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="institutional-card rounded-xl p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-300 text-sm">Total Staked</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white" id="portfolio-value">$0.00</p>
+                                <p class="text-green-500 text-sm"><i class="fas fa-arrow-up"></i> +24.8% YTD</p>
+                            </div>
+                            <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-coins text-purple-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="institutional-card rounded-xl p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-300 text-sm">Annual Yield</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white" id="annual-yield">$0.00</p>
+                                <p class="text-blue-500 text-sm"><i class="fas fa-percentage"></i> 15.8% APY</p>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-chart-line text-blue-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="institutional-card rounded-xl p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-300 text-sm">Risk Score</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white" id="risk-score">Low</p>
+                                <p class="text-green-500 text-sm"><i class="fas fa-shield-alt"></i> AAA Rated</p>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-shield-alt text-green-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="institutional-card rounded-xl p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-300 text-sm">Liquidity</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white" id="liquidity-score">High</p>
+                                <p class="text-orange-500 text-sm"><i class="fas fa-clock"></i> 24h Notice</p>
+                            </div>
+                            <div class="w-12 h-12 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-tint text-orange-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Institutional Benefits -->
+                <div class="institutional-benefits rounded-xl p-6 mb-8">
+                    <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Institutional Benefits</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="flex items-start space-x-3">
+                            <i class="fas fa-user-tie text-primary text-xl mt-1"></i>
+                            <div>
+                                <h4 class="font-semibold text-gray-900 dark:text-white">Dedicated Account Manager</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-300">Personal support and white-glove service</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-3">
+                            <i class="fas fa-cogs text-primary text-xl mt-1"></i>
+                            <div>
+                                <h4 class="font-semibold text-gray-900 dark:text-white">Custom Terms</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-300">Tailored staking programs and lock periods</p>
+                            </div>
+                        </div>
+                        <div class="flex items-start space-x-3">
+                            <i class="fas fa-file-contract text-primary text-xl mt-1"></i>
+                            <div>
+                                <h4 class="font-semibold text-gray-900 dark:text-white">Legal Documentation</h4>
+                                <p class="text-sm text-gray-600 dark:text-gray-300">Comprehensive legal frameworks and reporting</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Performance Chart -->
+                <div class="institutional-card rounded-xl p-6">
+                    <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Portfolio Performance</h3>
+                    <canvas id="performance-chart" height="400"></canvas>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Programs Section -->
+        <section id="programs-section" class="section-content hidden">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="text-4xl font-bold gradient-text">Staking Programs</h1>
+                    <button onclick="showApplicationModal()" class="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-300 flex items-center space-x-2">
+                        <i class="fas fa-plus"></i>
+                        <span>Apply for Program</span>
+                    </button>
+                </div>
+                
+                <!-- Program Tiers -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div class="institutional-card rounded-xl p-8">
+                        <div class="tier-institutional text-white rounded-lg p-6 mb-6">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-2xl font-bold">Institutional Program</h3>
+                                    <p class="opacity-90">For investment funds and institutions</p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="apy-display">12-18%</div>
+                                    <div class="text-sm opacity-90">APY Range</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-300">Minimum Stake</span>
+                                <span class="font-semibold text-gray-900 dark:text-white">$100,000</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-300">Lock Period</span>
+                                <span class="font-semibold text-gray-900 dark:text-white">6-24 months</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-300">Liquidity Options</span>
+                                <span class="font-semibold text-gray-900 dark:text-white">Quarterly</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-300">Risk Level</span>
+                                <span class="font-semibold text-green-600">Low</span>
+                            </div>
+                        </div>
+                        
+                        <button onclick="applyForProgram('institutional')" class="w-full mt-6 bg-purple-600 text-white py-3 rounded-lg hover:bg-purple-700 transition-colors">
+                            Apply Now
+                        </button>
+                    </div>
+                    
+                    <div class="institutional-card rounded-xl p-8">
+                        <div class="tier-treasury text-white rounded-lg p-6 mb-6">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h3 class="text-2xl font-bold">Treasury Program</h3>
+                                    <p class="opacity-90">For corporate treasuries and DAOs</p>
+                                </div>
+                                <div class="text-right">
+                                    <div class="apy-display">15-25%</div>
+                                    <div class="text-sm opacity-90">APY Range</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-300">Minimum Stake</span>
+                                <span class="font-semibold text-gray-900 dark:text-white">$500,000</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-300">Lock Period</span>
+                                <span class="font-semibold text-gray-900 dark:text-white">12-36 months</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-300">Liquidity Options</span>
+                                <span class="font-semibold text-gray-900 dark:text-white">Semi-annual</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-gray-600 dark:text-gray-300">Risk Level</span>
+                                <span class="font-semibold text-yellow-600">Medium</span>
+                            </div>
+                        </div>
+                        
+                        <button onclick="applyForProgram('treasury')" class="w-full mt-6 bg-emerald-600 text-white py-3 rounded-lg hover:bg-emerald-700 transition-colors">
+                            Apply Now
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Program Comparison Table -->
+                <div class="institutional-card rounded-xl p-6">
+                    <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Program Comparison</h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50 dark:bg-gray-700">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Feature</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Institutional</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Treasury</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Sovereign</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">Minimum Stake</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">$100,000</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">$500,000</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">$10,000,000</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">APY Range</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600">12-18%</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600">15-25%</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600">20-35%</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">Lock Period</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">6-24 months</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">12-36 months</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">24-60 months</td>
+                                </tr>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-white">Account Manager</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600">✓ Dedicated</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600">✓ Senior</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600">✓ Executive</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Portfolio Section -->
+        <section id="portfolio-section" class="section-content hidden">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <h1 class="text-4xl font-bold gradient-text mb-8">Portfolio Management</h1>
+                
+                <!-- Active Positions -->
+                <div class="institutional-card rounded-xl p-6 mb-8">
+                    <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Active Staking Positions</h3>
+                    <div class="space-y-4" id="active-positions">
+                        <!-- Positions will be populated by JavaScript -->
+                    </div>
+                </div>
+                
+                <!-- Risk Management -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="institutional-card rounded-xl p-6">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Risk Analysis</h3>
+                        <canvas id="risk-chart" height="300"></canvas>
+                    </div>
+                    
+                    <div class="institutional-card rounded-xl p-6">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Yield Optimization</h3>
+                        <canvas id="yield-chart" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Analytics Section -->
+        <section id="analytics-section" class="section-content hidden">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <h1 class="text-4xl font-bold gradient-text mb-8">Institutional Analytics</h1>
+                
+                <!-- Comprehensive Analytics Dashboard -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="institutional-card rounded-xl p-6">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Revenue Attribution</h3>
+                        <canvas id="revenue-chart" height="300"></canvas>
+                    </div>
+                    
+                    <div class="institutional-card rounded-xl p-6">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Market Correlation</h3>
+                        <canvas id="correlation-chart" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Compliance Section -->
+        <section id="compliance-section" class="section-content hidden">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <h1 class="text-4xl font-bold gradient-text mb-8">Compliance & Reporting</h1>
+                
+                <!-- Compliance Dashboard -->
+                <div class="institutional-card rounded-xl p-6">
+                    <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Regulatory Compliance</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="text-center p-4 bg-green-50 dark:bg-green-900 rounded-lg">
+                            <div class="text-2xl font-bold text-green-600">✓ Compliant</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">SEC Regulations</div>
+                        </div>
+                        <div class="text-center p-4 bg-green-50 dark:bg-green-900 rounded-lg">
+                            <div class="text-2xl font-bold text-green-600">✓ Audited</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Smart Contracts</div>
+                        </div>
+                        <div class="text-center p-4 bg-green-50 dark:bg-green-900 rounded-lg">
+                            <div class="text-2xl font-bold text-green-600">✓ Insured</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">$100M Coverage</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <!-- Application Modal -->
+    <div id="application-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-8 max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Institutional Staking Application</h2>
+                <button onclick="hideApplicationModal()" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="application-form" class="space-y-6">
+                <!-- Application form content -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Institution Name</label>
+                        <input type="text" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Investment Amount</label>
+                        <input type="number" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    </div>
+                </div>
+                
+                <div class="flex justify-end space-x-4">
+                    <button type="button" onclick="hideApplicationModal()" class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-6 py-3 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:shadow-lg transition-all duration-300">
+                        Submit Application
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Global state
+        let currentSection = 'overview';
+        let institutionalData = {
+            totalStaked: 0,
+            annualYield: 0,
+            positions: []
+        };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🏦 Initializing Institutional Staking Portal...');
+            loadInstitutionalData();
+            initializeCharts();
+        });
+        
+        // Section management
+        function showSection(sectionName) {
+            document.querySelectorAll('.section-content').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            document.getElementById(sectionName + '-section').classList.remove('hidden');
+            currentSection = sectionName;
+        }
+        
+        // Data loading
+        function loadInstitutionalData() {
+            // Mock data - replace with actual API calls
+            institutionalData = {
+                totalStaked: 2500000,
+                annualYield: 395000,
+                currentAPY: 15.8,
+                positions: [
+                    {
+                        id: 1,
+                        program: 'Treasury Program',
+                        amount: 1500000,
+                        apy: 18.5,
+                        lockPeriod: '24 months',
+                        startDate: '2024-01-15'
+                    },
+                    {
+                        id: 2,
+                        program: 'Institutional Program',
+                        amount: 1000000,
+                        apy: 15.2,
+                        lockPeriod: '12 months',
+                        startDate: '2024-03-01'
+                    }
+                ]
+            };
+            
+            updateDashboard();
+        }
+        
+        function updateDashboard() {
+            document.getElementById('total-staked').textContent = `$${institutionalData.totalStaked.toLocaleString()}`;
+            document.getElementById('portfolio-value').textContent = `$${institutionalData.totalStaked.toLocaleString()}`;
+            document.getElementById('annual-yield').textContent = `$${institutionalData.annualYield.toLocaleString()}`;
+            document.getElementById('current-apy').textContent = `${institutionalData.currentAPY}%`;
+        }
+        
+        // Chart initialization
+        function initializeCharts() {
+            // Performance chart
+            const performanceCtx = document.getElementById('performance-chart');
+            if (performanceCtx) {
+                new Chart(performanceCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        datasets: [{
+                            label: 'Portfolio Value',
+                            data: [2000000, 2150000, 2300000, 2250000, 2400000, 2500000],
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                beginAtZero: false,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '$' + (value / 1000000).toFixed(1) + 'M';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Modal management
+        function showApplicationModal() {
+            document.getElementById('application-modal').classList.remove('hidden');
+        }
+        
+        function hideApplicationModal() {
+            document.getElementById('application-modal').classList.add('hidden');
+        }
+        
+        function applyForProgram(programType) {
+            showApplicationModal();
+            // Pre-fill form based on program type
+        }
+        
+        // Connect wallet
+        document.getElementById('connect-institutional-wallet').addEventListener('click', function() {
+            // Institutional wallet connection logic
+            console.log('Connecting institutional wallet...');
+        });
+    </script>
+</body>
+</html> 

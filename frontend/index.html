@@ -1,2581 +1,1179 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GPUDex Beta - GPU Marketplace | Rent GPUs with Crypto</title>
+    <title>GPUDex - The Ultimate GPU Computing Platform</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    <link rel="alternate icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23667eea'/><path d='M8 12h4v8H8z M14 10h4v12h-4z M20 8h4v16h-4z' fill='white'/></svg>">
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://unpkg.com/web3@latest/dist/web3.min.js"></script>
-    <script src="https://unpkg.com/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
-    <script src="https://unpkg.com/@coinbase/wallet-sdk@latest/dist/index.js"></script>
-    <script src="https://unpkg.com/@walletconnect/core@2.15.0/dist/index.umd.js"></script>
-    <script src="https://unpkg.com/@walletconnect/client@2.15.0/dist/index.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="enhanced-styles.css" rel="stylesheet">
+    
+    <!-- GPUDx Component Scripts -->
+    <script src="components/StakingDashboard.js"></script>
+    <script src="components/AchievementSystem.js"></script>
+    <script src="components/InfluencerDashboard.js"></script>
+    <script src="marketplace-api.js"></script>
+    <script src="wallet-connector.js"></script>
+    
     <style>
-        :root {
-            --primary-pink: #FF007A;
-            --primary-blue: #4C82FB;
-            --bg-primary: #0D111C;
-            --bg-secondary: #131A2A;
-            --bg-tertiary: #1B2236;
-            --text-primary: #FFFFFF;
-            --text-secondary: #9FADBA;
-            --border-color: #293249;
-            --success-green: #00D395;
-            --warning-orange: #FF9500;
-            --error-red: #FF5F52;
-            --gradient-primary: linear-gradient(135deg, #FF007A 0%, #4C82FB 100%);
-            --shadow-primary: 0 16px 64px rgba(255, 0, 122, 0.15);
-            --border-radius: 20px;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            line-height: 1.6;
-            overflow-x: hidden;
-        }
-
-        /* Scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: var(--bg-primary);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--primary-pink);
-            border-radius: 3px;
-        }
-
-        /* Header */
-        .header {
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            background: rgba(13, 17, 28, 0.95);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .navbar {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem 2rem;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 1.8rem;
-            font-weight: 800;
-            background: var(--gradient-primary);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-decoration: none;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 2rem;
-            align-items: center;
-        }
-
-        .nav-link {
-            color: var(--text-secondary);
-            text-decoration: none;
-            font-weight: 500;
-            padding: 0.5rem 1rem;
-            border-radius: 12px;
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .nav-link:hover, .nav-link.active {
-            color: var(--text-primary);
-            background: var(--bg-tertiary);
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 1rem;
-            align-items: center;
-        }
-
-        .wallet-btn {
-            background: var(--gradient-primary);
-            border: none;
-            border-radius: var(--border-radius);
-            padding: 0.75rem 1.5rem;
-            color: white;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .wallet-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-primary);
-        }
-
-        .wallet-btn.connected {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-        }
-
-        /* Main Container */
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 0 2rem;
-        }
-
-        /* Swap Interface (Main Page) */
-        .swap-page {
-            min-height: calc(100vh - 80px);
-            display: flex;
-            align-items: flex-start;
-            justify-content: center;
-            padding: 2rem 0;
-            gap: 2rem;
-        }
-
-        .swap-container {
-            width: 100%;
-            max-width: 480px;
-        }
-
-        .arbitrage-sidebar {
-            width: 320px;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-            padding: 1.5rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-        }
-
-        .arbitrage-header {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .arbitrage-title {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: var(--success-green);
-        }
-
-        .arbitrage-opportunity {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 1rem;
-            margin-bottom: 0.75rem;
-            transition: all 0.3s ease;
-        }
-
-        .arbitrage-opportunity:hover {
-            border-color: var(--success-green);
-            box-shadow: 0 4px 16px rgba(0, 211, 149, 0.15);
-        }
-
-        .arbitrage-gpu {
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .arbitrage-prices {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-        }
-
-        .arbitrage-price {
-            font-size: 0.9rem;
-        }
-
-        .arbitrage-profit {
-            color: var(--success-green);
-            font-weight: 600;
-            text-align: center;
-            padding: 0.5rem;
-            background: rgba(0, 211, 149, 0.1);
-            border-radius: 8px;
-            margin-top: 0.5rem;
-        }
-
-        .swap-header {
-            text-align: center;
-            margin-bottom: 2rem;
-        }
-
-        .swap-title {
-            font-size: 3rem;
-            font-weight: 800;
-            background: var(--gradient-primary);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 1rem;
-        }
-
-        .swap-subtitle {
-            color: var(--text-secondary);
-            font-size: 1.1rem;
-        }
-
-        .swap-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-            padding: 2rem;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
-        }
-
-        .swap-section {
-            margin-bottom: 1rem;
-        }
-
-        .swap-section:last-child {
-            margin-bottom: 0;
-        }
-
-        .section-label {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .input-container {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-            border-radius: 16px;
-            padding: 1.5rem;
-            transition: all 0.3s ease;
-        }
-
-        .input-container:hover {
-            border-color: var(--primary-pink);
-        }
-
-        .input-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.5rem;
-        }
-
-        .token-input {
-            background: none;
-            border: none;
-            color: var(--text-primary);
-            font-size: 1.5rem;
-            font-weight: 600;
-            outline: none;
-            flex: 1;
-        }
-
-        .token-input::placeholder {
-            color: var(--text-secondary);
-        }
-
-        .token-select {
-            background: var(--bg-primary);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 0.75rem 1rem;
-            color: var(--text-primary);
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            transition: all 0.3s ease;
-        }
-
-        .token-select:hover {
-            border-color: var(--primary-pink);
-        }
-
-        .token-icon {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-        }
-
-        .balance-text {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .swap-arrow {
-            display: flex;
-            justify-content: center;
-            margin: 1rem 0;
-        }
-
-        .arrow-btn {
-            background: var(--bg-tertiary);
-            border: 2px solid var(--border-color);
-            border-radius: 12px;
-            width: 40px;
-            height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .arrow-btn:hover {
-            border-color: var(--primary-pink);
-            background: var(--bg-secondary);
-        }
-
-        .swap-details {
-            background: var(--bg-tertiary);
-            border-radius: 12px;
-            padding: 1rem;
-            margin: 1.5rem 0;
-        }
-
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 0.5rem;
-        }
-
-        .detail-row:last-child {
-            margin-bottom: 0;
-        }
-
-        .detail-label {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .detail-value {
-            color: var(--text-primary);
-            font-weight: 600;
-        }
-
-        .action-btn {
-            width: 100%;
-            background: var(--gradient-primary);
-            border: none;
-            border-radius: 16px;
-            padding: 1rem;
-            color: white;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin-top: 1rem;
-        }
-
-        .action-btn:hover:not(:disabled) {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-primary);
-        }
-
-        .action-btn:disabled {
-            background: var(--bg-tertiary);
-            color: var(--text-secondary);
-            cursor: not-allowed;
-        }
-
-        /* GPU Selection Modal */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
-            z-index: 2000;
-            display: none;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .modal {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-            width: 90%;
-            max-width: 500px;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        .modal-header {
-            padding: 2rem 2rem 1rem;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .modal-title {
-            font-size: 1.5rem;
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-        }
-
-        .modal-subtitle {
-            color: var(--text-secondary);
-        }
-
-        .modal-content {
-            padding: 1rem 2rem 2rem;
-        }
-
-        .gpu-option {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 1rem;
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            margin-bottom: 0.5rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-
-        .gpu-option:hover {
-            border-color: var(--primary-pink);
-            background: var(--bg-tertiary);
-        }
-
-        .gpu-info {
-            flex: 1;
-        }
-
-        .gpu-name {
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-        }
-
-        .gpu-specs {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .gpu-price {
-            text-align: right;
-        }
-
-        .price-usd {
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .price-crypto {
-            color: var(--success-green);
-            font-size: 0.9rem;
-        }
-
-        /* Marketplace Page */
-        .marketplace-page {
-            display: none;
-            padding: 2rem 0;
-        }
-
-        .page-header {
-            text-align: center;
-            margin-bottom: 3rem;
-        }
-
-        .page-title {
-            font-size: 2.5rem;
-            font-weight: 800;
-            background: var(--gradient-primary);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 1rem;
-        }
-
-        .marketplace-filters {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-            padding: 2rem;
-            margin-bottom: 2rem;
-        }
-
-        .filter-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-        }
-
-        .filter-group {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .filter-label {
-            color: var(--text-secondary);
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-
-        .filter-input {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 0.75rem;
-            color: var(--text-primary);
-            outline: none;
-            transition: border-color 0.3s ease;
-        }
-
-        .filter-input:focus {
-            border-color: var(--primary-pink);
-        }
-
-        .gpu-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .gpu-card {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-            padding: 1.5rem;
-            transition: all 0.3s ease;
-        }
-
-        .gpu-card:hover {
-            border-color: var(--primary-pink);
-            transform: translateY(-4px);
-            box-shadow: 0 20px 40px rgba(255, 0, 122, 0.1);
-        }
-
-        .provider-badge {
-            display: inline-block;
-            background: var(--bg-tertiary);
-            color: var(--text-secondary);
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            margin-bottom: 1rem;
-        }
-
-        .card-title {
-            font-size: 1.2rem;
-            font-weight: 700;
-            margin-bottom: 1rem;
-        }
-
-        .specs-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.5rem;
-            margin-bottom: 1.5rem;
-        }
-
-        .spec-item {
-            display: flex;
-            justify-content: space-between;
-            font-size: 0.9rem;
-        }
-
-        .spec-label {
-            color: var(--text-secondary);
-        }
-
-        .spec-value {
-            font-weight: 600;
-        }
-
-        .card-pricing {
-            padding-top: 1rem;
-            border-top: 1px solid var(--border-color);
-        }
-
-        .price-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-        }
-
-        .price-main {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--text-primary);
-        }
-
-        .price-period {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        .card-actions {
-            display: flex;
-            gap: 0.5rem;
-        }
-
-        .btn-secondary {
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
-            padding: 0.75rem 1rem;
-            border-radius: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            flex: 1;
-        }
-
-        .btn-secondary:hover {
-            border-color: var(--primary-pink);
-        }
-
-        .btn-primary {
-            background: var(--gradient-primary);
-            border: none;
-            color: white;
-            padding: 0.75rem 1rem;
-            border-radius: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            flex: 1;
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-primary);
-        }
-
-        /* Wallet Connection Modal */
-        .wallet-modal {
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: var(--border-radius);
-            padding: 2rem;
-            width: 90%;
-            max-width: 400px;
-        }
-
-        .wallet-options {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-            margin-top: 1.5rem;
-        }
-
-        .wallet-option {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 1rem;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-align: left;
-            width: 100%;
-        }
-
-        .wallet-option:hover {
-            border-color: var(--primary-pink);
-            background: var(--bg-primary);
-        }
-
-        .wallet-icon {
-            width: 32px;
-            height: 32px;
-            border-radius: 8px;
-        }
-
-        .wallet-info {
-            flex: 1;
-        }
-
-        .wallet-name {
-            font-weight: 600;
-            margin-bottom: 0.25rem;
-        }
-
-        .wallet-desc {
-            color: var(--text-secondary);
-            font-size: 0.9rem;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .navbar {
-                padding: 1rem;
-                flex-direction: column;
-                gap: 1rem;
-            }
-
-            .nav-links {
-                order: 3;
-                width: 100%;
-                justify-content: center;
-            }
-
-            .swap-page {
-                flex-direction: column;
-                align-items: center;
-                padding: 1rem 0;
-            }
-
-            .arbitrage-sidebar {
-                width: 100%;
-                max-width: 480px;
-                order: 2;
-                margin-top: 2rem;
-            }
-
-            .swap-container {
-                order: 1;
-                max-width: 100%;
-            }
-
-            .swap-title {
-                font-size: 2rem;
-            }
-
-            .swap-card {
-                padding: 1.5rem;
-            }
-
-            .gpu-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .filter-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* Loading States */
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: var(--primary-pink);
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
+        * { font-family: 'Inter', sans-serif; }
+        
+        .gradient-bg { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); 
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+        }
+        .gradient-text { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); 
+            background-size: 400% 400%;
+            animation: gradientShift 8s ease infinite;
+            -webkit-background-clip: text; 
+            -webkit-text-fill-color: transparent; 
+        }
+        .glass-morphism { 
+            backdrop-filter: blur(20px) saturate(200%); 
+            background-color: rgba(255, 255, 255, 0.1); 
+            border: 1px solid rgba(255, 255, 255, 0.2); 
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        .dark .glass-morphism { 
+            background-color: rgba(17, 25, 40, 0.3); 
+            border: 1px solid rgba(255, 255, 255, 0.1); 
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-8px); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+        
+        .tier-bronze { @apply bg-gradient-to-r from-orange-400 to-orange-600; }
+        .tier-silver { @apply bg-gradient-to-r from-gray-400 to-gray-600; }
+        .tier-gold { @apply bg-gradient-to-r from-yellow-400 to-yellow-600; }
+        .tier-diamond { @apply bg-gradient-to-r from-purple-400 to-pink-600; }
+        
+        .animate-float { animation: float 6s ease-in-out infinite; }
+        @keyframes float {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-20px); }
+        }
+        
+        .animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite alternate; }
+        @keyframes pulse-glow {
+            from { box-shadow: 0 0 20px rgba(102, 126, 234, 0.3); }
+            to { box-shadow: 0 0 40px rgba(102, 126, 234, 0.6); }
+        }
+        
+        .animate-slide-up { animation: slideUp 0.6s ease-out; }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .gpu-card { background: linear-gradient(145deg, #1e293b, #334155); border: 1px solid #475569; }
+        .gpu-card:hover { border-color: #667eea; box-shadow: 0 0 30px rgba(102, 126, 234, 0.3); }
+        
+        .achievement-badge { 
+            position: relative; 
+            overflow: hidden;
+        }
+        .achievement-badge::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, #667eea, #764ba2, #667eea);
+            border-radius: inherit;
+            z-index: -1;
+            animation: rotate 3s linear infinite;
+        }
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
             to { transform: rotate(360deg); }
         }
-
-        /* Toast Notifications */
-        .toast {
-            position: fixed;
-            bottom: 2rem;
-            left: 50%;
-            transform: translateX(-50%);
-            background: var(--bg-secondary);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 1rem 2rem;
-            z-index: 4000;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            display: none;
-            max-width: 400px;
-        }
-
-        .toast.success {
-            border-color: var(--success-green);
-            background: rgba(0, 211, 149, 0.1);
-        }
-
-        .toast.error {
-            border-color: var(--error-red);
-            background: rgba(255, 95, 82, 0.1);
-        }
-
-        .toast.warning {
-            border-color: var(--warning-orange);
-            background: rgba(255, 149, 0, 0.1);
-        }
-
-        .hidden {
-            display: none !important;
+        
+        .neon-glow { text-shadow: 0 0 10px rgba(102, 126, 234, 0.8), 0 0 20px rgba(102, 126, 234, 0.6), 0 0 30px rgba(102, 126, 234, 0.4); }
+        
+        .sidebar-nav { transition: all 0.3s ease; }
+        .sidebar-nav:hover { background: rgba(102, 126, 234, 0.1); border-left: 4px solid #667eea; }
+        
+        .loading-spinner { animation: spin 1s linear infinite; }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
         }
     </style>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#667eea',
+                        secondary: '#764ba2',
+                        accent: '#f093fb'
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body>
-    <!-- Header -->
-    <header class="header">
-        <nav class="navbar">
-            <a href="#" class="logo" onclick="showSwapPage()">
-                <i class="fas fa-microchip"></i>
-                GPUDex <span style="font-size: 0.6em; color: var(--accent-blue); font-weight: 500;">Beta</span>
-            </a>
-            
-            <div class="nav-links">
-                <span class="nav-link active" onclick="showSwapPage()">Swap</span>
-                <span class="nav-link" onclick="showMarketplace()">Marketplace</span>
-                <span class="nav-link" onclick="showAnalytics()">Analytics</span>
-                <span class="nav-link" onclick="showAPI()">API</span>
-            </div>
 
-            <div class="header-actions">
-                <button class="wallet-btn" id="walletBtn" onclick="handleWalletClick()">
-                    <i class="fas fa-wallet"></i>
-                    Connect Wallet
-                </button>
-            </div>
-        </nav>
-    </header>
-
-    <!-- Main Swap Page (Uniswap-style) -->
-    <div class="swap-page container" id="swapPage">
-        <div class="swap-container">
-            <div class="swap-header">
-                <h1 class="swap-title">Rent GPUs</h1>
-                <p class="swap-subtitle">Find the best GPU prices across 15+ providers. Pay with crypto, earn with arbitrage.</p>
-            </div>
-
-            <div class="swap-card">
-                <!-- You Pay Section -->
-                <div class="swap-section">
-                    <div class="section-label">You Pay</div>
-                    <div class="input-container">
-                        <div class="input-row">
-                            <input type="number" class="token-input" placeholder="0.0" id="payAmount" />
-                            <div class="token-select" onclick="openCurrencyModal('pay')">
-                                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PHBhdGggZD0iTTEyIDJMMTMuMDkgOC4yNkwyMCA5TDEzLjA5IDE1Ljc0TDEyIDIyTDEwLjkxIDE1Ljc0TDQgOUwxMC45MSA4LjI2TDEyIDJaIiBmaWxsPSIjNjI3RUVBIi8+PC9zdmc+" alt="ETH" class="token-icon" />
-                                <span>ETH</span>
-                                <i class="fas fa-chevron-down"></i>
-                            </div>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300" id="app">
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass-morphism">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-xl flex items-center justify-center">
+                            <i class="fas fa-microchip text-white text-xl"></i>
                         </div>
-                        <div class="balance-text">Balance: 0.0 ETH</div>
+                        <span class="ml-3 text-2xl font-bold gradient-text">GPUDex</span>
                     </div>
-                </div>
-
-                <!-- Swap Arrow -->
-                <div class="swap-arrow">
-                    <div class="arrow-btn" onclick="swapTokens()">
-                        <i class="fas fa-arrow-down"></i>
-                    </div>
-                </div>
-
-                <!-- You Receive Section -->
-                <div class="swap-section">
-                    <div class="section-label">You Receive</div>
-                    <div class="input-container">
-                        <div class="input-row">
-                            <input type="number" class="token-input" placeholder="0.0" id="receiveAmount" readonly />
-                            <div class="token-select" onclick="openGPUModal()">
-                                <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSI+PHBhdGggZD0iTTIgNEg4VjZIMlY0Wk0yIDhIOFYxMEgyVjhaWk0yIDEySDhWMTRIMlYTJIMlYxMlpNMTAgNEgxNlY2SDEwVjRaTTEwIDhIMTZWMTBIMTBWOFpNMTAgMTJIMTZWMTRIMTBWMTJaTTE4IDRIMjJWNkgxOFY0WU0xOCA4SDIyVjEwSDE4VjhaWU0xOCAxMkgyMlYxNEgxOFYxMloiIGZpbGw9IiNGRjAwN0EiLz48L3N2Zz4=" alt="GPU" class="token-icon" />
-                                <span id="selectedGPU">Select GPU</span>
-                                <i class="fas fa-chevron-down"></i>
-                            </div>
-                        </div>
-                        <div class="balance-text" id="gpuDetails">Select a GPU to see rental hours</div>
-                    </div>
-                </div>
-
-                <!-- Swap Details -->
-                <div class="swap-details">
-                    <div class="detail-row">
-                        <span class="detail-label">Provider</span>
-                        <span class="detail-value" id="providerInfo">-</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Rate</span>
-                        <span class="detail-value" id="rateInfo">-</span>
-                    </div>
-                    <div class="detail-row">
-                        <span class="detail-label">Platform Fee</span>
-                        <span class="detail-value" style="color: var(--warning-orange);">3%</span>
-                    </div>
-                </div>
-
-                <!-- Action Button -->
-                <button class="action-btn" id="swapBtn" onclick="handleSwap()">
-                    Connect Wallet
-                </button>
-            </div>
-        </div>
-
-        <!-- Arbitrage Opportunities Sidebar -->
-        <div class="arbitrage-sidebar">
-            <div class="arbitrage-header">
-                <i class="fas fa-chart-line" style="color: var(--success-green);"></i>
-                <h3 class="arbitrage-title">Arbitrage Opportunities</h3>
-            </div>
-            
-            <div id="arbitrageList">
-                <div class="arbitrage-opportunity">
-                    <div class="arbitrage-gpu">
-                        <i class="fas fa-microchip" style="color: var(--primary-pink);"></i>
-                        RTX 4090
-                    </div>
-                    <div class="arbitrage-prices">
-                        <span class="arbitrage-price">Vast: $0.35/hr</span>
-                        <span class="arbitrage-price">Lambda: $0.42/hr</span>
-                    </div>
-                    <div class="arbitrage-profit">
-                        ⚡ 20% Price Gap
-                    </div>
-                </div>
-
-                <div class="arbitrage-opportunity">
-                    <div class="arbitrage-gpu">
-                        <i class="fas fa-microchip" style="color: var(--primary-pink);"></i>
-                        A100 80GB
-                    </div>
-                    <div class="arbitrage-prices">
-                        <span class="arbitrage-price">RunPod: $1.20/hr</span>
-                        <span class="arbitrage-price">AWS: $1.45/hr</span>
-                    </div>
-                    <div class="arbitrage-profit">
-                        ⚡ 21% Price Gap
-                    </div>
-                </div>
-
-                <div class="arbitrage-opportunity">
-                    <div class="arbitrage-gpu">
-                        <i class="fas fa-microchip" style="color: var(--primary-pink);"></i>
-                        V100 32GB
-                    </div>
-                    <div class="arbitrage-prices">
-                        <span class="arbitrage-price">Vast: $0.28/hr</span>
-                        <span class="arbitrage-price">GCP: $0.35/hr</span>
-                    </div>
-                    <div class="arbitrage-profit">
-                        ⚡ 25% Price Gap
-                    </div>
-                </div>
-
-                <div class="arbitrage-opportunity">
-                    <div class="arbitrage-gpu">
-                        <i class="fas fa-microchip" style="color: var(--primary-pink);"></i>
-                        H100 80GB
-                    </div>
-                    <div class="arbitrage-prices">
-                        <span class="arbitrage-price">Lambda: $2.40/hr</span>
-                        <span class="arbitrage-price">Azure: $3.20/hr</span>
-                    </div>
-                    <div class="arbitrage-profit">
-                        ⚡ 33% Price Gap
-                    </div>
-                </div>
-            </div>
-
-            <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 12px; text-align: center;">
-                <div style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.5rem;">
-                    <i class="fas fa-lightbulb" style="color: var(--warning-orange);"></i>
-                    Live arbitrage scanning
-                </div>
-                <div style="color: var(--success-green); font-weight: 600;">
-                    Updated every 30 seconds
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Marketplace Page -->
-    <div class="marketplace-page container" id="marketplacePage">
-        <div class="page-header">
-            <h1 class="page-title">GPU Marketplace</h1>
-            <p class="swap-subtitle">Compare and rent GPUs from 15+ providers</p>
-        </div>
-
-        <div class="marketplace-filters">
-            <div class="filter-grid">
-                <div class="filter-group">
-                    <label class="filter-label">GPU Type</label>
-                    <select class="filter-input" id="gpuTypeFilter">
-                        <option value="">All GPU Types</option>
-                        <option value="RTX 4090">RTX 4090</option>
-                        <option value="A100">A100 (80GB)</option>
-                        <option value="H100">H100 (80GB)</option>
-                        <option value="V100">V100 (32GB)</option>
-                        <option value="RTX 3090">RTX 3090</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Region</label>
-                    <select class="filter-input" id="regionFilter">
-                        <option value="">All Regions</option>
-                        <option value="us-east">US East</option>
-                        <option value="us-west">US West</option>
-                        <option value="eu-west">EU West</option>
-                        <option value="asia-pacific">Asia Pacific</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Max Price ($/hour)</label>
-                    <input type="number" class="filter-input" id="maxPriceFilter" placeholder="e.g., 2.00" step="0.01">
-                </div>
-                <div class="filter-group">
-                    <label class="filter-label">Min Memory (GB)</label>
-                    <input type="number" class="filter-input" id="minMemoryFilter" placeholder="e.g., 16" step="1">
-                </div>
-            </div>
-        </div>
-
-        <div class="gpu-grid" id="gpuGrid">
-            <!-- GPU cards will be populated here -->
-        </div>
-    </div>
-
-    <!-- Analytics Page -->
-    <div class="marketplace-page container" id="analyticsPage" style="display: none;">
-        <div class="page-header">
-            <h1 class="page-title">Market Analytics</h1>
-            <p class="swap-subtitle">Real-time GPU market insights and trends</p>
-        </div>
-
-        <div class="analytics-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 2rem; margin-bottom: 2rem;">
-            <div class="analytics-card" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 2rem;">
-                <h3 style="margin-bottom: 1rem; color: var(--primary-pink);">Market Overview</h3>
-                <div class="stat-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div class="stat-item">
-                        <div class="stat-value" id="totalGPUs" style="font-size: 2rem; font-weight: 700; color: var(--text-primary);">0</div>
-                        <div class="stat-label" style="color: var(--text-secondary); font-size: 0.9rem;">Total GPUs</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="availableGPUs" style="font-size: 2rem; font-weight: 700; color: var(--success-green);">0</div>
-                        <div class="stat-label" style="color: var(--text-secondary); font-size: 0.9rem;">Available</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="avgPrice" style="font-size: 2rem; font-weight: 700; color: var(--primary-blue);">$0.00</div>
-                        <div class="stat-label" style="color: var(--text-secondary); font-size: 0.9rem;">Avg Price/hr</div>
-                    </div>
-                    <div class="stat-item">
-                        <div class="stat-value" id="minPrice" style="font-size: 2rem; font-weight: 700; color: var(--success-green);">$0.00</div>
-                        <div class="stat-label" style="color: var(--text-secondary); font-size: 0.9rem;">Best Price</div>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="analytics-card" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 2rem;">
-                <h3 style="margin-bottom: 1rem; color: var(--primary-pink);">Provider Distribution</h3>
-                <canvas id="providerChart" width="300" height="200"></canvas>
-            </div>
-            
-            <div class="analytics-card" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 2rem;">
-                <h3 style="margin-bottom: 1rem; color: var(--primary-pink);">GPU Types</h3>
-                <canvas id="gpuTypeChart" width="300" height="200"></canvas>
-            </div>
-        </div>
-
-        <div class="price-trends" style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 2rem;">
-            <h3 style="margin-bottom: 1rem; color: var(--primary-pink);">Price Trends</h3>
-            <canvas id="priceChart" width="800" height="400"></canvas>
-        </div>
-    </div>
-
-    <!-- API Documentation Page -->
-    <div class="marketplace-page container" id="apiPage" style="display: none;">
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 60vh; text-align: center;">
-            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: var(--border-radius); padding: 4rem; max-width: 600px; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);">
-                <div style="font-size: 4rem; margin-bottom: 1.5rem;">
-                    <i class="fas fa-code" style="color: var(--primary-pink);"></i>
-                </div>
-                
-                <h1 style="font-size: 3rem; font-weight: 800; background: var(--gradient-primary); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 1rem;">
-                    API Documentation
-                </h1>
-                
-                <div style="font-size: 1.5rem; font-weight: 600; color: var(--warning-orange); margin-bottom: 1rem;">
-                    Coming Soon! 🚀
-                </div>
-                
-                <p style="color: var(--text-secondary); font-size: 1.1rem; line-height: 1.6; margin-bottom: 2rem;">
-                    We're building comprehensive API documentation and enterprise integrations. 
-                    Our REST API will provide programmatic access to:
-                </p>
-                
-                <div style="text-align: left; margin-bottom: 2rem;">
-                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; color: var(--text-secondary);">
-                        <i class="fas fa-check-circle" style="color: var(--success-green);"></i>
-                        Real-time GPU pricing from 15+ providers
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; color: var(--text-secondary);">
-                        <i class="fas fa-check-circle" style="color: var(--success-green);"></i>
-                        Automated GPU provisioning and management
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; color: var(--text-secondary);">
-                        <i class="fas fa-check-circle" style="color: var(--success-green);"></i>
-                        Market analytics and arbitrage opportunities
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; color: var(--text-secondary);">
-                        <i class="fas fa-check-circle" style="color: var(--success-green);"></i>
-                        Smart contract integration for payments
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; color: var(--text-secondary);">
-                        <i class="fas fa-check-circle" style="color: var(--success-green);"></i>
-                        Enterprise team management and billing
+                    
+                    <!-- Navigation Links -->
+                    <div class="hidden md:flex items-center space-x-8 ml-8">
+                        <a href="#" onclick="showSection('landing')" class="nav-link text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">Home</a>
+                        <a href="#" onclick="showSection('marketplace')" class="nav-link text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">Marketplace</a>
+                        <a href="#" onclick="showSection('staking')" class="nav-link text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">Staking</a>
+                        <a href="#" onclick="showSection('achievements')" class="nav-link text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">Achievements</a>
+                        <a href="#" onclick="showSection('influencer')" class="nav-link text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">Influencer</a>
+                        <a href="#" onclick="showSection('enterprise')" class="nav-link text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">Enterprise</a>
+                        <a href="#" onclick="showSection('analytics')" class="nav-link text-gray-700 dark:text-gray-300 hover:text-primary transition-colors">Analytics</a>
                     </div>
                 </div>
                 
-                <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 12px; padding: 1.5rem; margin-bottom: 2rem;">
-                    <div style="color: var(--primary-pink); font-weight: 600; margin-bottom: 0.5rem;">
-                        <i class="fas fa-bell"></i> Get Notified
+                <!-- Right Side -->
+                <div class="flex items-center space-x-4">
+                    <!-- Theme Toggle -->
+                    <button onclick="toggleTheme()" class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                        <i class="fas fa-moon dark:hidden text-gray-600"></i>
+                        <i class="fas fa-sun hidden dark:block text-yellow-400"></i>
+                    </button>
+                    
+                    <!-- Notifications -->
+                    <div class="relative">
+                        <button class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                            <i class="fas fa-bell text-gray-600 dark:text-gray-300"></i>
+                            <span class="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">3</span>
+                        </button>
                     </div>
-                    <p style="color: var(--text-secondary); margin-bottom: 1rem; font-size: 0.95rem;">
-                        Want early access? Connect your wallet and we'll notify you when the API launches!
-                    </p>
-                    <button onclick="handleWalletClick()" style="background: var(--gradient-primary); color: white; border: none; border-radius: 12px; padding: 0.75rem 1.5rem; font-weight: 600; cursor: pointer; transition: all 0.3s ease;">
-                        <i class="fas fa-wallet"></i> Connect for Early Access
+                    
+                    <!-- Wallet Status -->
+                    <div class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full" id="wallet-indicator"></div>
+                        <span class="text-sm text-gray-600 dark:text-gray-300" id="wallet-status">Not Connected</span>
+                    </div>
+                    
+                    <!-- Connect Wallet Button -->
+                    <button id="connect-wallet" class="bg-gradient-to-r from-primary to-secondary text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all duration-300 animate-pulse-glow">
+                        Connect Wallet
                     </button>
                 </div>
-                
-                <div style="color: var(--text-secondary); font-size: 0.9rem;">
-                    <i class="fas fa-clock" style="color: var(--warning-orange);"></i>
-                    Expected launch: Q1 2025
-                </div>
             </div>
         </div>
-    </div>
+    </nav>
 
-    <!-- GPU Selection Modal -->
-    <div class="modal-overlay" id="gpuModal">
-        <div class="modal">
-            <div class="modal-header">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div>
-                        <h3 class="modal-title">Select GPU</h3>
-                        <p class="modal-subtitle">Choose from available GPUs</p>
-                    </div>
-                    <button onclick="closeAllModals()" style="background: none; border: none; color: var(--text-secondary); font-size: 1.5rem; cursor: pointer; padding: 0; margin: 0;">&times;</button>
+    <!-- Main Content Container -->
+    <div class="pt-16">
+        
+        <!-- Landing Section -->
+        <section id="landing-section" class="section-content">
+            <!-- Hero Section -->
+            <div class="gradient-bg text-white py-20 overflow-hidden relative">
+                <div class="absolute inset-0 opacity-10">
+                    <div class="animate-float absolute top-10 left-10 w-20 h-20 bg-white rounded-full"></div>
+                    <div class="animate-float absolute top-32 right-20 w-16 h-16 bg-white rounded-full" style="animation-delay: 1s;"></div>
+                    <div class="animate-float absolute bottom-20 left-1/4 w-12 h-12 bg-white rounded-full" style="animation-delay: 2s;"></div>
                 </div>
-            </div>
-            <div class="modal-content" id="gpuOptions">
-                <!-- GPU options will be populated here -->
-            </div>
-        </div>
-    </div>
-
-    <!-- Payment Method Selection Modal -->
-    <div class="modal-overlay" id="paymentMethodModal">
-        <div class="modal">
-            <div class="modal-header">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div>
-                        <h3 class="modal-title">Choose Payment Method</h3>
-                        <p class="modal-subtitle">How would you like to pay?</p>
-                    </div>
-                    <button onclick="closeAllModals()" style="background: none; border: none; color: var(--text-secondary); font-size: 1.5rem; cursor: pointer; padding: 0; margin: 0;">&times;</button>
-                </div>
-            </div>
-            <div class="modal-content">
-                <div class="gpu-option" style="opacity: 0.6; cursor: not-allowed; border: 2px solid var(--text-secondary);">
-                    <div class="gpu-info">
-                        <div class="gpu-name">💰 Ethereum L1 → Polygon <span style="color: var(--accent-blue); font-weight: 500; font-size: 0.7em;">[V2 FEATURE]</span></div>
-                        <div class="gpu-specs">Pay with ETH, automatically bridged to Polygon</div>
-                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
-                            🚀 Coming in V2: Advanced cross-chain functionality
-                        </div>
-                    </div>
-                    <div class="gpu-price">
-                        <div class="price-usd" style="color: var(--text-secondary);">~$5-15 gas</div>
-                        <div class="price-crypto" style="color: var(--text-secondary);">2-3 mins</div>
-                    </div>
-                </div>
-
-                <div class="gpu-option" onclick="selectPaymentMethod('polygon')" style="border: 2px solid var(--primary-pink); background: linear-gradient(135deg, rgba(255, 105, 180, 0.05) 0%, rgba(138, 43, 226, 0.05) 100%);">
-                    <div class="gpu-info">
-                        <div class="gpu-name">🚀 Polygon <span style="color: var(--success-green); font-weight: 600; font-size: 0.8em;">RECOMMENDED</span></div>
-                        <div class="gpu-specs">Fast, cheap, and reliable - Ready for production!</div>
-                        <div style="font-size: 0.8rem; color: var(--success-green); margin-top: 0.5rem;">
-                            ✨ Launch ready: Smart contracts deployed, fully tested
-                        </div>
-                    </div>
-                    <div class="gpu-price">
-                        <div class="price-usd">~$0.05 gas</div>
-                        <div class="price-crypto">2 seconds</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Currency Selection Modal -->
-    <div class="modal-overlay" id="currencyModal">
-        <div class="modal">
-            <div class="modal-header">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div>
-                        <h3 class="modal-title">Select Currency</h3>
-                        <p class="modal-subtitle">Choose payment currency</p>
-                    </div>
-                    <button onclick="closeAllModals()" style="background: none; border: none; color: var(--text-secondary); font-size: 1.5rem; cursor: pointer; padding: 0; margin: 0;">&times;</button>
-                </div>
-            </div>
-            <div class="modal-content">
-                <div class="gpu-option" onclick="selectCurrency('ETH')">
-                    <div class="gpu-info">
-                        <div class="gpu-name">Ethereum</div>
-                        <div class="gpu-specs">ETH</div>
-                    </div>
-                    <div class="gpu-price">
-                        <div class="price-usd">$2,450</div>
-                    </div>
-                </div>
-                <div class="gpu-option" onclick="selectCurrency('USDC')">
-                    <div class="gpu-info">
-                        <div class="gpu-name">USD Coin</div>
-                        <div class="gpu-specs">USDC</div>
-                    </div>
-                    <div class="gpu-price">
-                        <div class="price-usd">$1.00</div>
-                    </div>
-                </div>
-                <div class="gpu-option" onclick="selectCurrency('BTC')">
-                    <div class="gpu-info">
-                        <div class="gpu-name">Bitcoin</div>
-                        <div class="gpu-specs">BTC</div>
-                    </div>
-                    <div class="gpu-price">
-                        <div class="price-usd">$95,420</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Wallet Connection Modal -->
-    <div class="modal-overlay" id="walletModal">
-        <div class="wallet-modal">
-            <div class="modal-header">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div>
-                        <h3 class="modal-title">Connect Wallet</h3>
-                        <p class="modal-subtitle">Connect your crypto wallet to start renting GPUs</p>
-                    </div>
-                    <button onclick="closeAllModals()" style="background: none; border: none; color: var(--text-secondary); font-size: 1.5rem; cursor: pointer; padding: 0; margin: 0;">&times;</button>
-                </div>
-            </div>
-            <div class="wallet-options">
-                <button class="wallet-option" onclick="connectMetaMask()">
-                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSI+PHBhdGggZD0iTTI5LjU2IDQuNzJsLTguOTEgNi42NC0xLjY0LTMuOTN6IiBmaWxsPSIjRTI3NjFCIi8+PC9zdmc+" alt="MetaMask" class="wallet-icon">
-                    <div class="wallet-info">
-                        <div class="wallet-name">MetaMask</div>
-                        <div class="wallet-desc">Most popular browser wallet</div>
-                    </div>
-                </button>
-                <button class="wallet-option" onclick="connectCoinbaseWallet()">
-                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiByeD0iMTYiIGZpbGw9IiMwMDUyRkYiLz48L3N2Zz4=" alt="Coinbase" class="wallet-icon">
-                    <div class="wallet-info">
-                        <div class="wallet-name">Coinbase Wallet</div>
-                        <div class="wallet-desc">Secure & easy to use</div>
-                    </div>
-                </button>
-                <button class="wallet-option" onclick="connectWalletConnect()">
-                    <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSI+PHBhdGggZD0iTTggMTJjNC00IDEyLTQgMTYgMGwyIDJjLjUuNS41IDEgMCAxLjVsLTMgM2MtLjIuMi0uNS4yLS43IDBsLTItMmMtMy0zLTgtMy0xMSAwbC0yIDJjLS4yLjItLjUuMi0uNyAwbC0zLTNjLS41LS41LS41LTEgMC0xLjVsMi0yeiIgZmlsbD0iIzM5ODlGRiIvPjwvc3ZnPg==" alt="WalletConnect" class="wallet-icon">
-                    <div class="wallet-info">
-                        <div class="wallet-name">WalletConnect</div>
-                        <div class="wallet-desc">Connect mobile wallets</div>
-                    </div>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Toast Notifications -->
-    <div class="toast" id="toast">
-        <span id="toastMessage"></span>
-    </div>
-
-    <script>
-        // Global Variables - Must be declared first
-        let currentPage = 'swap';
-        let isWalletConnected = false;
-        let connectedWallet = null;
-        let walletAddress = null;
-        let web3 = null;
-        let coinbaseWallet = null;
-        let walletConnectProvider = null;
-        let selectedGPUData = null;
-        let selectedCurrency = 'ETH';
-        let selectedPaymentMethod = 'ethereum_l1';
-        let availableGPUs = [];
-        let analyticsData = null;
-
-        // Global Configuration
-        const API_BASE = 'http://localhost:8000';
-        
-        // Polygon Network Smart Contract Configuration
-        const SUPPORTED_NETWORKS = {
-            // Polygon Mainnet (Production Ready - Default Network)
-            137: {
-                name: 'Polygon',
-                chainId: 137,
-                hexChainId: '0x89',
-                rpcUrl: 'https://polygon-rpc.com/',
-                explorerUrl: 'https://polygonscan.com',
-                nativeCurrency: { name: 'MATIC', symbol: 'MATIC', decimals: 18 },
-                escrowAddress: '0xE0107C4227A38Aae3E5163D691EFb0dc0Eb7598C',
-                tokenAddress: '0x386FF386B396ca139E5D2dB6d0b61a0FDd5b4b47',
-                feeRecipient: '0x0B83154b85B7F6f8ec567d0F3a93B50C8b8C754A',
-                platformFeePercent: 300,
-                recommended: true,
-                description: 'Production ready with deployed contracts'
-            }
-        };
-        
-        // Current active network (defaults to Polygon)
-        const DEFAULT_CHAIN_ID = 137; // Polygon
-        
-        // Get current smart contract config
-        function getCurrentNetworkConfig() {
-            const currentChainId = window.currentChainId || DEFAULT_CHAIN_ID;
-            return SUPPORTED_NETWORKS[currentChainId] || SUPPORTED_NETWORKS[DEFAULT_CHAIN_ID];
-        }
-        
-        // Legacy support for existing code
-        const SMART_CONTRACTS = getCurrentNetworkConfig();
-        
-        // Simplified Contract ABIs (only the functions we need)
-        const ESCROW_ABI = [
-            {
-                "inputs": [
-                    {"name": "_provider", "type": "address"},
-                    {"name": "_gpuType", "type": "string"},
-                    {"name": "_pricePerHour", "type": "uint256"},
-                    {"name": "_duration", "type": "uint256"},
-                    {"name": "_paymentToken", "type": "address"},
-                    {"name": "_autoRelease", "type": "bool"}
-                ],
-                "name": "createRental",
-                "outputs": [{"name": "", "type": "uint256"}],
-                "stateMutability": "nonpayable",
-                "type": "function"
-            },
-            {
-                "inputs": [],
-                "name": "platformFeePercent",
-                "outputs": [{"name": "", "type": "uint256"}],
-                "stateMutability": "view",
-                "type": "function"
-            },
-            {
-                "inputs": [],
-                "name": "feeRecipient",
-                "outputs": [{"name": "", "type": "address"}],
-                "stateMutability": "view",
-                "type": "function"
-            }
-        ];
-        
-        const TOKEN_ABI = [
-            {
-                "inputs": [],
-                "name": "name",
-                "outputs": [{"name": "", "type": "string"}],
-                "stateMutability": "view",
-                "type": "function"
-            },
-            {
-                "inputs": [],
-                "name": "symbol", 
-                "outputs": [{"name": "", "type": "string"}],
-                "stateMutability": "view",
-                "type": "function"
-            }
-        ];
-        
-        // State Management (variables moved to top of script)
-
-        // Initialize wallet providers
-        async function initializeWalletProviders() {
-            try {
-                // Initialize Coinbase Wallet SDK
-                if (typeof CoinbaseWalletSDK !== 'undefined') {
-                    coinbaseWallet = new CoinbaseWalletSDK({
-                        appName: 'GPUDex',
-                        appLogoUrl: 'https://gpudex.ai/logo.png',
-                        darkMode: true
-                    });
-                }
                 
-                // Initialize WalletConnect
-                if (typeof WalletConnectProvider !== 'undefined') {
-                    walletConnectProvider = new WalletConnectProvider.default({
-                        infuraId: "9aa3d95b3bc440fa88ea12eaa4456161", // Demo key
-                        chainId: 1
-                    });
-                }
-            } catch (error) {
-                console.error('Error initializing wallet providers:', error);
-            }
-        }
-
-        // Initialize App
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeApp();
-        });
-
-        async function initializeApp() {
-            try {
-                await initializeWalletProviders();
-                checkWalletConnection();
-                await loadGPUData();
-                updateUI();
-                await populateMarketplace();
-                
-                // Show default page
-                showSwapPage();
-                
-                // Add event listeners
-                document.getElementById('payAmount').addEventListener('input', updateReceiveAmount);
-                
-                // Close modals when clicking outside
-                document.addEventListener('click', function(event) {
-                    if (event.target.classList.contains('modal-overlay')) {
-                        closeAllModals();
-                    }
-                });
-                
-                console.log('GPUDex initialized successfully');
-            } catch (error) {
-                console.error('Error initializing app:', error);
-                showToast('Error loading application. Please refresh.', 'error');
-            }
-        }
-
-        // API Functions
-        async function loadGPUData() {
-            try {
-                const response = await fetch(`${API_BASE}/api/v1/prices`);
-                if (!response.ok) throw new Error('Failed to load GPU data');
-                
-                const data = await response.json();
-                availableGPUs = data.prices.map(gpu => ({
-                    name: gpu.gpu_type,
-                    provider: gpu.provider,
-                    memory: gpu.memory,
-                    pricePerHour: gpu.price_per_hour,
-                    specs: `${gpu.cuda_cores} CUDA Cores`,
-                    region: gpu.region,
-                    availability: gpu.availability,
-                    instance_type: gpu.instance_type
-                }));
-                
-                console.log(`Loaded ${availableGPUs.length} GPUs from API`);
-                return availableGPUs;
-            } catch (error) {
-                console.error('Error loading GPU data:', error);
-                // Fallback to demo data
-                availableGPUs = [
-                    {
-                        name: 'RTX 4090',
-                        provider: 'Vast.ai',
-                        memory: '24GB',
-                        pricePerHour: 0.45,
-                        specs: '16,384 CUDA Cores',
-                        region: 'US-East',
-                        availability: 'Available'
-                    },
-                    {
-                        name: 'A100 (80GB)',
-                        provider: 'AWS',
-                        memory: '80GB',
-                        pricePerHour: 3.20,
-                        specs: '6,912 CUDA Cores',
-                        region: 'us-east-1',
-                        availability: 'Available'
-                    },
-                    {
-                        name: 'H100 (80GB)',
-                        provider: 'Lambda Labs',
-                        memory: '80GB',
-                        pricePerHour: 1.49,
-                        specs: 'Latest Hopper Architecture',
-                        region: 'Multi-Region',
-                        availability: 'Available'
-                    }
-                ];
-                showToast('Using demo data. Check backend connection.', 'warning');
-                return availableGPUs;
-            }
-        }
-
-        async function loadAnalyticsData() {
-            try {
-                const response = await fetch(`${API_BASE}/api/v1/analytics/overview`);
-                if (!response.ok) throw new Error('Failed to load analytics');
-                
-                analyticsData = await response.json();
-                updateAnalyticsUI();
-                return analyticsData;
-            } catch (error) {
-                console.error('Error loading analytics:', error);
-                // Fallback analytics
-                analyticsData = {
-                    total_gpus: availableGPUs.length,
-                    available_gpus: availableGPUs.filter(g => g.availability === 'Available').length,
-                    average_price: availableGPUs.reduce((sum, g) => sum + g.pricePerHour, 0) / availableGPUs.length || 0,
-                    min_price: Math.min(...availableGPUs.map(g => g.pricePerHour)) || 0,
-                    provider_distribution: {},
-                    gpu_type_distribution: {}
-                };
-                updateAnalyticsUI();
-                return analyticsData;
-            }
-        }
-
-        // Page Navigation
-        function showSwapPage() {
-            currentPage = 'swap';
-            document.getElementById('swapPage').style.display = 'flex';
-            document.getElementById('marketplacePage').style.display = 'none';
-            document.getElementById('analyticsPage').style.display = 'none';
-            document.getElementById('apiPage').style.display = 'none';
-            updateActiveNav('swap');
-        }
-
-        async function showMarketplace() {
-            currentPage = 'marketplace';
-            document.getElementById('swapPage').style.display = 'none';
-            document.getElementById('marketplacePage').style.display = 'block';
-            document.getElementById('analyticsPage').style.display = 'none';
-            document.getElementById('apiPage').style.display = 'none';
-            updateActiveNav('marketplace');
-            await populateMarketplace();
-        }
-
-        async function showAnalytics() {
-            currentPage = 'analytics';
-            document.getElementById('swapPage').style.display = 'none';
-            document.getElementById('marketplacePage').style.display = 'none';
-            document.getElementById('analyticsPage').style.display = 'block';
-            document.getElementById('apiPage').style.display = 'none';
-            updateActiveNav('analytics');
-            await loadAnalyticsData();
-        }
-
-        function showAPI() {
-            currentPage = 'api';
-            document.getElementById('swapPage').style.display = 'none';
-            document.getElementById('marketplacePage').style.display = 'none';
-            document.getElementById('analyticsPage').style.display = 'none';
-            document.getElementById('apiPage').style.display = 'block';
-            updateActiveNav('api');
-        }
-
-        function updateActiveNav(active) {
-            document.querySelectorAll('.nav-link').forEach(link => {
-                link.classList.remove('active');
-            });
-            
-            const navMap = {
-                'swap': 0,
-                'marketplace': 1,
-                'analytics': 2,
-                'api': 3
-            };
-            
-            const activeIndex = navMap[active];
-            if (activeIndex !== undefined) {
-                document.querySelectorAll('.nav-link')[activeIndex].classList.add('active');
-            }
-        }
-
-        // Wallet Connection
-        function checkWalletConnection() {
-            const savedWallet = localStorage.getItem('connectedWallet');
-            const savedAddress = localStorage.getItem('walletAddress');
-            
-            if (savedWallet && savedAddress) {
-                connectedWallet = savedWallet;
-                walletAddress = savedAddress;
-                isWalletConnected = true;
-                updateWalletUI();
-            }
-        }
-
-        function handleWalletClick() {
-            if (isWalletConnected) {
-                showWalletMenu();
-            } else {
-                openWalletModal();
-            }
-        }
-
-        function updateWalletUI() {
-            const walletBtn = document.getElementById('walletBtn');
-            const swapBtn = document.getElementById('swapBtn');
-            
-            if (isWalletConnected && walletAddress) {
-                const shortAddress = `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`;
-                walletBtn.innerHTML = `<i class="fas fa-wallet"></i> ${shortAddress}`;
-                walletBtn.classList.add('connected');
-                
-                swapBtn.textContent = selectedGPUData ? 'Rent GPU' : 'Select GPU';
-                swapBtn.disabled = false;
-            } else {
-                walletBtn.innerHTML = '<i class="fas fa-wallet"></i> Connect Wallet';
-                walletBtn.classList.remove('connected');
-                
-                swapBtn.textContent = 'Connect Wallet';
-                swapBtn.disabled = false;
-            }
-        }
-
-        function openWalletModal() {
-            try {
-                const modal = document.getElementById('walletModal');
-                if (modal) {
-                    modal.style.display = 'flex';
-                } else {
-                    console.error('Wallet modal not found');
-                    showToast('Error opening wallet modal', 'error');
-                }
-            } catch (error) {
-                console.error('Error opening wallet modal:', error);
-                showToast('Error opening wallet modal', 'error');
-            }
-        }
-
-        function showWalletMenu() {
-            const address = walletAddress ? `${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}` : '';
-            const disconnectConfirm = confirm(`Connected: ${address}\n\nWould you like to disconnect your wallet?`);
-            if (disconnectConfirm) {
-                disconnectWallet();
-            }
-        }
-
-        function disconnectWallet() {
-            isWalletConnected = false;
-            connectedWallet = null;
-            walletAddress = null;
-            web3 = null;
-            
-            localStorage.removeItem('connectedWallet');
-            localStorage.removeItem('walletAddress');
-            
-            updateWalletUI();
-            showToast('Wallet disconnected', 'info');
-        }
-
-        async function connectMetaMask() {
-            try {
-                if (typeof window.ethereum !== 'undefined') {
-                    await window.ethereum.request({ method: 'eth_requestAccounts' });
-                    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
-                    
-                    if (accounts.length > 0) {
-                        await handleWalletConnected('MetaMask', accounts[0]);
-                    }
-                } else {
-                    showToast('MetaMask not installed. Please install MetaMask extension.', 'error');
-                    window.open('https://metamask.io/download/', '_blank');
-                }
-            } catch (error) {
-                console.error('MetaMask connection error:', error);
-                showToast('Failed to connect MetaMask', 'error');
-            }
-        }
-
-        async function connectCoinbaseWallet() {
-            try {
-                if (!coinbaseWallet) {
-                    showToast('Coinbase Wallet SDK not loaded', 'error');
-                    return;
-                }
-                
-                const ethereum = coinbaseWallet.makeWeb3Provider('https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161', 1);
-                
-                const accounts = await ethereum.request({
-                    method: 'eth_requestAccounts'
-                });
-                
-                if (accounts.length > 0) {
-                    web3 = new Web3(ethereum);
-                    await handleWalletConnected('Coinbase Wallet', accounts[0]);
-                }
-            } catch (error) {
-                console.error('Coinbase Wallet connection error:', error);
-                if (error.code === 4001) {
-                    showToast('Connection cancelled by user', 'info');
-                } else {
-                    showToast('Failed to connect Coinbase Wallet. Please try again.', 'error');
-                }
-            }
-        }
-
-        async function connectWalletConnect() {
-            try {
-                if (!walletConnectProvider) {
-                    showToast('WalletConnect not available', 'error');
-                    return;
-                }
-                
-                // Enable session (triggers QR Code modal)
-                await walletConnectProvider.enable();
-                
-                web3 = new Web3(walletConnectProvider);
-                const accounts = await web3.eth.getAccounts();
-                
-                if (accounts.length > 0) {
-                    await handleWalletConnected('WalletConnect', accounts[0]);
-                }
-                
-                // Subscribe to accounts change
-                walletConnectProvider.on("accountsChanged", (accounts) => {
-                    if (accounts.length === 0) {
-                        disconnectWallet();
-                    } else {
-                        walletAddress = accounts[0];
-                        updateWalletUI();
-                    }
-                });
-                
-                // Subscribe to chainId change
-                walletConnectProvider.on("chainChanged", (chainId) => {
-                    console.log('Chain changed:', chainId);
-                });
-                
-                // Subscribe to session disconnection
-                walletConnectProvider.on("disconnect", (code, reason) => {
-                    console.log('WalletConnect disconnected:', code, reason);
-                    disconnectWallet();
-                });
-                
-            } catch (error) {
-                console.error('WalletConnect error:', error);
-                if (error.message && error.message.includes('User closed modal')) {
-                    showToast('Connection cancelled by user', 'info');
-                } else {
-                    showToast('Failed to connect via WalletConnect. Please try again.', 'error');
-                }
-            }
-        }
-
-        async function handleWalletConnected(walletType, address) {
-            try {
-                connectedWallet = walletType;
-                walletAddress = address;
-                isWalletConnected = true;
-                
-                localStorage.setItem('connectedWallet', walletType);
-                localStorage.setItem('walletAddress', address);
-                
-                updateWalletUI();
-                closeAllModals();
-                
-                showToast(`${walletType} connected successfully!`, 'success');
-            } catch (error) {
-                console.error('Error handling wallet connection:', error);
-                showToast('Error connecting wallet', 'error');
-            }
-        }
-
-        // GPU and Currency Selection
-        function openGPUModal() {
-            const modal = document.getElementById('gpuModal');
-            const content = document.getElementById('gpuOptions');
-            
-            content.innerHTML = availableGPUs.map(gpu => {
-                const isAvailable = gpu.availability === 'Available';
-                return `
-                    <div class="gpu-option" onclick="selectGPU('${gpu.name}', '${gpu.provider}')" style="${!isAvailable ? 'opacity: 0.6; cursor: not-allowed;' : ''}">
-                        <div class="gpu-info">
-                            <div class="gpu-name">${gpu.name}</div>
-                            <div class="gpu-specs">${gpu.specs} • ${gpu.memory} • ${gpu.provider}</div>
-                        </div>
-                        <div class="gpu-price">
-                            <div class="price-usd">$${gpu.pricePerHour}/hr</div>
-                            <div class="price-crypto">Platform fee: 3% (handled by smart contract)</div>
-                            ${!isAvailable ? '<div style="color: var(--warning-orange); font-size: 0.8rem;">Currently Unavailable</div>' : ''}
-                        </div>
-                    </div>
-                `;
-            }).join('');
-            
-            modal.style.display = 'flex';
-        }
-
-        function selectGPU(gpuName, provider = null) {
-            if (provider) {
-                selectedGPUData = availableGPUs.find(gpu => gpu.name === gpuName && gpu.provider === provider);
-            } else {
-                selectedGPUData = availableGPUs.find(gpu => gpu.name === gpuName);
-            }
-            
-            if (selectedGPUData) {
-                document.getElementById('selectedGPU').textContent = selectedGPUData.name;
-                document.getElementById('gpuDetails').textContent = `${selectedGPUData.memory} • ${selectedGPUData.provider}`;
-                document.getElementById('providerInfo').textContent = selectedGPUData.provider;
-                document.getElementById('rateInfo').textContent = `$${selectedGPUData.pricePerHour}/hour`;
-                
-                updateReceiveAmount();
-                updateUI();
-            }
-            
-            closeAllModals();
-        }
-
-        function openCurrencyModal() {
-            document.getElementById('currencyModal').style.display = 'flex';
-        }
-
-        function selectCurrency(currency) {
-            selectedCurrency = currency;
-            const tokenSelect = document.querySelector('.token-select');
-            tokenSelect.querySelector('span').textContent = currency;
-            
-            updateReceiveAmount();
-            closeAllModals();
-        }
-
-        function openPaymentMethodModal() {
-            document.getElementById('paymentMethodModal').style.display = 'flex';
-        }
-
-        function selectPaymentMethod(method) {
-            selectedPaymentMethod = method;
-            
-            // Update UI to show selected payment method
-            const methodNames = {
-                'ethereum_l1': 'ETH L1 → Polygon',
-                'polygon': 'Polygon'
-            };
-            
-            showToast(`Payment method: ${methodNames[method]}`, 'info');
-            closeAllModals();
-            
-            // Continue with the rental process
-            processGPURental();
-        }
-
-        function updateReceiveAmount() {
-            const payAmount = parseFloat(document.getElementById('payAmount').value) || 0;
-            const receiveAmountEl = document.getElementById('receiveAmount');
-            
-            if (selectedGPUData && payAmount > 0) {
-                // Convert currency to USD (simplified)
-                const currencyRates = {
-                    'ETH': 2450,
-                    'USDC': 1,
-                    'BTC': 95420
-                };
-                
-                const usdAmount = payAmount * currencyRates[selectedCurrency];
-                const hours = (usdAmount / selectedGPUData.pricePerHour).toFixed(2);
-                
-                receiveAmountEl.value = hours;
-                document.getElementById('gpuDetails').textContent = `${hours} hours • ${selectedGPUData.memory} • ${selectedGPUData.provider}`;
-            } else {
-                receiveAmountEl.value = '';
-            }
-        }
-
-        function swapTokens() {
-            // Animation effect for swap
-            showToast('Swapped payment currency and GPU selection!', 'info');
-        }
-
-        // Smart Contract Functions
-        async function checkSmartContractConnection(targetChainId = null) {
-            try {
-                if (!web3) {
-                    console.log('Web3 not initialized');
-                    return false;
-                }
-                
-                // Get current network info
-                const chainId = await web3.eth.getChainId();
-                const networkConfig = SUPPORTED_NETWORKS[chainId];
-                
-                if (!networkConfig) {
-                    console.log(`Unsupported network: ${chainId}`);
-                    return false;
-                }
-                
-                // Update current chain ID
-                window.currentChainId = chainId;
-                
-                // If specific target chain requested, check if we're on it
-                if (targetChainId && chainId !== targetChainId) {
-                    console.log(`Wrong network. Expected ${targetChainId}, got ${chainId}`);
-                    return false;
-                }
-                
-                // Test contract accessibility
-                if (networkConfig.escrowAddress && networkConfig.escrowAddress !== '0x0000000000000000000000000000000000000000') {
-                    const escrowContract = new web3.eth.Contract(ESCROW_ABI, networkConfig.escrowAddress);
-                    const feeRecipient = await escrowContract.methods.feeRecipient().call();
-                    console.log(`Smart contract connection verified on ${networkConfig.name}. Fee recipient:`, feeRecipient);
-                } else {
-                    console.log(`Connected to ${networkConfig.name}, but contracts not deployed yet`);
-                }
-                
-                return true;
-            } catch (error) {
-                console.error('Smart contract connection check failed:', error);
-                return false;
-            }
-        }
-        
-        async function switchToNetwork(chainId) {
-            try {
-                if (!window.ethereum) {
-                    throw new Error('MetaMask not found');
-                }
-                
-                const networkConfig = SUPPORTED_NETWORKS[chainId];
-                if (!networkConfig) {
-                    throw new Error(`Unsupported network: ${chainId}`);
-                }
-                
-                console.log(`Switching to ${networkConfig.name}...`);
-                
-                try {
-                    await window.ethereum.request({
-                        method: 'wallet_switchEthereumChain',
-                        params: [{ chainId: networkConfig.hexChainId }],
-                    });
-                } catch (switchError) {
-                    // This error code indicates that the chain has not been added to MetaMask
-                    if (switchError.code === 4902) {
-                        try {
-                            await window.ethereum.request({
-                                method: 'wallet_addEthereumChain',
-                                params: [{
-                                    chainId: networkConfig.hexChainId,
-                                    chainName: networkConfig.name,
-                                    nativeCurrency: networkConfig.nativeCurrency,
-                                    rpcUrls: [networkConfig.rpcUrl],
-                                    blockExplorerUrls: [networkConfig.explorerUrl]
-                                }]
-                            });
-                        } catch (addError) {
-                            console.error(`Failed to add ${networkConfig.name} network:`, addError);
-                            return false;
-                        }
-                    } else {
-                        console.error(`Failed to switch to ${networkConfig.name}:`, switchError);
-                        return false;
-                    }
-                }
-                
-                // Update current chain ID
-                window.currentChainId = chainId;
-                return true;
-            } catch (error) {
-                console.error('Network switch failed:', error);
-                return false;
-            }
-        }
-        
-        // Network switch function for Polygon
-        async function switchToPolygon() {
-            return await switchToNetwork(137);
-        }
-        
-        async function verifySmartContractIntegration() {
-            try {
-                // Check if already connected to Polygon network
-                let isConnected = await checkSmartContractConnection();
-                if (isConnected) {
-                    const currentChainId = await web3.eth.getChainId();
-                    const networkConfig = SUPPORTED_NETWORKS[currentChainId];
-                    showToast(`Connected to ${networkConfig.name}! 3% fee collected automatically.`, 'success');
-                    return true;
-                }
-                
-                // Switch to Polygon network
-                showToast('Switching to Polygon network...', 'info');
-                let switched = await switchToPolygon();
-                if (switched) {
-                    isConnected = await checkSmartContractConnection(137);
-                    if (isConnected) {
-                        showToast('Connected to Polygon! Smart contracts enabled.', 'success');
-                        return true;
-                    }
-                }
-                
-                // If switch fails, notify user
-                showToast('Please manually switch to Polygon network for smart contracts', 'warning');
-                return false;
-                
-            } catch (error) {
-                console.error('Smart contract verification failed:', error);
-                showToast('Smart contract integration not available. Using fallback.', 'warning');
-                return false;
-            }
-        }
-
-        function handleSwap() {
-            if (!isWalletConnected) {
-                openWalletModal();
-                return;
-            }
-            
-            if (!selectedGPUData) {
-                openGPUModal();
-                return;
-            }
-            
-            const payAmount = parseFloat(document.getElementById('payAmount').value);
-            if (!payAmount || payAmount <= 0) {
-                showToast('Please enter a payment amount', 'error');
-                return;
-            }
-            
-            // Show payment method selection modal
-            openPaymentMethodModal();
-        }
-
-        async function processGPURental() {
-            const swapBtn = document.getElementById('swapBtn');
-            const originalText = swapBtn.textContent;
-            
-            swapBtn.innerHTML = '<div class="loading"></div> Processing...';
-            swapBtn.disabled = true;
-            
-            try {
-                // Verify smart contract integration
-                swapBtn.innerHTML = '<div class="loading"></div> Checking smart contracts...';
-                const smartContractReady = await verifySmartContractIntegration();
-                if (smartContractReady) {
-                    showToast('Smart contracts verified! 3% fee will be collected automatically.', 'success');
-                } else {
-                    showToast('Using fallback payment method.', 'warning');
-                }
-                
-                swapBtn.innerHTML = '<div class="loading"></div> Creating rental...';
-                
-                // Continue with rental creation based on payment method
-                const payAmount = parseFloat(document.getElementById('payAmount').value);
-                const hours = parseFloat(document.getElementById('receiveAmount').value);
-                
-                if (selectedPaymentMethod === 'ethereum_l1') {
-                    // Cross-chain payment: ETH L1 → Polygon
-                    await handleCrossChainPayment(payAmount, hours);
-                } else {
-                    // Direct payment on Polygon
-                    await handleDirectPayment(payAmount, hours);
-                }
-                
-            } catch (error) {
-                console.error('Rental error:', error);
-                showToast('Rental failed. Please try again.', 'error');
-            } finally {
-                swapBtn.textContent = originalText;
-                swapBtn.disabled = false;
-            }
-        }
-
-        // Cross-Chain Payment Handler
-        async function handleCrossChainPayment(payAmount, hours) {
-            const swapBtn = document.getElementById('swapBtn');
-            
-            try {
-                // Step 1: Switch to Ethereum L1 for payment
-                swapBtn.innerHTML = '<div class="loading"></div> Switching to Ethereum L1...';
-                const switchedToEth = await switchToEthereum();
-                if (!switchedToEth) {
-                    throw new Error('Failed to switch to Ethereum L1');
-                }
-                
-                // Step 2: Request payment on Ethereum L1
-                swapBtn.innerHTML = '<div class="loading"></div> Pay on Ethereum L1...';
-                showToast('Please confirm payment on Ethereum L1. It will be bridged to Polygon automatically.', 'info');
-                
-                // Send ETH transaction on L1
-                const accounts = await web3.eth.getAccounts();
-                const userAccount = accounts[0];
-                
-                // Platform payment address (you should replace this)
-                const platformPaymentAddress = '0x0B83154b85B7F6f8ec567d0F3a93B50C8b8C754A';
-                
-                const tx = {
-                    from: userAccount,
-                    to: platformPaymentAddress,
-                    value: web3.utils.toWei(payAmount.toString(), 'ether'),
-                    gas: 21000
-                };
-                
-                const txHash = await web3.eth.sendTransaction(tx);
-                console.log('L1 payment transaction:', txHash);
-                
-                // Step 3: Initiate cross-chain bridge
-                swapBtn.innerHTML = '<div class="loading"></div> Bridging to Polygon...';
-                
-                const crossChainRequest = {
-                    user_address: userAccount,
-                    amount_eth: payAmount.toString(),
-                    l1_tx_hash: txHash,
-                    gpu_type: selectedGPUData.name,
-                    provider: selectedGPUData.provider,
-                    hours: hours
-                };
-                
-                const bridgeResponse = await fetch(`${API_BASE}/api/v1/payments/cross-chain`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(crossChainRequest)
-                });
-                
-                if (!bridgeResponse.ok) {
-                    throw new Error('Failed to initiate cross-chain payment');
-                }
-                
-                const bridgeResult = await bridgeResponse.json();
-                console.log('Bridge initiated:', bridgeResult);
-                
-                // Step 4: Monitor bridge status
-                await monitorBridgeStatus(bridgeResult.bridge_id);
-                
-            } catch (error) {
-                console.error('Cross-chain payment error:', error);
-                showToast(`Cross-chain payment failed: ${error.message}`, 'error');
-                throw error;
-            }
-        }
-
-        // Direct Payment Handler (Polygon)
-        async function handleDirectPayment(payAmount, hours) {
-            const swapBtn = document.getElementById('swapBtn');
-            
-            try {
-                // Ensure we're on Polygon network
-                const targetChainId = 137; // Polygon
-                const currentChainId = await web3.eth.getChainId();
-                if (currentChainId !== targetChainId) {
-                    swapBtn.innerHTML = '<div class="loading"></div> Switching to Polygon...';
-                    const switched = await switchToNetwork(targetChainId);
-                    if (!switched) {
-                        throw new Error('Failed to switch to Polygon network');
-                    }
-                }
-                
-                // Create rental request
-                const rentalRequest = {
-                    gpu_type: selectedGPUData.name,
-                    provider: selectedGPUData.provider,
-                    hours: hours,
-                    user_email: walletAddress ? `${walletAddress}@crypto.wallet` : 'demo@gpudex.ai',
-                    payment_method: 'crypto',
-                    wallet_address: walletAddress
-                };
-                
-                // Call backend API to create rental
-                const response = await fetch(`${API_BASE}/api/v1/rentals`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(rentalRequest)
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Failed to create rental');
-                }
-                
-                const rental = await response.json();
-                
-                // Process payment
-                const paymentData = {
-                    payment_method: 'crypto',
-                    amount: rental.final_cost,
-                    cryptocurrency: selectedCurrency,
-                    user_email: rentalRequest.user_email,
-                    gpu_type: selectedGPUData.name,
-                    hours: hours
-                };
-                
-                const paymentResponse = await fetch(`${API_BASE}/api/v1/rentals/${rental.rental_id}/payment`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(paymentData)
-                });
-                
-                if (paymentResponse.ok) {
-                    const paymentResult = await paymentResponse.json();
-                    
-                    showToast(`GPU rental created! Rental ID: ${rental.rental_id}`, 'success');
-                    
-                    // Store rental ID for user reference
-                    localStorage.setItem('lastRentalId', rental.rental_id);
-                    
-                    // Reset form
-                    resetRentalForm();
-                } else {
-                    throw new Error('Payment processing failed');
-                }
-                
-            } catch (error) {
-                console.error('Direct payment error:', error);
-                throw error;
-            }
-        }
-
-        // Monitor Bridge Status
-        async function monitorBridgeStatus(bridgeId) {
-            const swapBtn = document.getElementById('swapBtn');
-            let attempts = 0;
-            const maxAttempts = 60; // 5 minutes max
-            
-            while (attempts < maxAttempts) {
-                try {
-                    const statusResponse = await fetch(`${API_BASE}/api/v1/payments/cross-chain/${bridgeId}`);
-                    const status = await statusResponse.json();
-                    
-                    swapBtn.innerHTML = `<div class="loading"></div> Bridge status: ${status.status}...`;
-                    
-                    if (status.status === 'completed') {
-                        showToast('Bridge completed! GPU rental created successfully.', 'success');
-                        resetRentalForm();
-                        return;
-                    } else if (status.status === 'failed') {
-                        throw new Error('Bridge transaction failed');
-                    }
-                    
-                    // Wait 5 seconds before checking again
-                    await new Promise(resolve => setTimeout(resolve, 5000));
-                    attempts++;
-                    
-                } catch (error) {
-                    console.error('Error monitoring bridge status:', error);
-                    throw error;
-                }
-            }
-            
-            throw new Error('Bridge timeout - please check status manually');
-        }
-
-        // Reset Rental Form
-        function resetRentalForm() {
-            document.getElementById('payAmount').value = '';
-            document.getElementById('receiveAmount').value = '';
-            selectedGPUData = null;
-            document.getElementById('selectedGPU').textContent = 'Select GPU';
-            document.getElementById('gpuDetails').textContent = 'Select a GPU to see rental hours';
-            document.getElementById('providerInfo').textContent = '-';
-            document.getElementById('rateInfo').textContent = '-';
-        }
-
-        // Analytics Functions
-        function updateAnalyticsUI() {
-            if (!analyticsData) return;
-            
-            // Update stats
-            document.getElementById('totalGPUs').textContent = analyticsData.total_gpus || 0;
-            document.getElementById('availableGPUs').textContent = analyticsData.available_gpus || 0;
-            document.getElementById('avgPrice').textContent = `$${(analyticsData.average_price || 0).toFixed(2)}`;
-            document.getElementById('minPrice').textContent = `$${(analyticsData.min_price || 0).toFixed(2)}`;
-            
-            // Update charts
-            updateProviderChart();
-            updateGPUTypeChart();
-            updatePriceChart();
-        }
-
-        function updateProviderChart() {
-            const ctx = document.getElementById('providerChart');
-            if (!ctx || !analyticsData?.provider_distribution) return;
-            
-            const data = analyticsData.provider_distribution;
-            new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(data),
-                    datasets: [{
-                        data: Object.values(data),
-                        backgroundColor: [
-                            '#FF007A', '#4C82FB', '#00D395', '#FF9500', '#FF5F52',
-                            '#9333EA', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            labels: { color: '#FFFFFF' }
-                        }
-                    }
-                }
-            });
-        }
-
-        function updateGPUTypeChart() {
-            const ctx = document.getElementById('gpuTypeChart');
-            if (!ctx || !analyticsData?.gpu_type_distribution) return;
-            
-            const data = analyticsData.gpu_type_distribution;
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: Object.keys(data),
-                    datasets: [{
-                        data: Object.values(data),
-                        backgroundColor: '#FF007A'
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            ticks: { color: '#FFFFFF' },
-                            grid: { color: '#293249' }
-                        },
-                        x: {
-                            ticks: { color: '#FFFFFF' },
-                            grid: { color: '#293249' }
-                        }
-                    },
-                    plugins: {
-                        legend: { display: false }
-                    }
-                }
-            });
-        }
-
-        function updatePriceChart() {
-            const ctx = document.getElementById('priceChart');
-            if (!ctx) return;
-            
-            // Generate sample price trend data
-            const labels = [];
-            const prices = [];
-            for (let i = 23; i >= 0; i--) {
-                const date = new Date();
-                date.setHours(date.getHours() - i);
-                labels.push(date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}));
-                prices.push((Math.random() * 2 + 0.5).toFixed(2));
-            }
-            
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Average Price ($/hour)',
-                        data: prices,
-                        borderColor: '#FF007A',
-                        backgroundColor: 'rgba(255, 0, 122, 0.1)',
-                        fill: true
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            ticks: { color: '#FFFFFF' },
-                            grid: { color: '#293249' }
-                        },
-                        x: {
-                            ticks: { color: '#FFFFFF' },
-                            grid: { color: '#293249' }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            labels: { color: '#FFFFFF' }
-                        }
-                    }
-                }
-            });
-        }
-
-        // API Testing Function
-        async function testApiKey() {
-            const apiKey = document.getElementById('apiKeyInput').value;
-            if (!apiKey) {
-                showToast('Please enter an API key', 'error');
-                return;
-            }
-            
-            try {
-                const response = await fetch(`${API_BASE}/api/v1/prices`, {
-                    headers: {
-                        'Authorization': `Bearer ${apiKey}`
-                    }
-                });
-                
-                if (response.ok) {
-                    showToast('API key is valid!', 'success');
-                } else {
-                    showToast('Invalid API key', 'error');
-                }
-            } catch (error) {
-                showToast('Error testing API key', 'error');
-            }
-        }
-
-        // Marketplace Functions
-        async function populateMarketplace() {
-            const grid = document.getElementById('gpuGrid');
-            
-            if (availableGPUs.length === 0) {
-                grid.innerHTML = `
-                    <div style="grid-column: 1 / -1; text-align: center; padding: 3rem; color: var(--text-secondary);">
-                        <div class="loading" style="margin: 0 auto 1rem;"></div>
-                        <p>Loading GPU data...</p>
-                    </div>
-                `;
-                await loadGPUData();
-            }
-            
-            grid.innerHTML = availableGPUs.map(gpu => {
-                const isAvailable = gpu.availability === 'Available';
-                const availabilityColor = isAvailable ? 'var(--success-green)' : 'var(--warning-orange)';
-                
-                return `
-                    <div class="gpu-card" style="${!isAvailable ? 'opacity: 0.7;' : ''}">
-                        <div class="provider-badge">${gpu.provider}</div>
-                        <h3 class="card-title">${gpu.name}</h3>
-                        
-                        <div class="specs-grid">
-                            <div class="spec-item">
-                                <span class="spec-label">Memory:</span>
-                                <span class="spec-value">${gpu.memory}</span>
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+                    <div class="text-center">
+                        <h1 class="text-6xl font-bold mb-6 neon-glow animate-slide-up">
+                            The Future of GPU Computing
+                        </h1>
+                        <p class="text-2xl opacity-90 mb-8 animate-slide-up" style="animation-delay: 0.2s;">
+                            Decentralized, Scalable, and Enterprise-Ready
+                        </p>
+                        <div class="flex justify-center space-x-6 mb-12 animate-slide-up" style="animation-delay: 0.4s;">
+                            <div class="flex items-center space-x-2">
+                                <i class="fas fa-shield-alt text-2xl"></i>
+                                <span class="text-lg">Enterprise Security</span>
                             </div>
-                            <div class="spec-item">
-                                <span class="spec-label">Region:</span>
-                                <span class="spec-value">${gpu.region}</span>
+                            <div class="flex items-center space-x-2">
+                                <i class="fas fa-rocket text-2xl"></i>
+                                <span class="text-lg">Instant Deployment</span>
                             </div>
-                            <div class="spec-item">
-                                <span class="spec-label">Cores:</span>
-                                <span class="spec-value">${gpu.specs}</span>
-                            </div>
-                            <div class="spec-item">
-                                <span class="spec-label">Availability:</span>
-                                <span class="spec-value" style="color: ${availabilityColor};">${gpu.availability}</span>
+                            <div class="flex items-center space-x-2">
+                                <i class="fas fa-chart-line text-2xl"></i>
+                                <span class="text-lg">Real-time Analytics</span>
                             </div>
                         </div>
                         
-                        <div class="card-pricing">
-                            <div class="price-row">
-                                <div>
-                                    <div class="price-main">$${gpu.pricePerHour}</div>
-                                    <div class="price-period">per hour</div>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div style="color: var(--accent-blue); font-weight: 600;">3% Platform Fee</div>
-                                    <div class="price-period">via smart contract</div>
+                        <!-- CTA Buttons -->
+                        <div class="flex justify-center space-x-4 animate-slide-up" style="animation-delay: 0.6s;">
+                            <button onclick="showSection('marketplace')" class="bg-white text-primary px-8 py-4 rounded-lg font-semibold hover:shadow-2xl transition-all duration-300 text-lg">
+                                Explore Marketplace
+                            </button>
+                            <button onclick="showSection('staking')" class="border-2 border-white text-white px-8 py-4 rounded-lg font-semibold hover:bg-white hover:text-primary transition-all duration-300 text-lg">
+                                Start Staking
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Stats -->
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 mt-16 animate-slide-up" style="animation-delay: 0.8s;">
+                        <div class="text-center">
+                            <div class="text-4xl font-bold" id="stat-revenue">$2.4M+</div>
+                            <div class="text-lg opacity-80">Platform Revenue</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-4xl font-bold" id="stat-clients">156</div>
+                            <div class="text-lg opacity-80">Enterprise Clients</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-4xl font-bold" id="stat-gpus">2,847</div>
+                            <div class="text-lg opacity-80">GPUs Available</div>
+                        </div>
+                        <div class="text-center">
+                            <div class="text-4xl font-bold" id="stat-uptime">99.9%</div>
+                            <div class="text-lg opacity-80">Uptime</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Features Section -->
+            <div class="py-20 bg-white dark:bg-gray-900">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div class="text-center mb-16">
+                        <h2 class="text-4xl font-bold gradient-text mb-4">Revolutionary Features</h2>
+                        <p class="text-xl text-gray-600 dark:text-gray-300">Everything you need for enterprise-grade GPU computing</p>
+                    </div>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        <div class="card-hover bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg">
+                            <div class="w-16 h-16 bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6">
+                                <i class="fas fa-layer-group text-white text-2xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Multi-Tier Staking</h3>
+                            <p class="text-gray-600 dark:text-gray-300 mb-4">Bronze to Diamond tiers with progressive benefits and APY up to 50%</p>
+                            <ul class="space-y-2 text-sm text-gray-500 dark:text-gray-400">
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Dynamic APY based on demand</li>
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Automatic tier upgrades</li>
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Revenue sharing for Diamond</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="card-hover bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg">
+                            <div class="w-16 h-16 bg-gradient-to-r from-green-500 to-blue-600 rounded-2xl flex items-center justify-center mb-6">
+                                <i class="fas fa-building text-white text-2xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Enterprise Solutions</h3>
+                            <p class="text-gray-600 dark:text-gray-300 mb-4">Custom pricing, white-label solutions, and dedicated support</p>
+                            <ul class="space-y-2 text-sm text-gray-500 dark:text-gray-400">
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Custom pricing tiers</li>
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Dedicated account managers</li>
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>SLA guarantees</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="card-hover bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg">
+                            <div class="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center mb-6">
+                                <i class="fas fa-link text-white text-2xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Cross-Chain Bridge</h3>
+                            <p class="text-gray-600 dark:text-gray-300 mb-4">Seamless token transfers across Ethereum, BSC, and Arbitrum</p>
+                            <ul class="space-y-2 text-sm text-gray-500 dark:text-gray-400">
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Low bridge fees</li>
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Fast transfers</li>
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Security audited</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="card-hover bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg">
+                            <div class="w-16 h-16 bg-gradient-to-r from-yellow-500 to-orange-600 rounded-2xl flex items-center justify-center mb-6">
+                                <i class="fas fa-fire text-white text-2xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Token Burns</h3>
+                            <p class="text-gray-600 dark:text-gray-300 mb-4">Demand-based burning mechanism for deflationary tokenomics</p>
+                            <ul class="space-y-2 text-sm text-gray-500 dark:text-gray-400">
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Revenue-based burns</li>
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Deflationary pressure</li>
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Transparent tracking</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="card-hover bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg">
+                            <div class="w-16 h-16 bg-gradient-to-r from-red-500 to-pink-600 rounded-2xl flex items-center justify-center mb-6">
+                                <i class="fas fa-chart-line text-white text-2xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Real-time Analytics</h3>
+                            <p class="text-gray-600 dark:text-gray-300 mb-4">Comprehensive dashboards for all stakeholders</p>
+                            <ul class="space-y-2 text-sm text-gray-500 dark:text-gray-400">
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Live performance metrics</li>
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Revenue tracking</li>
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Usage analytics</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="card-hover bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg">
+                            <div class="w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center mb-6">
+                                <i class="fas fa-trophy text-white text-2xl"></i>
+                            </div>
+                            <h3 class="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Social Gamification</h3>
+                            <p class="text-gray-600 dark:text-gray-300 mb-4">Achievements, leaderboards, and community rewards</p>
+                            <ul class="space-y-2 text-sm text-gray-500 dark:text-gray-400">
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Achievement system</li>
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Referral rewards</li>
+                                <li><i class="fas fa-check text-green-500 mr-2"></i>Community events</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- GPU Marketplace Section -->
+        <section id="marketplace-section" class="section-content hidden">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="text-4xl font-bold gradient-text">GPU Marketplace</h1>
+                    <div class="flex items-center space-x-4">
+                        <div class="relative">
+                            <input type="text" placeholder="Search GPUs..." class="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                            <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                        </div>
+                        <select class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                            <option>All Categories</option>
+                            <option>Gaming GPUs</option>
+                            <option>AI/ML GPUs</option>
+                            <option>Rendering GPUs</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- GPU Filters -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+                        <h3 class="font-semibold mb-3 text-gray-900 dark:text-white">Price Range</h3>
+                        <div class="space-y-2">
+                            <label class="flex items-center">
+                                <input type="checkbox" class="mr-2">
+                                <span class="text-sm text-gray-600 dark:text-gray-300">$0.50 - $1.00/hr</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" class="mr-2">
+                                <span class="text-sm text-gray-600 dark:text-gray-300">$1.00 - $2.50/hr</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" class="mr-2">
+                                <span class="text-sm text-gray-600 dark:text-gray-300">$2.50 - $5.00/hr</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+                        <h3 class="font-semibold mb-3 text-gray-900 dark:text-white">GPU Brand</h3>
+                        <div class="space-y-2">
+                            <label class="flex items-center">
+                                <input type="checkbox" class="mr-2">
+                                <span class="text-sm text-gray-600 dark:text-gray-300">NVIDIA</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" class="mr-2">
+                                <span class="text-sm text-gray-600 dark:text-gray-300">AMD</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+                        <h3 class="font-semibold mb-3 text-gray-900 dark:text-white">Memory</h3>
+                        <div class="space-y-2">
+                            <label class="flex items-center">
+                                <input type="checkbox" class="mr-2">
+                                <span class="text-sm text-gray-600 dark:text-gray-300">8GB+</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" class="mr-2">
+                                <span class="text-sm text-gray-600 dark:text-gray-300">16GB+</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" class="mr-2">
+                                <span class="text-sm text-gray-600 dark:text-gray-300">24GB+</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
+                        <h3 class="font-semibold mb-3 text-gray-900 dark:text-white">Availability</h3>
+                        <div class="space-y-2">
+                            <label class="flex items-center">
+                                <input type="checkbox" class="mr-2">
+                                <span class="text-sm text-gray-600 dark:text-gray-300">Available Now</span>
+                            </label>
+                            <label class="flex items-center">
+                                <input type="checkbox" class="mr-2">
+                                <span class="text-sm text-gray-600 dark:text-gray-300">Within 1 Hour</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- GPU Cards Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="gpu-cards-container">
+                    <!-- GPU cards will be populated by JavaScript -->
+                </div>
+            </div>
+        </section>
+        
+        <!-- Staking Section -->
+        <section id="staking-section" class="section-content hidden">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="text-center mb-12">
+                    <h1 class="text-4xl font-bold gradient-text mb-4">GPUDX Staking</h1>
+                    <p class="text-xl text-gray-600 dark:text-gray-300">Stake tokens, earn rewards, unlock benefits</p>
+                </div>
+                
+                <!-- Current Staking Info -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg text-center">
+                        <div class="text-3xl font-bold text-primary" id="current-apy">12.5%</div>
+                        <div class="text-gray-600 dark:text-gray-300">Current APY</div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg text-center">
+                        <div class="text-3xl font-bold text-green-500" id="your-stake">0</div>
+                        <div class="text-gray-600 dark:text-gray-300">Your Stake</div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg text-center">
+                        <div class="text-3xl font-bold text-yellow-500" id="pending-rewards">0</div>
+                        <div class="text-gray-600 dark:text-gray-300">Pending Rewards</div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg text-center">
+                        <div class="text-3xl font-bold text-purple-500" id="current-tier">None</div>
+                        <div class="text-gray-600 dark:text-gray-300">Current Tier</div>
+                    </div>
+                </div>
+                
+                <!-- Staking Tiers -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="tier-bronze text-white rounded-xl p-6 text-center relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-br from-orange-400 to-orange-600 opacity-90"></div>
+                        <div class="relative z-10">
+                            <i class="fas fa-medal text-4xl mb-4"></i>
+                            <h3 class="text-2xl font-bold mb-2">Bronze</h3>
+                            <div class="text-lg font-semibold mb-4">10K - 100K GPUDX</div>
+                            <ul class="space-y-2 text-sm">
+                                <li>5% GPU discount</li>
+                                <li>Basic support</li>
+                                <li>Community access</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="tier-silver text-white rounded-xl p-6 text-center relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-br from-gray-400 to-gray-600 opacity-90"></div>
+                        <div class="relative z-10">
+                            <i class="fas fa-gem text-4xl mb-4"></i>
+                            <h3 class="text-2xl font-bold mb-2">Silver</h3>
+                            <div class="text-lg font-semibold mb-4">100K - 500K GPUDX</div>
+                            <ul class="space-y-2 text-sm">
+                                <li>10% GPU discount</li>
+                                <li>Priority support</li>
+                                <li>Early access</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="tier-gold text-white rounded-xl p-6 text-center relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-br from-yellow-400 to-yellow-600 opacity-90"></div>
+                        <div class="relative z-10">
+                            <i class="fas fa-crown text-4xl mb-4"></i>
+                            <h3 class="text-2xl font-bold mb-2">Gold</h3>
+                            <div class="text-lg font-semibold mb-4">500K - 2M GPUDX</div>
+                            <ul class="space-y-2 text-sm">
+                                <li>15% GPU discount</li>
+                                <li>Advanced analytics</li>
+                                <li>Custom pricing</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="tier-diamond text-white rounded-xl p-6 text-center relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-br from-purple-400 to-pink-600 opacity-90"></div>
+                        <div class="relative z-10">
+                            <i class="fas fa-star text-4xl mb-4"></i>
+                            <h3 class="text-2xl font-bold mb-2">Diamond</h3>
+                            <div class="text-lg font-semibold mb-4">2M+ GPUDX</div>
+                            <ul class="space-y-2 text-sm">
+                                <li>25% GPU discount</li>
+                                <li>Revenue sharing</li>
+                                <li>Governance rights</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Staking Interface -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <h3 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Stake GPUDX</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Amount to Stake</label>
+                                <div class="relative">
+                                    <input type="number" placeholder="0" class="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white text-lg">
+                                    <span class="absolute right-4 top-4 text-gray-500">GPUDX</span>
                                 </div>
                             </div>
                             
-                            <div class="card-actions">
-                                <button class="btn-secondary" onclick="selectGPUFromMarketplace('${gpu.name}', '${gpu.provider}')" ${!isAvailable ? 'disabled' : ''}>
-                                    Quick Select
-                                </button>
-                                <button class="btn-primary" onclick="rentGPUFromMarketplace('${gpu.name}', '${gpu.provider}')" ${!isAvailable ? 'disabled' : ''}>
-                                    ${isAvailable ? 'Rent Now' : 'Unavailable'}
-                                </button>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Lock Period</label>
+                                <select class="w-full p-4 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                                    <option>No Lock (5% APY)</option>
+                                    <option>30 Days (8% APY)</option>
+                                    <option>90 Days (12% APY)</option>
+                                    <option>180 Days (15% APY)</option>
+                                    <option>365 Days (20% APY)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-gray-600 dark:text-gray-300">Estimated Annual Rewards</span>
+                                    <span class="font-semibold text-gray-900 dark:text-white" id="estimated-rewards">0 GPUDX</span>
+                                </div>
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-gray-600 dark:text-gray-300">New Tier</span>
+                                    <span class="font-semibold text-gray-900 dark:text-white" id="new-tier">Bronze</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-gray-600 dark:text-gray-300">GPU Discount</span>
+                                    <span class="font-semibold text-green-500" id="gpu-discount">5%</span>
+                                </div>
+                            </div>
+                            
+                            <button class="w-full bg-gradient-to-r from-primary to-secondary text-white py-4 rounded-lg font-semibold hover:shadow-lg transition-all duration-300">
+                                Stake GPUDX
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <h3 class="text-2xl font-bold mb-6 text-gray-900 dark:text-white">Your Staking Positions</h3>
+                        <div class="space-y-4" id="staking-positions">
+                            <div class="text-center text-gray-500 dark:text-gray-400 py-8">
+                                No staking positions yet
                             </div>
                         </div>
                     </div>
-                `;
-            }).join('');
+                </div>
+            </div>
+        </section>
+        
+        <!-- Enterprise Section -->
+        <section id="enterprise-section" class="section-content hidden">
+            <!-- Include the enterprise portal we built earlier -->
+            <div id="enterprise-portal-container">
+                <!-- Enterprise portal content will be loaded here -->
+            </div>
+        </section>
+        
+        <!-- Analytics Section -->
+        <section id="analytics-section" class="section-content hidden">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="text-4xl font-bold gradient-text">Platform Analytics</h1>
+                    <div class="flex items-center space-x-4">
+                        <select class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                            <option>Last 24 Hours</option>
+                            <option>Last 7 Days</option>
+                            <option>Last 30 Days</option>
+                            <option>Last 90 Days</option>
+                        </select>
+                        <button class="px-4 py-2 bg-primary text-white rounded-lg hover:bg-secondary transition-colors">
+                            <i class="fas fa-download mr-2"></i>Export
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Key Metrics -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-300 text-sm">Total Volume</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white">$2.4M</p>
+                                <p class="text-green-500 text-sm"><i class="fas fa-arrow-up"></i> +34.5%</p>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-chart-line text-blue-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-300 text-sm">Active Users</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white">1,847</p>
+                                <p class="text-green-500 text-sm"><i class="fas fa-arrow-up"></i> +12.3%</p>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-users text-green-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-300 text-sm">GPU Hours</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white">847K</p>
+                                <p class="text-green-500 text-sm"><i class="fas fa-arrow-up"></i> +23.1%</p>
+                            </div>
+                            <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-microchip text-purple-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-300 text-sm">Tokens Burned</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white">1.25M</p>
+                                <p class="text-orange-500 text-sm"><i class="fas fa-fire"></i> Deflationary</p>
+                            </div>
+                            <div class="w-12 h-12 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-fire text-orange-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Charts -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Revenue Trends</h3>
+                        <canvas id="revenue-chart" height="300"></canvas>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">User Growth</h3>
+                        <canvas id="users-chart" height="300"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Additional Analytics -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Top GPU Types</h3>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-300">NVIDIA H100</span>
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                        <div class="bg-blue-500 h-2 rounded-full" style="width: 45%"></div>
+                                    </div>
+                                    <span class="text-sm font-semibold">45%</span>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-300">NVIDIA A100</span>
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                        <div class="bg-green-500 h-2 rounded-full" style="width: 30%"></div>
+                                    </div>
+                                    <span class="text-sm font-semibold">30%</span>
+                                </div>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-300">RTX 4090</span>
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                        <div class="bg-purple-500 h-2 rounded-full" style="width: 25%"></div>
+                                    </div>
+                                    <span class="text-sm font-semibold">25%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Geographic Distribution</h3>
+                        <div class="space-y-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-300">North America</span>
+                                <span class="font-semibold">38%</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-300">Europe</span>
+                                <span class="font-semibold">29%</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-300">Asia Pacific</span>
+                                <span class="font-semibold">23%</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-600 dark:text-gray-300">Other</span>
+                                <span class="font-semibold">10%</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Recent Activity</h3>
+                        <div class="space-y-4">
+                            <div class="flex items-center space-x-3">
+                                <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <span class="text-sm text-gray-600 dark:text-gray-300">New enterprise client registered</span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                <span class="text-sm text-gray-600 dark:text-gray-300">50K GPUDX tokens burned</span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <div class="w-2 h-2 bg-purple-500 rounded-full"></div>
+                                <span class="text-sm text-gray-600 dark:text-gray-300">Cross-chain bridge transaction</span>
+                            </div>
+                            <div class="flex items-center space-x-3">
+                                <div class="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                                <span class="text-sm text-gray-600 dark:text-gray-300">APY updated to 12.5%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Component Sections -->
+        
+        <!-- Staking Dashboard Section -->
+        <section id="staking-section" class="section-content hidden">
+            <div class="py-20 bg-gray-50 dark:bg-gray-900">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div id="staking-dashboard"></div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Achievement System Section -->
+        <section id="achievements-section" class="section-content hidden">
+            <div class="py-20 bg-gray-50 dark:bg-gray-900">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div id="achievement-system"></div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Influencer Dashboard Section -->
+        <section id="influencer-section" class="section-content hidden">
+            <div class="py-20 bg-gray-50 dark:bg-gray-900">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div id="influencer-dashboard"></div>
+                </div>
+            </div>
+        </section>
+        
+    </div>
+    
+    <!-- Sidebar (Mobile) -->
+    <div id="mobile-sidebar" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black bg-opacity-50" onclick="toggleMobileSidebar()"></div>
+        <div class="absolute left-0 top-0 h-full w-64 bg-white dark:bg-gray-800 shadow-xl">
+            <!-- Mobile navigation content -->
+        </div>
+    </div>
+    
+    <!-- Achievement Notifications -->
+    <div id="achievement-container" class="fixed top-20 right-4 space-y-2 z-40">
+        <!-- Achievement notifications will appear here -->
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-8 text-center max-w-sm mx-4">
+            <div class="loading-spinner w-12 h-12 border-4 border-primary border-t-transparent rounded-full mx-auto mb-4"></div>
+            <p class="text-gray-600 dark:text-gray-300" id="loading-message">Processing...</p>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="enterprise-api-connector.js"></script>
+    <script>
+        // Global State
+        let currentSection = 'landing';
+        let isDarkMode = false;
+        let web3 = null;
+        let userAccount = null;
+        
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Initializing GPUDex Ultimate Frontend...');
+            
+            // Check for saved theme
+            if (localStorage.getItem('theme') === 'dark') {
+                enableDarkMode();
+            }
+            
+            // Initialize components
+            initializeGPUMarketplace();
+            initializeCharts();
+            initializeAnimations();
+            
+            // Auto-update stats
+            updateLiveStats();
+            setInterval(updateLiveStats, 30000); // Update every 30 seconds
+        });
+        
+        // Section Management
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.section-content').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Show selected section
+            document.getElementById(sectionName + '-section').classList.remove('hidden');
+            
+            // Update navigation
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('text-primary', 'font-semibold');
+                link.classList.add('text-gray-700', 'dark:text-gray-300');
+            });
+            
+            currentSection = sectionName;
+            
+            // Load section-specific data
+            loadSectionData(sectionName);
         }
-
-        function selectGPUFromMarketplace(gpuName, provider) {
-            const gpu = availableGPUs.find(g => g.name === gpuName && g.provider === provider);
-            if (gpu) {
-                selectGPU(gpuName, provider);
-                showSwapPage();
-                showToast(`${gpuName} from ${provider} selected! Enter payment amount to continue.`, 'success');
+        
+        function loadSectionData(sectionName) {
+            switch(sectionName) {
+                case 'marketplace':
+                    loadGPUMarketplace();
+                    break;
+                case 'staking':
+                    loadStakingData();
+                    break;
+                case 'analytics':
+                    loadAnalyticsData();
+                    break;
+                case 'enterprise':
+                    loadEnterpriseData();
+                    break;
             }
         }
-
-        function rentGPUFromMarketplace(gpuName, provider) {
-            const gpu = availableGPUs.find(g => g.name === gpuName && g.provider === provider);
-            if (gpu) {
-                selectGPU(gpuName, provider);
-                showSwapPage();
-                
-                // Set a default amount for quick rent (equivalent to 1 hour)
-                document.getElementById('payAmount').value = gpu.pricePerHour.toFixed(3);
-                updateReceiveAmount();
-                
-                showToast(`${gpuName} from ${provider} ready to rent! Review and confirm.`, 'success');
+        
+        // Theme Management
+        function toggleTheme() {
+            if (isDarkMode) {
+                disableDarkMode();
+            } else {
+                enableDarkMode();
             }
         }
-
-        function selectGPUFromMarketplace(gpuName) {
-            selectGPU(gpuName);
-            showSwapPage();
-            showToast(`${gpuName} selected! Enter payment amount to continue.`, 'success');
+        
+        function enableDarkMode() {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('theme', 'dark');
+            isDarkMode = true;
         }
-
-        function rentGPUFromMarketplace(gpuName) {
-            selectGPU(gpuName);
-            showSwapPage();
-            
-            // Set a default amount for quick rent
-            document.getElementById('payAmount').value = '0.1';
-            updateReceiveAmount();
-            
-            showToast(`${gpuName} ready to rent! Review and confirm.`, 'success');
+        
+        function disableDarkMode() {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('theme', 'light');
+            isDarkMode = false;
         }
-
-        // Utility Functions
-        function closeAllModals() {
-            try {
-                document.querySelectorAll('.modal-overlay').forEach(modal => {
-                    modal.style.display = 'none';
+        
+        // GPU Marketplace
+        function initializeGPUMarketplace() {
+            const gpuData = [
+                {
+                    name: 'NVIDIA H100',
+                    memory: '80GB HBM3',
+                    price: 4.50,
+                    availability: 'Available',
+                    provider: 'DataCenter Pro',
+                    location: 'US West',
+                    performance: 95
+                },
+                {
+                    name: 'NVIDIA A100',
+                    memory: '40GB HBM2e',
+                    price: 2.75,
+                    availability: 'Available',
+                    provider: 'Cloud GPU',
+                    location: 'US East',
+                    performance: 88
+                },
+                {
+                    name: 'RTX 4090',
+                    memory: '24GB GDDR6X',
+                    price: 1.20,
+                    availability: 'Available',
+                    provider: 'Gaming Rigs',
+                    location: 'Europe',
+                    performance: 82
+                },
+                {
+                    name: 'RTX 3090',
+                    memory: '24GB GDDR6X',
+                    price: 0.85,
+                    availability: '2 hours',
+                    provider: 'Budget GPUs',
+                    location: 'Asia',
+                    performance: 75
+                }
+            ];
+            
+            const container = document.getElementById('gpu-cards-container');
+            if (!container) return;
+            
+            container.innerHTML = gpuData.map(gpu => `
+                <div class="gpu-card rounded-xl p-6 text-white card-hover">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-xl font-bold">${gpu.name}</h3>
+                            <p class="text-gray-300">${gpu.memory}</p>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-2xl font-bold text-green-400">$${gpu.price}/hr</div>
+                            <div class="text-sm text-gray-300">${gpu.availability}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3 mb-6">
+                        <div class="flex justify-between">
+                            <span class="text-gray-300">Provider</span>
+                            <span class="text-white">${gpu.provider}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-300">Location</span>
+                            <span class="text-white">${gpu.location}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-300">Performance</span>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-16 bg-gray-600 rounded-full h-2">
+                                    <div class="bg-green-400 h-2 rounded-full" style="width: ${gpu.performance}%"></div>
+                                </div>
+                                <span class="text-white text-sm">${gpu.performance}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <button onclick="rentGPU('${gpu.name}')" class="w-full bg-gradient-to-r from-primary to-secondary py-3 rounded-lg font-semibold hover:shadow-lg transition-all duration-300">
+                        Rent Now
+                    </button>
+                </div>
+            `).join('');
+        }
+        
+        function loadGPUMarketplace() {
+            console.log('Loading GPU Marketplace...');
+            // Add any dynamic loading logic here
+        }
+        
+        function rentGPU(gpuName) {
+            showNotification(`Renting ${gpuName}...`, 'info');
+            // Add rental logic here
+        }
+        
+        // Staking Functions
+        function loadStakingData() {
+            console.log('Loading staking data...');
+            // Update staking information
+        }
+        
+        // Analytics Functions
+        function initializeCharts() {
+            // Revenue Chart
+            const revenueCtx = document.getElementById('revenue-chart');
+            if (revenueCtx) {
+                new Chart(revenueCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        datasets: [{
+                            label: 'Revenue',
+                            data: [180000, 220000, 195000, 280000, 350000, 425000],
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '$' + value.toLocaleString();
+                                    }
+                                }
+                            }
+                        }
+                    }
                 });
-            } catch (error) {
-                console.error('Error closing modals:', error);
+            }
+            
+            // Users Chart
+            const usersCtx = document.getElementById('users-chart');
+            if (usersCtx) {
+                new Chart(usersCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        datasets: [{
+                            label: 'Active Users',
+                            data: [850, 1200, 1100, 1450, 1650, 1847],
+                            backgroundColor: '#764ba2',
+                            borderRadius: 6
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
             }
         }
-
-        function updateUI() {
-            updateWalletUI();
+        
+        function loadAnalyticsData() {
+            console.log('Loading analytics data...');
+            // Refresh charts with real data
         }
-
-        function showToast(message, type = 'info') {
-            const toast = document.getElementById('toast');
-            const toastMessage = document.getElementById('toastMessage');
+        
+        // Enterprise Functions
+        function loadEnterpriseData() {
+            console.log('Loading enterprise data...');
+            // Load enterprise portal
+        }
+        
+        // Animations
+        function initializeAnimations() {
+            // GSAP animations
+            gsap.from('.animate-slide-up', {
+                duration: 0.8,
+                y: 50,
+                opacity: 0,
+                stagger: 0.2,
+                ease: 'power2.out'
+            });
+        }
+        
+        // Live Stats Updates
+        function updateLiveStats() {
+            // Simulate real-time updates
+            const stats = {
+                revenue: '$' + (Math.random() * 500000 + 2000000).toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ","),
+                clients: Math.floor(Math.random() * 50 + 140),
+                gpus: Math.floor(Math.random() * 500 + 2500).toLocaleString(),
+                uptime: '99.' + Math.floor(Math.random() * 10) + '%'
+            };
             
-            toastMessage.textContent = message;
-            toast.className = `toast ${type}`;
-            toast.style.display = 'block';
+            document.getElementById('stat-revenue').textContent = stats.revenue;
+            document.getElementById('stat-clients').textContent = stats.clients;
+            document.getElementById('stat-gpus').textContent = stats.gpus;
+            document.getElementById('stat-uptime').textContent = stats.uptime;
+        }
+        
+        // Utility Functions
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 transition-all duration-300 transform translate-x-full ${
+                type === 'success' ? 'bg-green-500' : 
+                type === 'error' ? 'bg-red-500' : 
+                type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+            }`;
+            
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-${
+                        type === 'success' ? 'check-circle' : 
+                        type === 'error' ? 'exclamation-circle' : 
+                        type === 'warning' ? 'exclamation-triangle' : 'info-circle'
+                    } mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // Animate in
+            setTimeout(() => {
+                notification.style.transform = 'translateX(0)';
+            }, 100);
+            
+            // Remove after 5 seconds
+            setTimeout(() => {
+                notification.style.transform = 'translateX(100%)';
+                setTimeout(() => notification.remove(), 300);
+            }, 5000);
+        }
+        
+        function showAchievement(title, description, icon = 'trophy') {
+            const achievement = document.createElement('div');
+            achievement.className = 'achievement-badge bg-gradient-to-r from-yellow-400 to-orange-500 text-white p-4 rounded-lg shadow-lg transform translate-x-full transition-transform duration-500 max-w-sm';
+            achievement.innerHTML = `
+                <div class="flex items-center space-x-3">
+                    <i class="fas fa-${icon} text-2xl"></i>
+                    <div>
+                        <div class="font-bold">${title}</div>
+                        <div class="text-sm opacity-90">${description}</div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('achievement-container').appendChild(achievement);
             
             setTimeout(() => {
-                toast.style.display = 'none';
-            }, 4000);
+                achievement.style.transform = 'translateX(0)';
+            }, 100);
+            
+            setTimeout(() => {
+                achievement.style.transform = 'translateX(100%)';
+                setTimeout(() => achievement.remove(), 300);
+            }, 5000);
         }
-
-        // Event Listeners
-        document.addEventListener('keydown', function(event) {
-            if (event.key === 'Escape') {
-                closeAllModals();
+        
+        function showLoading(show, message = 'Processing...') {
+            const overlay = document.getElementById('loading-overlay');
+            const messageEl = document.getElementById('loading-message');
+            
+            if (overlay) {
+                overlay.classList.toggle('hidden', !show);
+                if (messageEl) {
+                    messageEl.textContent = message;
+                }
             }
-        });
+        }
+        
+        // Example achievement trigger
+        setTimeout(() => {
+            showAchievement('Welcome!', 'Successfully loaded GPUDex platform', 'star');
+        }, 2000);
     </script>
 </body>
 </html>

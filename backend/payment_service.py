@@ -114,7 +114,7 @@ class StripeService:
                 "stripe_price_id": os.getenv("STRIPE_PREMIUM_PRICE_ID"),
                 "api_limit_daily": 5000,
                 "api_limit_monthly": 100000,
-                "features": ["Everything in Basic", "5,000 API calls/day", "Arbitrage detection", "ML predictions", "Priority support"]
+                "features": ["Everything in Basic", "5,000 API calls/day", "Arbitrage detection", "Priority support"]
             },
             PlanType.ENTERPRISE: {
                 "name": "Enterprise",

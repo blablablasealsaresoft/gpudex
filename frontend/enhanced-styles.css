@@ -1,0 +1,240 @@
+/* GPUDx Enhanced Aesthetics - STUNNING VISUAL UPGRADES */
+
+/* Enhanced Gradients with Animation */
+.gradient-bg { 
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 25%, #f093fb 50%, #667eea 75%, #764ba2 100%); 
+    background-size: 400% 400%;
+    animation: gradientShift 15s ease infinite;
+    position: relative;
+    overflow: hidden;
+}
+
+.gradient-bg::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%);
+    animation: floatingOrbs 20s ease-in-out infinite;
+}
+
+.gradient-text { 
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); 
+    background-size: 400% 400%;
+    animation: gradientShift 8s ease infinite;
+    -webkit-background-clip: text; 
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+}
+
+/* Enhanced Glass Morphism */
+.glass-morphism { 
+    backdrop-filter: blur(20px) saturate(200%); 
+    background: rgba(255, 255, 255, 0.15);
+    border: 1px solid rgba(255, 255, 255, 0.3); 
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.dark .glass-morphism { 
+    background: rgba(17, 25, 40, 0.4); 
+    border: 1px solid rgba(255, 255, 255, 0.15); 
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Stunning Card Hover Effects */
+.card-hover { 
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); 
+    position: relative;
+    overflow: hidden;
+}
+
+.card-hover::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.card-hover:hover::before {
+    left: 100%;
+}
+
+.card-hover:hover { 
+    transform: translateY(-12px) scale(1.02); 
+    box-shadow: 
+        0 30px 60px rgba(0, 0, 0, 0.2),
+        0 0 40px rgba(102, 126, 234, 0.3);
+}
+
+/* Enhanced Animations */
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes floatingOrbs {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    33% { transform: translateY(-30px) rotate(120deg); }
+    66% { transform: translateY(15px) rotate(240deg); }
+}
+
+.animate-float { 
+    animation: enhancedFloat 8s ease-in-out infinite; 
+}
+
+@keyframes enhancedFloat {
+    0%, 100% { transform: translateY(0px) rotate(0deg); }
+    25% { transform: translateY(-20px) rotate(1deg); }
+    50% { transform: translateY(-10px) rotate(-1deg); }
+    75% { transform: translateY(-25px) rotate(0.5deg); }
+}
+
+/* Pulsing Glow Enhanced */
+.animate-pulse-glow { 
+    animation: enhancedPulseGlow 3s ease-in-out infinite alternate; 
+}
+
+@keyframes enhancedPulseGlow {
+    from { 
+        box-shadow: 
+            0 0 20px rgba(102, 126, 234, 0.4),
+            0 0 40px rgba(102, 126, 234, 0.2),
+            inset 0 0 20px rgba(102, 126, 234, 0.1);
+    }
+    to { 
+        box-shadow: 
+            0 0 40px rgba(102, 126, 234, 0.8),
+            0 0 80px rgba(102, 126, 234, 0.4),
+            inset 0 0 40px rgba(102, 126, 234, 0.2);
+    }
+}
+
+/* Enhanced GPU Cards */
+.gpu-card { 
+    background: linear-gradient(145deg, #1e293b 0%, #334155 50%, #1e293b 100%); 
+    border: 1px solid #475569; 
+    position: relative;
+    overflow: hidden;
+}
+
+.gpu-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+    transform: scaleX(0);
+    transition: transform 0.3s ease;
+}
+
+.gpu-card:hover::before {
+    transform: scaleX(1);
+}
+
+.gpu-card:hover { 
+    border-color: #667eea; 
+    box-shadow: 
+        0 0 30px rgba(102, 126, 234, 0.4),
+        0 10px 40px rgba(0, 0, 0, 0.2);
+    transform: translateY(-5px);
+}
+
+/* Stats Counter Animation */
+.stat-counter {
+    font-variant-numeric: tabular-nums;
+    transition: all 0.3s ease;
+}
+
+.stat-counter:hover {
+    transform: scale(1.05);
+    text-shadow: 0 0 20px rgba(102, 126, 234, 0.6);
+}
+
+/* Navigation Enhancements */
+.nav-link {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    transition: width 0.3s ease;
+}
+
+.nav-link:hover::after {
+    width: 100%;
+}
+
+/* Button Enhancements */
+.enhanced-button {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(45deg, #667eea, #764ba2);
+    background-size: 200% 200%;
+    animation: buttonGradient 3s ease infinite;
+    border: none;
+    border-radius: 8px;
+    padding: 12px 24px;
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.enhanced-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+    transition: left 0.5s ease;
+}
+
+.enhanced-button:hover::before {
+    left: 100%;
+}
+
+.enhanced-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+}
+
+@keyframes buttonGradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Responsive Enhancements */
+@media (max-width: 768px) {
+    .gradient-bg {
+        animation-duration: 10s;
+    }
+    
+    .card-hover:hover {
+        transform: translateY(-8px) scale(1.01);
+    }
+} 

@@ -1,0 +1,36 @@
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apk add --no-cache \
+    git \
+    python3 \
+    make \
+    g++
+
+# Copy package files first for better caching
+COPY package*.json ./
+
+# Install Node.js dependencies INCLUDING devDependencies
+RUN npm ci --include=dev
+
+# Verify hardhat installation
+RUN ls -la node_modules/.bin/ | grep hardhat || echo "Hardhat not found!"
+RUN npm list hardhat || echo "Hardhat package not installed!"
+
+# Copy contract files
+COPY contracts/ ./contracts/
+COPY scripts/ ./scripts/
+COPY hardhat.config.js ./
+COPY cache/ ./cache/
+
+# Create artifacts directory
+RUN mkdir -p artifacts
+
+# Set environment variables for development (to ensure devDependencies work)
+ENV NODE_ENV=development
+
+# Default command (will be overridden by docker-compose)
+CMD ["./node_modules/.bin/hardhat", "compile"] 

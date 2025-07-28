@@ -1,0 +1,38 @@
+{
+  "network": "localhost",
+  "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "timestamp": 1753674545580,
+  "contracts": {
+    "GPUDexTokenV2": {
+      "address": "0x959922bE3CAee4b8Cd9a407cc3ac1C251C2007B1",
+      "deploymentTx": "0xb3057a6dbcb38ad7a267e2a1eb8f39f9e2914a23b1f6e25f0f2b7ce65a8789c0",
+      "blockNumber": 17,
+      "gasUsed": "3395855"
+    },
+    "GPUDexEscrowV2": {
+      "address": "0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE",
+      "deploymentTx": "0xef14ac5a1705321029037cb59db6bf08906f22bca7d3493ffd550274e1b5f53c",
+      "blockNumber": 18,
+      "gasUsed": "3009477"
+    },
+    "GPUDexEnterpriseV2": {
+      "address": "0x68B1D87F95878fE05B998F19b66F4baba5De1aed",
+      "deploymentTx": "0x5a28c7b774bc9a5b9806d2fdb7ca356b21681a89f2f7e00aff9cb37ea231805d",
+      "blockNumber": 19,
+      "gasUsed": "2436264"
+    },
+    "GPUDexAdvancedTokenomicsV2": {
+      "address": "0x3Aa5ebB10DC797CAC828524e59A333d0A371443c",
+      "deploymentTx": "0x6375bfaf0da9d532adf55703c8f0e936ea8a6d188c9154ab8736de4a13ae03f5",
+      "blockNumber": 20,
+      "gasUsed": "2122746"
+    }
+  },
+  "gasSettings": {
+    "gasPrice": {
+      "type": "BigNumber",
+      "hex": "0x06fc23ac00"
+    },
+    "gasLimit": 8000000
+  }
+}

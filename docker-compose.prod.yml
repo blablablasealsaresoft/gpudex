@@ -1,55 +1,17 @@
 services:
-  backend:
-    build: 
-      context: .
-      dockerfile: Dockerfile.prod
-    ports:
-      - "8000:8000"
-    env_file:
-      - docker-quickstart.env
-    environment:
-      - ENVIRONMENT=production
-      - WORKERS=4
-      - LOG_LEVEL=info
-      - ESCROW_CONTRACT_ADDRESS=0xE0107C4227A38Aae3E5163D691EFb0dc0Eb7598C
-      - TOKEN_CONTRACT_ADDRESS=0x386FF386B396ca139E5D2dB6d0b61a0FDd5b4b47
-      - PLATFORM_FEE_RECIPIENT=0x0B83154b85B7F6f8ec567d0F3a93B50C8b8C754A
-      - BLOCKCHAIN_NETWORK=polygon
-      - CHAIN_ID=137
-      - PLATFORM_FEE_PERCENT=300
-    depends_on:
-      - postgres
-      - redis
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile.prod
-    ports:
-      - "3000:80"
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
+  # ===========================================
+  # DATABASE LAYER
+  # ===========================================
   postgres:
     image: postgres:15
     ports:
       - "5432:5432"
     env_file:
-      - production.env
+      - docker-quickstart.env
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./backend/enterprise_db_schema.sql:/docker-entrypoint-initdb.d/enterprise_db_schema.sql
       - ./backups:/backups
     restart: unless-stopped
     healthcheck:
@@ -73,6 +35,298 @@ services:
       timeout: 10s
       retries: 3
 
+  # ===========================================
+  # SMART CONTRACT DEPLOYMENT
+  # ===========================================
+  contract_deployer:
+    build:
+      context: .
+      dockerfile: Dockerfile.contracts
+    env_file:
+      - docker-quickstart.env
+    volumes:
+      - ./contracts:/app/contracts
+      - ./scripts:/app/scripts
+      - ./artifacts:/app/artifacts
+      - ./cache:/app/cache
+      - ./hardhat.config.js:/app/hardhat.config.js
+      - ./package.json:/app/package.json
+      - ./package-lock.json:/app/package-lock.json
+    depends_on:
+      - postgres
+      - redis
+    restart: "no"  # Run once to deploy contracts
+    command: ["npx", "hardhat", "run", "scripts/deploy-and-integrate.js", "--network", "polygon"]
+
+  # ===========================================
+  # CORE BACKEND SERVICES
+  # ===========================================
+  api_service:
+    build: 
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - docker-quickstart.env
+    environment:
+      - ENVIRONMENT=production
+      - WORKERS=4
+      - LOG_LEVEL=info
+      - SERVICE_NAME=api_service
+    volumes:
+      - ./backend/api.py:/app/api.py
+      - ./backend:/app/backend
+    depends_on:
+      - postgres
+      - redis
+      - contract_deployer
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  real_api_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8001:8001"
+    env_file:
+      - docker-quickstart.env
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_NAME=real_api_service
+      - PORT=8001
+    volumes:
+      - ./backend/real_api_service.py:/app/real_api_service.py
+      - ./backend:/app/backend
+    depends_on:
+      - postgres
+      - redis
+      - contract_deployer
+    restart: unless-stopped
+    command: ["python", "real_api_service.py"]
+
+  # ===========================================
+  # ENTERPRISE & B2B SERVICES
+  # ===========================================
+  enterprise_revenue_dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8002:8002"
+    env_file:
+      - docker-quickstart.env
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_NAME=enterprise_revenue_dashboard
+      - PORT=8002
+    volumes:
+      - ./backend/enterprise_revenue_dashboard.py:/app/enterprise_revenue_dashboard.py
+      - ./backend:/app/backend
+    depends_on:
+      - postgres
+      - redis
+      - contract_deployer
+    restart: unless-stopped
+    command: ["python", "enterprise_revenue_dashboard.py"]
+
+  enterprise_api_integration:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8003:8003"
+    env_file:
+      - docker-quickstart.env
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_NAME=enterprise_api_integration
+      - PORT=8003
+    volumes:
+      - ./backend/enterprise_api_integration.py:/app/enterprise_api_integration.py
+      - ./backend:/app/backend
+    depends_on:
+      - postgres
+      - redis
+      - contract_deployer
+    restart: unless-stopped
+    command: ["python", "enterprise_api_integration.py"]
+
+  # ===========================================
+  # TOKENOMICS & VALIDATION SERVICES
+  # ===========================================
+  utility_validation_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    env_file:
+      - docker-quickstart.env
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_NAME=utility_validation_service
+    volumes:
+      - ./backend/utility_validation_service.py:/app/utility_validation_service.py
+      - ./backend:/app/backend
+    depends_on:
+      - postgres
+      - redis
+      - contract_deployer
+    restart: unless-stopped
+    command: ["python", "utility_validation_service.py"]
+
+  token_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8004:8004"
+    env_file:
+      - docker-quickstart.env
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_NAME=token_service
+      - PORT=8004
+    volumes:
+      - ./backend/token_service.py:/app/token_service.py
+      - ./backend:/app/backend
+    depends_on:
+      - postgres
+      - redis
+      - contract_deployer
+    restart: unless-stopped
+    command: ["python", "token_service.py"]
+
+  # ===========================================
+  # SOCIAL & GAMIFICATION SERVICES
+  # ===========================================
+  community_onboarding_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    env_file:
+      - docker-quickstart.env
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_NAME=community_onboarding_service
+    volumes:
+      - ./backend/community_onboarding_service.py:/app/community_onboarding_service.py
+      - ./backend:/app/backend
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    command: ["python", "community_onboarding_service.py"]
+
+  social_gamification_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8005:8005"
+    env_file:
+      - docker-quickstart.env
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_NAME=social_gamification_service
+      - PORT=8005
+    volumes:
+      - ./backend/social_gamification_service.py:/app/social_gamification_service.py
+      - ./backend:/app/backend
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    command: ["python", "social_gamification_service.py"]
+
+  # ===========================================
+  # GPU & PROVIDER SERVICES
+  # ===========================================
+  p2p_gpu_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    ports:
+      - "8006:8006"
+    env_file:
+      - docker-quickstart.env
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_NAME=p2p_gpu_service
+      - PORT=8006
+    volumes:
+      - ./backend/p2p_gpu_service.py:/app/p2p_gpu_service.py
+      - ./backend:/app/backend
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    command: ["python", "p2p_gpu_service.py"]
+
+  ai_optimization_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    env_file:
+      - docker-quickstart.env
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_NAME=ai_optimization_service
+    volumes:
+      - ./backend/ai_optimization_service.py:/app/ai_optimization_service.py
+      - ./backend:/app/backend
+    depends_on:
+      - postgres
+      - redis
+    restart: unless-stopped
+    command: ["python", "ai_optimization_service.py"]
+
+  # ===========================================
+  # PLATFORM INTEGRATION
+  # ===========================================
+  gpudx_platform_integration:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    env_file:
+      - docker-quickstart.env
+    environment:
+      - ENVIRONMENT=production
+      - SERVICE_NAME=gpudx_platform_integration
+    volumes:
+      - ./backend/gpudx_platform_integration.py:/app/gpudx_platform_integration.py
+      - ./backend:/app/backend
+    depends_on:
+      - postgres
+      - redis
+      - contract_deployer
+    restart: unless-stopped
+    command: ["python", "gpudx_platform_integration.py"]
+
+  # ===========================================
+  # FRONTEND LAYER
+  # ===========================================
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ===========================================
+  # LOAD BALANCER & PROXY
+  # ===========================================
   nginx:
     image: nginx:alpine
     ports:
@@ -80,12 +334,22 @@ services:
       - "443:443"
     volumes:
       - ./nginx.prod.conf:/etc/nginx/nginx.conf
+      - ./frontend/nginx.prod.conf:/etc/nginx/conf.d/default.conf
       - ./ssl:/etc/nginx/ssl
     depends_on:
-      - backend
+      - api_service
+      - real_api_service
+      - enterprise_revenue_dashboard
+      - enterprise_api_integration
+      - token_service
+      - social_gamification_service
+      - p2p_gpu_service
       - frontend
     restart: unless-stopped
 
+  # ===========================================
+  # MONITORING STACK
+  # ===========================================
   prometheus:
     image: prom/prometheus:latest
     ports:
@@ -96,8 +360,6 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
       - '--storage.tsdb.retention.time=200h'
       - '--web.enable-lifecycle'
     restart: unless-stopped
@@ -105,29 +367,39 @@ services:
   grafana:
     image: grafana/grafana:latest
     ports:
-      - "3001:3000"
+      - "3000:3000"
     env_file:
       - docker-quickstart.env
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin_secure_2024
     volumes:
       - grafana_data:/var/lib/grafana
       - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
       - ./grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
     restart: unless-stopped
 
-  backup:
+  # ===========================================
+  # BACKUP SERVICE
+  # ===========================================
+  backup_service:
     image: postgres:15
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh
     env_file:
       - docker-quickstart.env
     command: |
       bash -c "
+      chmod +x /backup.sh
       while true; do
         sleep 24h
-        pg_dump -h postgres -U $$POSTGRES_USER -d $$POSTGRES_DB > /backups/backup_$(date +%Y%m%d_%H%M%S).sql
-        find /backups -name '*.sql' -mtime +7 -delete
+        /backup.sh
       done"
+    depends_on:
+      - postgres
     restart: unless-stopped
 
 volumes:

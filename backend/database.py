@@ -243,5 +243,17 @@ class DatabaseManager:
         """Close database connection"""
         self.db.close()
 
-# Initialize database
+# Database manager
+db_manager = DatabaseManager()
+
+# Create all tables
+def create_tables():
+    """Create all database tables"""
+    try:
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ Database tables created successfully")
+    except Exception as e:
+        logger.error(f"❌ Error creating database tables: {e}")
+
+# Initialize tables when module is imported
 create_tables() 

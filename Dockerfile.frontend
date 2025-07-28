@@ -1,0 +1,57 @@
+FROM nginx:alpine
+
+# Install additional tools
+RUN apk add --no-cache curl
+
+# Copy ULTIMATE frontend files
+COPY frontend/index-ultimate.html /usr/share/nginx/html/index.html
+COPY frontend/ultimate-styles.css /usr/share/nginx/html/
+COPY frontend/ultimate-backend-connector.js /usr/share/nginx/html/
+COPY frontend/favicon.svg /usr/share/nginx/html/
+COPY frontend/components/ /usr/share/nginx/html/components/
+
+# Copy all portal pages
+COPY frontend/enterprise-portal.html /usr/share/nginx/html/
+COPY frontend/provider-portal.html /usr/share/nginx/html/
+COPY frontend/institutional-staking-portal.html /usr/share/nginx/html/
+COPY frontend/enterprise-portal-enhanced.html /usr/share/nginx/html/
+COPY frontend/terms-of-service.html /usr/share/nginx/html/
+COPY frontend/privacy-policy.html /usr/share/nginx/html/
+
+# Copy ALL enhancement files
+COPY frontend/enhanced-styles.css /usr/share/nginx/html/
+COPY frontend/marketplace-api.js /usr/share/nginx/html/
+COPY frontend/wallet-connector.js /usr/share/nginx/html/
+
+# Copy existing scripts
+COPY frontend/enterprise-api-connector.js /usr/share/nginx/html/
+COPY frontend/gamification-system.js /usr/share/nginx/html/
+COPY frontend/contracts-config.js /usr/share/nginx/html/
+
+# Copy nginx configuration AFTER frontend files
+COPY frontend/nginx.prod.conf /etc/nginx/nginx.conf
+
+# Copy SSL certificates directory
+RUN mkdir -p /etc/nginx/ssl
+
+# Create nginx cache directories
+RUN mkdir -p /var/cache/nginx/client_temp \
+    /var/cache/nginx/proxy_temp \
+    /var/cache/nginx/fastcgi_temp \
+    /var/cache/nginx/uwsgi_temp \
+    /var/cache/nginx/scgi_temp
+
+# Set proper permissions
+RUN chown -R nginx:nginx /var/cache/nginx \
+    && chown -R nginx:nginx /usr/share/nginx/html \
+    && chown -R nginx:nginx /etc/nginx
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost/ || exit 1
+
+# Expose ports
+EXPOSE 80 443
+
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"] 

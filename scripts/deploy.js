@@ -8,24 +8,7 @@ async function main() {
 
   // Configuration for different networks
   const networkConfig = {
-    // zkSync Era Mainnet (RECOMMENDED - Ultra Low Fees!)
-    324: {
-      feeRecipient: process.env.FEE_RECIPIENT_ADDRESS || deployer.address,
-      platformFeePercent: 300, // 3%
-      tokenName: "GPUDex Token",
-      tokenSymbol: "GPUDX",
-      initialSupply: ethers.utils.parseEther("1000000000"), // 1B tokens
-      description: "zkSync Era - Ultra low fees with Ethereum security"
-    },
-    // zkSync Era Goerli Testnet
-    280: {
-      feeRecipient: process.env.FEE_RECIPIENT_ADDRESS || deployer.address,
-      platformFeePercent: 300, // 3%
-      tokenName: "GPUDex Token (zkSync Testnet)",
-      tokenSymbol: "GPUDX",
-      initialSupply: ethers.utils.parseEther("1000000000"), // 1B tokens
-      description: "zkSync Era Testnet"
-    },
+    // Removed zkSync networks - Using Polygon only
     // Polygon Mainnet (Alternative low-cost option)
     137: {
       feeRecipient: process.env.FEE_RECIPIENT_ADDRESS || deployer.address,

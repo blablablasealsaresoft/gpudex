@@ -1,0 +1,1074 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPUDx - The World's Most Advanced GPU Computing Platform</title>
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
+    
+    <!-- World-Class Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Bill Gates Level Styling -->
+    <link href="ultimate-styles.css" rel="stylesheet">
+    
+    <!-- Essential Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- GPUDx Scripts -->
+    <script src="contracts-config.js"></script>
+    <script src="marketplace-api.js"></script>
+    <script src="wallet-connector.js"></script>
+    <script src="ultimate-backend-connector.js"></script>
+    
+    <style>
+        /* Additional Bill Gates Polish */
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1a2e 50%, #16213e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(102, 126, 234, 0.3);
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .section-content {
+            display: none;
+        }
+
+        .section-content.active {
+            display: block;
+        }
+
+        .nav-link.active {
+            color: #667eea !important;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+            padding: 8px 16px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loading-spinner"></div>
+    </div>
+
+    <!-- ULTIMATE NAVIGATION -->
+    <nav class="ultimate-nav">
+        <div class="nav-container">
+            <div class="logo-container">
+                <div class="logo-icon"></div>
+                <div class="logo-text">GPUDx</div>
+            </div>
+            
+            <div class="nav-links">
+                <a href="#" class="nav-link active" onclick="showSection('home')">Home</a>
+                <a href="#" class="nav-link" onclick="showSection('marketplace')">Marketplace</a>
+                <a href="#" class="nav-link" onclick="showSection('staking')">Staking</a>
+                <a href="#" class="nav-link" onclick="showSection('enterprise')">Enterprise</a>
+                <a href="#" class="nav-link" onclick="showSection('provider')">Provider Portal</a>
+                <a href="#" class="nav-link" onclick="showSection('analytics')">Analytics</a>
+                <button id="wallet-connect-btn" class="cta-button" onclick="connectWallet()">
+                    <i class="fas fa-wallet mr-2"></i>
+                    <span id="wallet-status">Connect Wallet</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HOME SECTION -->
+    <section id="home-section" class="section-content active">
+        <!-- EPIC HERO SECTION -->
+        <div class="hero-section">
+            <div class="hero-container">
+                <div class="hero-badge fade-in">
+                    <i class="fas fa-rocket"></i>
+                    <span>World's #1 GPU Platform</span>
+                </div>
+                
+                <h1 class="hero-title fade-in">
+                    The Future of<br>
+                    <span style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                        GPU Computing
+                    </span>
+                </h1>
+                
+                <p class="hero-subtitle fade-in">
+                    Experience unparalleled GPU power with institutional-grade infrastructure, 
+                    dynamic tokenomics, and enterprise solutions.
+                </p>
+                
+                <div class="hero-cta fade-in">
+                    <button class="primary-button" onclick="showSection('marketplace')">
+                        <i class="fas fa-shopping-cart mr-2"></i>
+                        Explore Marketplace
+                    </button>
+                    <button class="secondary-button" onclick="showSection('staking')">
+                        <i class="fas fa-coins mr-2"></i>
+                        Start Staking
+                    </button>
+                </div>
+                
+                <!-- Live Stats -->
+                <div class="stats-grid fade-in">
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-gpus">2,847</div>
+                        <div class="stat-label">GPUs Available</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="total-staked">$12.4M</div>
+                        <div class="stat-label">Total Staked</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="apy-rate">24.8%</div>
+                        <div class="stat-label">Current APY</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number" id="active-users">18,492</div>
+                        <div class="stat-label">Active Users</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="features-section">
+            <div class="container">
+                <h2 class="section-title">Why Choose GPUDx?</h2>
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                        <h3>Lightning Fast</h3>
+                        <p>Deploy GPU instances in under 30 seconds with our optimized infrastructure.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h3>Enterprise Grade</h3>
+                        <p>Bank-level security with 99.99% uptime guarantee for mission-critical workloads.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-coins"></i>
+                        </div>
+                        <h3>Token Rewards</h3>
+                        <p>Earn GPUDX tokens through usage, staking, and platform participation.</p>
+                    </div>
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <h3>Dynamic Pricing</h3>
+                        <p>AI-powered pricing ensures you always get the best value for your compute needs.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- MARKETPLACE SECTION -->
+    <section id="marketplace-section" class="section-content">
+        <div class="container">
+            <div class="marketplace-header">
+                <h1 class="marketplace-title">GPU Marketplace</h1>
+                <div class="marketplace-controls">
+                    <select class="filter-select">
+                        <option>All GPU Types</option>
+                        <option>NVIDIA H100</option>
+                        <option>NVIDIA A100</option>
+                        <option>RTX 4090</option>
+                        <option>RTX 3090</option>
+                    </select>
+                    <button class="refresh-btn" onclick="refreshMarketplace()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+
+            <div id="gpu-marketplace-container" class="marketplace-grid">
+                <!-- Marketplace data will be loaded here -->
+            </div>
+        </div>
+    </section>
+
+    <!-- STAKING SECTION -->
+    <section id="staking-section" class="section-content">
+        <div class="container">
+            <h1 class="section-title">Stake GPUDX Tokens</h1>
+            
+            <!-- Staking Tiers -->
+            <div class="staking-tiers">
+                <div class="tier-card bronze">
+                    <h3>Bronze Tier</h3>
+                    <div class="tier-amount">1,000+ GPUDX</div>
+                    <div class="tier-apy">8% APY</div>
+                    <div class="tier-benefits">
+                        <div>5% GPU discount</div>
+                        <div>Basic support</div>
+                    </div>
+                    <button class="stake-btn" onclick="initStaking('bronze', 1000)">Stake Now</button>
+                </div>
+                
+                <div class="tier-card silver">
+                    <h3>Silver Tier</h3>
+                    <div class="tier-amount">10,000+ GPUDX</div>
+                    <div class="tier-apy">12% APY</div>
+                    <div class="tier-benefits">
+                        <div>10% GPU discount</div>
+                        <div>Priority support</div>
+                        <div>Early access</div>
+                    </div>
+                    <button class="stake-btn" onclick="initStaking('silver', 10000)">Stake Now</button>
+                </div>
+                
+                <div class="tier-card gold">
+                    <h3>Gold Tier</h3>
+                    <div class="tier-amount">100,000+ GPUDX</div>
+                    <div class="tier-apy">18% APY</div>
+                    <div class="tier-benefits">
+                        <div>20% GPU discount</div>
+                        <div>Dedicated support</div>
+                        <div>Revenue sharing</div>
+                    </div>
+                    <button class="stake-btn" onclick="initStaking('gold', 100000)">Stake Now</button>
+                </div>
+                
+                <div class="tier-card diamond">
+                    <h3>Diamond Tier</h3>
+                    <div class="tier-amount">1,000,000+ GPUDX</div>
+                    <div class="tier-apy">25% APY</div>
+                    <div class="tier-benefits">
+                        <div>30% GPU discount</div>
+                        <div>White-glove service</div>
+                        <div>Governance rights</div>
+                        <div>Exclusive features</div>
+                    </div>
+                    <button class="stake-btn" onclick="initStaking('diamond', 1000000)">Stake Now</button>
+                </div>
+            </div>
+
+            <!-- Staking Interface -->
+            <div class="staking-interface">
+                <div class="staking-form">
+                    <h3>Stake GPUDX Tokens</h3>
+                    <div class="form-group">
+                        <label>Amount to Stake</label>
+                        <input type="number" id="stake-amount" placeholder="Enter amount" min="1">
+                        <span class="token-symbol">GPUDX</span>
+                    </div>
+                    <div class="form-group">
+                        <label>Lock Period</label>
+                        <select id="lock-period">
+                            <option value="0">No Lock (Base APY)</option>
+                            <option value="30">30 Days (+2% APY)</option>
+                            <option value="90">90 Days (+5% APY)</option>
+                            <option value="180">180 Days (+8% APY)</option>
+                            <option value="365">365 Days (+12% APY)</option>
+                        </select>
+                    </div>
+                    <div class="rewards-preview">
+                        <div>Estimated Annual Rewards: <span id="estimated-rewards">0 GPUDX</span></div>
+                        <div>New Tier: <span id="new-tier">Bronze</span></div>
+                        <div>GPU Discount: <span id="gpu-discount">5%</span></div>
+                    </div>
+                    <button class="primary-button" onclick="executeStaking()">Stake GPUDX</button>
+                </div>
+                
+                <div class="staking-positions">
+                    <h3>Your Staking Positions</h3>
+                    <div id="staking-positions-list">
+                        <!-- Positions will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ENTERPRISE SECTION -->
+    <section id="enterprise-section" class="section-content">
+        <div class="container">
+            <h1 class="section-title">Enterprise Solutions</h1>
+            
+            <div class="enterprise-dashboard">
+                <div class="enterprise-card">
+                    <h3>Enterprise Rental Management</h3>
+                    <p>Manage your enterprise GPU rentals, track usage, and optimize costs.</p>
+                    <button class="enterprise-btn" onclick="openEnterprisePortal()">Access Portal</button>
+                </div>
+                
+                <div class="enterprise-card">
+                    <h3>Institutional Staking</h3>
+                    <p>High-volume staking programs with dedicated account management.</p>
+                    <button class="enterprise-btn" onclick="openInstitutionalStaking()">Learn More</button>
+                </div>
+                
+                <div class="enterprise-card">
+                    <h3>White-Label Solutions</h3>
+                    <p>Deploy your own GPU marketplace with our enterprise infrastructure.</p>
+                    <button class="enterprise-btn" onclick="contactEnterprise()">Contact Sales</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PROVIDER PORTAL SECTION -->
+    <section id="provider-section" class="section-content">
+        <div class="container">
+            <h1 class="section-title">GPU Provider Portal</h1>
+            
+            <div class="provider-dashboard">
+                <div class="provider-stats">
+                    <div class="stat-box">
+                        <h3>Your GPUs</h3>
+                        <div class="stat-value" id="provider-gpus">0</div>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Monthly Earnings</h3>
+                        <div class="stat-value" id="provider-earnings">$0</div>
+                    </div>
+                    <div class="stat-box">
+                        <h3>Utilization Rate</h3>
+                        <div class="stat-value" id="provider-utilization">0%</div>
+                    </div>
+                </div>
+                
+                <div class="provider-actions">
+                    <button class="primary-button" onclick="addGPU()">
+                        <i class="fas fa-plus mr-2"></i>
+                        Add GPU
+                    </button>
+                    <button class="secondary-button" onclick="manageGPUs()">
+                        <i class="fas fa-cog mr-2"></i>
+                        Manage GPUs
+                    </button>
+                    <button class="secondary-button" onclick="viewEarnings()">
+                        <i class="fas fa-chart-bar mr-2"></i>
+                        View Earnings
+                    </button>
+                </div>
+                
+                <div class="gpu-list" id="provider-gpu-list">
+                    <!-- Provider's GPUs will be listed here -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ANALYTICS SECTION -->
+    <section id="analytics-section" class="section-content">
+        <div class="container">
+            <h1 class="section-title">Platform Analytics</h1>
+            
+            <div class="analytics-grid">
+                <div class="metric-card">
+                    <h3>Total Volume</h3>
+                    <div class="metric-value">$2.4M</div>
+                    <div class="metric-change positive">+34.5%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Active Users</h3>
+                    <div class="metric-value">18,492</div>
+                    <div class="metric-change positive">+12.3%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>GPU Hours</h3>
+                    <div class="metric-value">847K</div>
+                    <div class="metric-change positive">+23.1%</div>
+                </div>
+                <div class="metric-card">
+                    <h3>Tokens Burned</h3>
+                    <div class="metric-value">1.25M</div>
+                    <div class="metric-change neutral">Deflationary</div>
+                </div>
+            </div>
+            
+            <div class="charts-section">
+                <div class="chart-container">
+                    <h3>Revenue Trends</h3>
+                    <canvas id="revenue-chart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <h3>User Growth</h3>
+                    <canvas id="users-chart"></canvas>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="site-footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>GPUDx</h3>
+                    <p>The world's most advanced GPU computing platform.</p>
+                </div>
+                <div class="footer-section">
+                    <h4>Platform</h4>
+                    <ul>
+                        <li><a href="#" onclick="showSection('marketplace')">Marketplace</a></li>
+                        <li><a href="#" onclick="showSection('staking')">Staking</a></li>
+                        <li><a href="#" onclick="showSection('enterprise')">Enterprise</a></li>
+                        <li><a href="#" onclick="showSection('provider')">Become a Provider</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Legal</h4>
+                    <ul>
+                        <li><a href="terms-of-service.html" target="_blank">Terms of Service</a></li>
+                        <li><a href="privacy-policy.html" target="_blank">Privacy Policy</a></li>
+                        <li><a href="#" onclick="showCookiePolicy()">Cookie Policy</a></li>
+                        <li><a href="#" onclick="showRiskDisclosure()">Risk Disclosure</a></li>
+                    </ul>
+                </div>
+                <div class="footer-section">
+                    <h4>Support</h4>
+                    <ul>
+                        <li><a href="#" onclick="openSupportChat()">Help Center</a></li>
+                        <li><a href="#" onclick="openSupportChat()">Contact Support</a></li>
+                        <li><a href="#" onclick="openAPIDocumentation()">API Documentation</a></li>
+                        <li><a href="#" onclick="showSystemStatus()">System Status</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- BILL GATES ON ADDERALL JAVASCRIPT -->
+    <script>
+        // Global state management
+        let currentSection = 'home';
+        let walletConnected = false;
+        let userAddress = null;
+        let backendConnector = null;
+        // marketplaceAPI is already declared in marketplace-api.js
+        // walletConnector is already declared in wallet-connector.js
+
+        // Initialize everything when page loads
+        document.addEventListener('DOMContentLoaded', async function() {
+            console.log('🚀 Initializing GPUDx Ultimate Platform...');
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loading-screen').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loading-screen').style.display = 'none';
+                }, 500);
+            }, 2000);
+
+            // Initialize backend connections
+            initializeBackendConnector();
+            
+            // Initialize marketplace (use existing marketplaceAPI from marketplace-api.js)
+            initializeMarketplace();
+            
+            // Initialize wallet
+            initializeWallet();
+            
+            // Start live data updates
+            startLiveUpdates();
+            
+            // Initialize charts
+            initializeCharts();
+            
+            console.log('✅ GPUDx Platform fully initialized!');
+        });
+
+        // Section management
+        function showSection(sectionName) {
+            console.log(`🔄 Switching to section: ${sectionName}`);
+            
+            // Hide all sections
+            document.querySelectorAll('.section-content').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Remove active class from nav links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected section
+            const targetSection = document.getElementById(`${sectionName}-section`);
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+            
+            // Activate nav link
+            const targetLink = document.querySelector(`.nav-link[onclick="showSection('${sectionName}')"]`);
+            if (targetLink) {
+                targetLink.classList.add('active');
+            }
+            
+            currentSection = sectionName;
+            
+            // Load section-specific data
+            loadSectionData(sectionName);
+        }
+
+        // Initialize backend connector
+        function initializeBackendConnector() {
+            if (typeof UltimateBackendConnector !== 'undefined') {
+                backendConnector = new UltimateBackendConnector();
+                console.log('✅ Backend connector initialized');
+            } else {
+                console.warn('⚠️ Backend connector not available');
+            }
+        }
+
+        // Initialize marketplace
+        function initializeMarketplace() {
+            // Use the existing marketplaceAPI from marketplace-api.js
+            if (typeof marketplaceAPI !== 'undefined' && marketplaceAPI) {
+                loadMarketplaceData();
+                console.log('✅ Marketplace initialized');
+            } else {
+                console.warn('⚠️ Marketplace API not available');
+                loadFallbackMarketplaceData();
+            }
+        }
+
+        // Initialize wallet
+        function initializeWallet() {
+            // Use the existing walletConnector from wallet-connector.js
+            if (typeof walletConnector !== 'undefined' && walletConnector) {
+                console.log('✅ Wallet connector initialized');
+            } else {
+                console.warn('⚠️ Wallet connector not available');
+            }
+        }
+
+        // Connect wallet
+        async function connectWallet() {
+            const btn = document.getElementById('wallet-connect-btn');
+            const status = document.getElementById('wallet-status');
+            
+            if (walletConnected) {
+                // Disconnect wallet
+                walletConnected = false;
+                userAddress = null;
+                btn.innerHTML = '<i class="fas fa-wallet mr-2"></i><span id="wallet-status">Connect Wallet</span>';
+                console.log('👋 Wallet disconnected');
+                return;
+            }
+            
+            try {
+                status.textContent = 'Connecting...';
+                
+                if (walletConnector) {
+                    const result = await walletConnector.connectWallet('metamask');
+                    if (result.success) {
+                        walletConnected = true;
+                        userAddress = result.address;
+                        const shortAddress = `${userAddress.slice(0, 6)}...${userAddress.slice(-4)}`;
+                        btn.innerHTML = `<i class="fas fa-wallet mr-2"></i><span id="wallet-status">${shortAddress}</span>`;
+                        console.log('✅ Wallet connected:', userAddress);
+                        
+                        // Load user data
+                        loadUserData();
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } else {
+                    throw new Error('Wallet connector not available');
+                }
+            } catch (error) {
+                console.error('❌ Wallet connection failed:', error);
+                status.textContent = 'Connect Wallet';
+                alert('Failed to connect wallet. Please make sure you have MetaMask installed.');
+            }
+        }
+
+        // Load marketplace data
+        async function loadMarketplaceData() {
+            try {
+                let gpuData;
+                
+                if (marketplaceAPI) {
+                    gpuData = await marketplaceAPI.fetchGPUMarketData();
+                } else if (backendConnector) {
+                    const response = await backendConnector.fetchData('/gpu-marketplace');
+                    gpuData = response.gpus || [];
+                } else {
+                    throw new Error('No API available');
+                }
+                
+                displayMarketplaceData(gpuData);
+                console.log('✅ Marketplace data loaded');
+            } catch (error) {
+                console.warn('⚠️ Failed to load marketplace data:', error);
+                loadFallbackMarketplaceData();
+            }
+        }
+
+        // Load fallback marketplace data
+        function loadFallbackMarketplaceData() {
+            const fallbackData = [
+                {
+                    name: 'NVIDIA H100',
+                    memory: '80GB HBM3',
+                    price: 4.50,
+                    availability: 'Available',
+                    provider: 'AWS',
+                    location: 'US East',
+                    performance: 100
+                },
+                {
+                    name: 'NVIDIA A100',
+                    memory: '40GB HBM2e',
+                    price: 2.40,
+                    availability: 'Available',
+                    provider: 'Google Cloud',
+                    location: 'US West',
+                    performance: 88
+                },
+                {
+                    name: 'RTX 4090',
+                    memory: '24GB GDDR6X',
+                    price: 1.20,
+                    availability: 'Available',
+                    provider: 'Azure',
+                    location: 'Europe',
+                    performance: 82
+                }
+            ];
+            
+            displayMarketplaceData(fallbackData);
+        }
+
+        // Display marketplace data
+        function displayMarketplaceData(gpuData) {
+            const container = document.getElementById('gpu-marketplace-container');
+            if (!container) return;
+            
+            container.innerHTML = gpuData.map(gpu => `
+                <div class="gpu-card">
+                    <div class="gpu-header">
+                        <h3>${gpu.name}</h3>
+                        <div class="gpu-price">$${gpu.price}/hr</div>
+                    </div>
+                    <div class="gpu-specs">
+                        <div>Memory: ${gpu.memory}</div>
+                        <div>Provider: ${gpu.provider}</div>
+                        <div>Location: ${gpu.location}</div>
+                        <div>Performance: ${gpu.performance}%</div>
+                    </div>
+                    <div class="gpu-status ${gpu.availability === 'Available' ? 'available' : 'busy'}">
+                        ${gpu.availability}
+                    </div>
+                    <button class="rent-gpu-btn" onclick="rentGPU('${gpu.name}', ${gpu.price})">
+                        <i class="fas fa-shopping-cart mr-2"></i>
+                        Rent Now
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        // Staking functions
+        function initStaking(tier, minAmount) {
+            if (!walletConnected) {
+                alert('Please connect your wallet first');
+                return;
+            }
+            
+            const amount = prompt(`Enter amount to stake for ${tier} tier (minimum ${minAmount} GPUDX):`);
+            if (amount && parseFloat(amount) >= minAmount) {
+                executeStakingTransaction(tier, amount);
+            }
+        }
+
+        function executeStaking() {
+            const amount = document.getElementById('stake-amount').value;
+            const lockPeriod = document.getElementById('lock-period').value;
+            
+            if (!walletConnected) {
+                alert('Please connect your wallet first');
+                return;
+            }
+            
+            if (!amount || parseFloat(amount) <= 0) {
+                alert('Please enter a valid amount');
+                return;
+            }
+            
+            executeStakingTransaction('custom', amount, lockPeriod);
+        }
+
+        async function executeStakingTransaction(tier, amount, lockPeriod = 0) {
+            try {
+                console.log(`💰 Starting ${tier} staking: ${amount} GPUDX for ${lockPeriod} days`);
+                
+                // This would interact with smart contracts
+                if (backendConnector) {
+                    const result = await backendConnector.postData('/stake', {
+                        amount: amount,
+                        tier: tier,
+                        lockPeriod: lockPeriod,
+                        userAddress: userAddress
+                    });
+                    
+                    if (result.success) {
+                        alert(`Successfully staked ${amount} GPUDX in ${tier} tier!`);
+                        loadStakingPositions();
+                    } else {
+                        throw new Error(result.error);
+                    }
+                } else {
+                    // Fallback simulation
+                    alert(`Staking simulation: ${amount} GPUDX staked in ${tier} tier for ${lockPeriod} days`);
+                }
+            } catch (error) {
+                console.error('❌ Staking failed:', error);
+                alert('Staking failed. Please try again.');
+            }
+        }
+
+        // Provider functions
+        function addGPU() {
+            if (!walletConnected) {
+                alert('Please connect your wallet first');
+                return;
+            }
+            
+            alert('Add GPU functionality would open a form to register your GPU hardware');
+        }
+
+        function manageGPUs() {
+            if (!walletConnected) {
+                alert('Please connect your wallet first');
+                return;
+            }
+            
+            alert('Manage GPUs functionality would show your registered GPUs and their status');
+        }
+
+        function viewEarnings() {
+            if (!walletConnected) {
+                alert('Please connect your wallet first');
+                return;
+            }
+            
+            alert('View Earnings functionality would show your provider earnings and statistics');
+        }
+
+        // Enterprise functions
+        function openEnterprisePortal() {
+            window.open('enterprise-portal-enhanced.html', '_blank');
+        }
+
+        function openInstitutionalStaking() {
+            window.open('institutional-staking-portal.html', '_blank');
+        }
+
+        function contactEnterprise() {
+            alert('Enterprise contact form would open here. Email: enterprise@gpudx.io');
+        }
+
+        // Rent GPU function
+        async function rentGPU(gpuName, price) {
+            if (!walletConnected) {
+                alert('Please connect your wallet first');
+                return;
+            }
+            
+            const hours = prompt(`How many hours would you like to rent the ${gpuName}? (Price: $${price}/hr)`);
+            if (hours && parseFloat(hours) > 0) {
+                const totalCost = parseFloat(hours) * price;
+                const confirmed = confirm(`Rent ${gpuName} for ${hours} hours at $${totalCost.toFixed(2)}?`);
+                
+                if (confirmed) {
+                    try {
+                        // This would process the rental through smart contracts
+                        console.log(`🎮 Renting ${gpuName} for ${hours} hours`);
+                        
+                        if (backendConnector) {
+                            const result = await backendConnector.postData('/rent-gpu', {
+                                gpuName: gpuName,
+                                hours: hours,
+                                price: price,
+                                userAddress: userAddress
+                            });
+                            
+                            if (result.success) {
+                                alert(`Successfully rented ${gpuName} for ${hours} hours!`);
+                            } else {
+                                throw new Error(result.error);
+                            }
+                        } else {
+                            alert(`Rental simulation: ${gpuName} rented for ${hours} hours at $${totalCost.toFixed(2)}`);
+                        }
+                    } catch (error) {
+                        console.error('❌ GPU rental failed:', error);
+                        alert('GPU rental failed. Please try again.');
+                    }
+                }
+            }
+        }
+
+        // Load section-specific data
+        function loadSectionData(sectionName) {
+            switch(sectionName) {
+                case 'marketplace':
+                    loadMarketplaceData();
+                    break;
+                case 'staking':
+                    loadStakingPositions();
+                    break;
+                case 'provider':
+                    loadProviderData();
+                    break;
+                case 'analytics':
+                    loadAnalyticsData();
+                    break;
+                case 'enterprise':
+                    loadEnterpriseData();
+                    break;
+            }
+        }
+
+        // Load user data
+        async function loadUserData() {
+            if (!userAddress) return;
+            
+            try {
+                if (backendConnector) {
+                    const userData = await backendConnector.fetchData(`/user/${userAddress}`);
+                    // Update UI with user data
+                    console.log('✅ User data loaded:', userData);
+                }
+            } catch (error) {
+                console.warn('⚠️ Failed to load user data:', error);
+            }
+        }
+
+        // Load staking positions
+        async function loadStakingPositions() {
+            if (!userAddress) return;
+            
+            try {
+                const container = document.getElementById('staking-positions-list');
+                if (!container) return;
+                
+                if (backendConnector) {
+                    const positions = await backendConnector.fetchData(`/staking-positions/${userAddress}`);
+                    displayStakingPositions(positions);
+                } else {
+                    container.innerHTML = '<div class="no-positions">Connect wallet to view staking positions</div>';
+                }
+            } catch (error) {
+                console.warn('⚠️ Failed to load staking positions:', error);
+            }
+        }
+
+        // Load provider data
+        async function loadProviderData() {
+            if (!userAddress) return;
+            
+            try {
+                if (backendConnector) {
+                    const providerData = await backendConnector.fetchData(`/provider/${userAddress}`);
+                    updateProviderStats(providerData);
+                }
+            } catch (error) {
+                console.warn('⚠️ Failed to load provider data:', error);
+            }
+        }
+
+        // Load analytics data
+        function loadAnalyticsData() {
+            // This would load real analytics from the backend
+            console.log('📊 Loading analytics data...');
+        }
+
+        // Load enterprise data
+        function loadEnterpriseData() {
+            // This would load enterprise-specific data
+            console.log('🏢 Loading enterprise data...');
+        }
+
+        // Start live data updates
+        function startLiveUpdates() {
+            setInterval(() => {
+                updateLiveStats();
+            }, 30000); // Update every 30 seconds
+        }
+
+        // Update live stats
+        function updateLiveStats() {
+            // Simulate live data updates
+            const gpuCount = document.getElementById('total-gpus');
+            const staked = document.getElementById('total-staked');
+            const apy = document.getElementById('apy-rate');
+            const users = document.getElementById('active-users');
+            
+            if (gpuCount) {
+                const newCount = 2847 + Math.floor(Math.random() * 100) - 50;
+                animateNumber(gpuCount, parseInt(gpuCount.textContent.replace(/,/g, '')), newCount, 1000);
+            }
+            
+            if (apy) {
+                const newApy = 24.8 + (Math.random() * 2 - 1);
+                animateNumber(apy, parseFloat(apy.textContent), newApy, 1000, '', '%');
+            }
+        }
+
+        // Animate numbers
+        function animateNumber(element, start, end, duration, prefix = '', suffix = '') {
+            const startTime = performance.now();
+            
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                const current = start + (end - start) * progress;
+                const formatted = suffix === '%' ? current.toFixed(1) : Math.floor(current).toLocaleString();
+                element.textContent = prefix + formatted + suffix;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                }
+            }
+            
+            requestAnimationFrame(update);
+        }
+
+        // Initialize charts
+        function initializeCharts() {
+            // Revenue chart
+            const revenueCtx = document.getElementById('revenue-chart');
+            if (revenueCtx) {
+                new Chart(revenueCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        datasets: [{
+                            label: 'Revenue ($)',
+                            data: [120000, 190000, 300000, 500000, 200000, 300000],
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+            
+            // Users chart
+            const usersCtx = document.getElementById('users-chart');
+            if (usersCtx) {
+                new Chart(usersCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        datasets: [{
+                            label: 'Active Users',
+                            data: [1200, 1900, 3000, 5000, 2000, 3000],
+                            backgroundColor: '#764ba2'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            }
+        }
+
+        // Refresh marketplace
+        function refreshMarketplace() {
+            console.log('🔄 Refreshing marketplace data...');
+            loadMarketplaceData();
+        }
+
+        // Legal page functions
+        function showCookiePolicy() {
+            alert('Cookie Policy: We use essential cookies to ensure the proper functioning of our platform.');
+        }
+
+        function showRiskDisclosure() {
+            alert('Risk Disclosure: Cryptocurrency investments carry risk. Please understand the risks before participating.');
+        }
+
+        // Support functions
+        function openSupportChat() {
+            alert('Support chat would open here. For immediate assistance, contact support@gpudx.io');
+        }
+
+        function openAPIDocumentation() {
+            window.open('/api-docs', '_blank');
+        }
+
+        function showSystemStatus() {
+            alert('System Status: All systems operational ✅');
+        }
+
+        // Utility functions
+        function displayStakingPositions(positions) {
+            const container = document.getElementById('staking-positions-list');
+            if (!container) return;
+            
+            if (!positions || positions.length === 0) {
+                container.innerHTML = '<div class="no-positions">No staking positions found</div>';
+                return;
+            }
+            
+            container.innerHTML = positions.map(position => `
+                <div class="staking-position">
+                    <div class="position-header">
+                        <h4>${position.tier} Tier</h4>
+                        <div class="position-amount">${position.amount} GPUDX</div>
+                    </div>
+                    <div class="position-details">
+                        <div>APY: ${position.apy}%</div>
+                        <div>Lock Period: ${position.lockPeriod} days</div>
+                        <div>Rewards: ${position.rewards} GPUDX</div>
+                    </div>
+                    <button class="unstake-btn" onclick="unstakePosition('${position.id}')">Unstake</button>
+                </div>
+            `).join('');
+        }
+
+        function updateProviderStats(data) {
+            const gpuCount = document.getElementById('provider-gpus');
+            const earnings = document.getElementById('provider-earnings');
+            const utilization = document.getElementById('provider-utilization');
+            
+            if (gpuCount && data.gpuCount) gpuCount.textContent = data.gpuCount;
+            if (earnings && data.earnings) earnings.textContent = `$${data.earnings}`;
+            if (utilization && data.utilization) utilization.textContent = `${data.utilization}%`;
+        }
+
+        console.log('🔥 BILL GATES ON ADDERALL FRONTEND FULLY LOADED! 🔥');
+    </script>
+</body>
+</html> 

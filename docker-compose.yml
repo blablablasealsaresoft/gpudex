@@ -1,0 +1,507 @@
+# Docker Compose file for GPUDx Platform
+# Version declaration removed (obsolete in newer Docker Compose versions)
+
+services:
+  # =============================================================================
+  # DATABASE SERVICES
+  # =============================================================================
+  
+  postgres:
+    image: postgres:15-alpine
+    container_name: gpudx_postgres
+    restart: unless-stopped
+    env_file:
+      - docker-quickstart.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./backend/enterprise_db_schema.sql:/docker-entrypoint-initdb.d/enterprise_schema.sql
+    ports:
+      - "5432:5432"
+    networks:
+      - gpudex_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U gpudex -d gpudex_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: gpudx_redis
+    restart: unless-stopped
+    command: redis-server /usr/local/etc/redis/redis.conf
+    volumes:
+      - redis_data:/data
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    ports:
+      - "6379:6379"
+    networks:
+      - gpudex_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # =============================================================================
+  # BLOCKCHAIN NODE (Optional - for development)
+  # =============================================================================
+  
+  hardhat_node:
+    build:
+      context: .
+      dockerfile: Dockerfile.hardhat
+    container_name: gpudx_hardhat
+    restart: unless-stopped
+    ports:
+      - "8545:8545"
+    volumes:
+      - ./contracts:/app/contracts
+      - ./scripts:/app/scripts
+      - ./hardhat.config.js:/app/hardhat.config.js
+      - ./package.json:/app/package.json
+      - ./package-lock.json:/app/package-lock.json
+    networks:
+      - gpudex_network
+    environment:
+      - NODE_ENV=development
+    command: npx hardhat node --hostname 0.0.0.0
+
+  # =============================================================================
+  # BACKEND SERVICES
+  # =============================================================================
+  
+  api_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: gpudex_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - docker-quickstart.env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+      - ./artifacts:/app/artifacts
+    networks:
+      - gpudex_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v2/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  real_api_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: gpudex_real_api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - docker-quickstart.env
+    environment:
+      - REAL_API_SERVICE_PORT=8001
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./backend:/app/backend
+      - ./artifacts:/app/artifacts
+    networks:
+      - gpudex_network
+    command: python backend/real_api_service.py
+
+  utility_validation_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: gpudex_utility_validation
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - docker-quickstart.env
+    ports:
+      - "8010:8010"
+    volumes:
+      - ./backend:/app/backend
+      - ./artifacts:/app/artifacts
+    networks:
+      - gpudex_network
+    command: python backend/utility_validation_service.py
+
+  enterprise_revenue_dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: gpudx_enterprise_dashboard
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - docker-quickstart.env
+    ports:
+      - "8002:8002"
+    volumes:
+      - ./backend:/app/backend
+      - ./artifacts:/app/artifacts
+    networks:
+      - gpudex_network
+    command: python backend/enterprise_revenue_dashboard.py
+
+  # =============================================================================
+  # ADDITIONAL MICROSERVICES
+  # =============================================================================
+
+  enterprise_api_integration:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: gpudx_enterprise_api_integration
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - docker-quickstart.env
+    ports:
+      - "8003:8003"
+    volumes:
+      - ./backend:/app/backend
+      - ./artifacts:/app/artifacts
+    networks:
+      - gpudex_network
+    command: python backend/enterprise_api_integration.py
+
+  token_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: gpudx_token_service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - docker-quickstart.env
+    ports:
+      - "8004:8004"
+    volumes:
+      - ./backend:/app/backend
+      - ./artifacts:/app/artifacts
+    networks:
+      - gpudex_network
+    command: python backend/token_service.py
+
+  social_gamification_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: gpudx_social_gamification_service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - docker-quickstart.env
+    ports:
+      - "8005:8005"
+    volumes:
+      - ./backend:/app/backend
+      - ./artifacts:/app/artifacts
+    networks:
+      - gpudex_network
+    command: python backend/social_gamification_service.py
+
+  p2p_gpu_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: gpudx_p2p_gpu_service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - docker-quickstart.env
+    ports:
+      - "8006:8006"
+    volumes:
+      - ./backend:/app/backend
+      - ./artifacts:/app/artifacts
+    networks:
+      - gpudex_network
+    command: python backend/p2p_gpu_service.py
+
+  community_onboarding_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: gpudx_community_onboarding_service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - docker-quickstart.env
+    ports:
+      - "8007:8007"
+    volumes:
+      - ./backend:/app/backend
+      - ./artifacts:/app/artifacts
+    networks:
+      - gpudex_network
+    command: python backend/community_onboarding_service.py
+
+  ai_optimization_service:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: gpudx_ai_optimization_service
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - docker-quickstart.env
+    ports:
+      - "8008:8008"
+    volumes:
+      - ./backend:/app/backend
+      - ./artifacts:/app/artifacts
+    networks:
+      - gpudex_network
+    command: python backend/ai_optimization_service.py
+
+  gpudx_platform_integration:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: gpudx_platform_integration
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - docker-quickstart.env
+    ports:
+      - "8009:8009"
+    volumes:
+      - ./backend:/app/backend
+      - ./artifacts:/app/artifacts
+    networks:
+      - gpudex_network
+    command: python backend/gpudx_platform_integration.py
+
+  # =============================================================================
+  # FRONTEND SERVICES
+  # =============================================================================
+  
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: gpudex_frontend
+    restart: unless-stopped
+    depends_on:
+      - api_service
+      - real_api_service
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./ssl:/etc/nginx/ssl
+    networks:
+      - gpudex_network
+    environment:
+      - API_BASE_URL=http://api_service:8000
+      - REAL_API_URL=http://real_api_service:8001
+      - WS_URL=ws://real_api_service:8001
+
+  # =============================================================================
+  # MONITORING SERVICES
+  # =============================================================================
+  
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: gpudex_prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    networks:
+      - gpudex_network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: gpudex_grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin_secure_2024}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - gpudex_network
+    depends_on:
+      - prometheus
+
+  # =============================================================================
+  # LOAD BALANCER / REVERSE PROXY
+  # =============================================================================
+  
+  nginx:
+    image: nginx:alpine
+    container_name: gpudex_nginx
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./nginx.prod.conf:/etc/nginx/nginx.conf
+      - ./ssl:/etc/nginx/ssl
+    networks:
+      - gpudex_network
+    depends_on:
+      - frontend
+      - api_service
+      - real_api_service
+
+  # =============================================================================
+  # BACKUP SERVICE
+  # =============================================================================
+  
+  backup_service:
+    image: postgres:15-alpine
+    container_name: gpudex_backup
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      - PGPASSWORD=${POSTGRES_PASSWORD:-gpudex_secure_2024}
+    volumes:
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh
+    networks:
+      - gpudex_network
+    command: |
+      sh -c "
+        chmod +x /backup.sh
+        while true; do
+          /backup.sh
+          sleep 86400  # Run backup every 24 hours
+        done
+      "
+
+  # =============================================================================
+  # SMART CONTRACT DEPLOYMENT SERVICE
+  # =============================================================================
+  
+  contract_deployer:
+    build:
+      context: .
+      dockerfile: Dockerfile.contracts
+    container_name: gpudex_contracts
+    restart: "no"  # Run once
+    depends_on:
+      - hardhat_node
+    environment:
+      - RPC_URL=http://hardhat_node:8545
+      - PRIVATE_KEY=${DEPLOYER_PRIVATE_KEY:-0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80}
+      - NETWORK=localhost
+    volumes:
+      - ./contracts:/app/contracts
+      - ./scripts:/app/scripts
+      - ./artifacts:/app/artifacts
+      - ./hardhat.config.js:/app/hardhat.config.js
+      - ./docker-quickstart.env:/app/.env
+    networks:
+      - gpudex_network
+    command: |
+      sh -c "
+        echo 'Waiting for Hardhat node to start...'
+        sleep 10
+        echo 'Verifying Hardhat installation...'
+        ls -la node_modules/.bin/ | grep hardhat
+        npm list hardhat
+        echo 'Starting contract compilation...'
+        if [ -f ./node_modules/.bin/hardhat ]; then
+          echo 'Using local hardhat binary...'
+          ./node_modules/.bin/hardhat compile
+          ./node_modules/.bin/hardhat run scripts/deploy-and-integrate.js --network localhost
+        else
+          echo 'Local binary not found, using npx...'
+          npx hardhat compile
+          npx hardhat run scripts/deploy-and-integrate.js --network localhost
+        fi
+        echo 'Contract deployment completed!'
+      "
+
+# =============================================================================
+# NETWORKS
+# =============================================================================
+
+networks:
+  gpudex_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# =============================================================================
+# VOLUMES
+# =============================================================================
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local 

@@ -1,9 +1,7 @@
 require("@nomiclabs/hardhat-ethers");
 require("@nomiclabs/hardhat-waffle");
 require("@openzeppelin/hardhat-upgrades");
-require("@matterlabs/hardhat-zksync-deploy");
-require("@matterlabs/hardhat-zksync-solc");
-require("@matterlabs/hardhat-zksync-verify");
+// Removed zkSync dependencies
 require("dotenv").config();
 
 // This is a sample Hardhat task. To learn how to create your own go to
@@ -23,12 +21,7 @@ task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
  * @type import('hardhat/config').HardhatUserConfig
  */
 module.exports = {
-  // zkSync Era configuration
-  zksolc: {
-    version: "1.3.14",
-    compilerSource: "binary",
-    settings: {},
-  },
+  // Removed zkSync configuration
   solidity: {
     version: "0.8.19",
     settings: {
@@ -39,45 +32,31 @@ module.exports = {
       viaIR: true, // Fixes "Stack too deep" errors
     },
   },
-  // Enable zkSync Era by default for compatible networks
-  defaultNetwork: "hardhat",
+      // Using Polygon as primary network
+    defaultNetwork: "hardhat",
   networks: {
     hardhat: {
       chainId: 31337,
-      zksync: false, // Disable zkSync for local development
+      // Local development network
     },
     localhost: {
-      url: "http://127.0.0.1:8545",
+      url: process.env.RPC_URL || "http://127.0.0.1:8545",
       chainId: 31337,
-      zksync: false,
     },
-    // zkSync Era Networks
-    zkSyncEra: {
-      url: process.env.ZKSYNC_RPC_URL || "https://mainnet.era.zksync.io",
-      ethNetwork: "mainnet",
-      chainId: 324,
-      zksync: true,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      verifyURL: "https://zksync2-mainnet-explorer.zksync.io/contract_verification",
-    },
-    zkSyncGoerli: {
-      url: process.env.ZKSYNC_GOERLI_RPC_URL || "https://testnet.era.zksync.dev",
-      ethNetwork: "goerli",
-      chainId: 280,
-      zksync: true,
-      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
-      verifyURL: "https://zksync2-testnet-explorer.zksync.dev/contract_verification",
-    },
+    // Removed zkSync networks - Using Polygon only
     mumbai: {
       url: process.env.MUMBAI_RPC_URL || "https://polygon-mumbai-bor.publicnode.com",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 80001,
+      gasPrice: 30000000000, // 30 gwei
+      gas: 8000000,
     },
     polygon: {
-      url: process.env.POLYGON_RPC_URL || "https://polygon-rpc.com/",
+      url: process.env.POLYGON_RPC_URL || "https://polygon-rpc.com",
       accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : [],
       chainId: 137,
       gasPrice: 35000000000, // 35 gwei
+      gas: 8000000,
     },
     mainnet: {
       url: process.env.MAINNET_RPC_URL || "https://mainnet.infura.io/v3/YOUR_INFURA_KEY",
@@ -132,14 +111,7 @@ module.exports = {
           browserURL: "https://optimistic.etherscan.io"
         }
       },
-      {
-        network: "zkSyncEra",
-        chainId: 324,
-        urls: {
-          apiURL: "https://zksync2-mainnet-explorer.zksync.io/contract_verification",
-          browserURL: "https://explorer.zksync.io"
-        }
-      }
+      // Removed zkSync verification
     ]
   },
   mocha: {

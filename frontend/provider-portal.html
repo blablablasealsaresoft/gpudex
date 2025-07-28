@@ -1,0 +1,938 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPUDex Provider Portal - List & Earn with Your GPUs</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .gradient-text { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .glass-morphism { backdrop-filter: blur(16px) saturate(180%); background-color: rgba(255, 255, 255, 0.75); border: 1px solid rgba(255, 255, 255, 0.125); }
+        .dark .glass-morphism { background-color: rgba(17, 25, 40, 0.75); border: 1px solid rgba(255, 255, 255, 0.125); }
+        
+        .card-hover { transition: all 0.3s ease; }
+        .card-hover:hover { transform: translateY(-4px); box-shadow: 0 15px 35px -12px rgba(0, 0, 0, 0.25); }
+        
+        .gpu-status-online { @apply bg-green-500; }
+        .gpu-status-busy { @apply bg-yellow-500; }
+        .gpu-status-offline { @apply bg-red-500; }
+        .gpu-status-maintenance { @apply bg-gray-500; }
+        
+        .earnings-trend-up { @apply text-green-500; }
+        .earnings-trend-down { @apply text-red-500; }
+        .earnings-trend-stable { @apply text-gray-500; }
+        
+        .provider-tier-bronze { @apply bg-gradient-to-r from-orange-400 to-orange-600; }
+        .provider-tier-silver { @apply bg-gradient-to-r from-gray-400 to-gray-600; }
+        .provider-tier-gold { @apply bg-gradient-to-r from-yellow-400 to-yellow-600; }
+        .provider-tier-platinum { @apply bg-gradient-to-r from-purple-400 to-pink-600; }
+        
+        .animate-pulse-green { animation: pulse-green 2s ease-in-out infinite alternate; }
+        @keyframes pulse-green {
+            from { box-shadow: 0 0 20px rgba(34, 197, 94, 0.3); }
+            to { box-shadow: 0 0 40px rgba(34, 197, 94, 0.6); }
+        }
+        
+        .gpu-card { 
+            background: linear-gradient(145deg, #f8fafc, #e2e8f0);
+            border: 1px solid #cbd5e1;
+        }
+        .dark .gpu-card {
+            background: linear-gradient(145deg, #1e293b, #334155);
+            border: 1px solid #475569;
+        }
+    </style>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#667eea',
+                        secondary: '#764ba2',
+                        accent: '#f093fb'
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+    <!-- Navigation -->
+    <nav class="fixed top-0 left-0 right-0 z-50 glass-morphism">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center">
+                        <div class="w-10 h-10 bg-gradient-to-r from-primary to-secondary rounded-xl flex items-center justify-center">
+                            <i class="fas fa-server text-white text-xl"></i>
+                        </div>
+                        <span class="ml-3 text-2xl font-bold gradient-text">GPUDex</span>
+                        <span class="ml-2 text-sm bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent font-bold">PROVIDER</span>
+                    </div>
+                    
+                    <!-- Navigation Links -->
+                    <div class="hidden md:flex items-center space-x-8 ml-8">
+                        <a href="#" onclick="showSection('dashboard')" class="nav-link text-gray-900 font-medium">Dashboard</a>
+                        <a href="#" onclick="showSection('gpus')" class="nav-link text-gray-500 hover:text-gray-900">My GPUs</a>
+                        <a href="#" onclick="showSection('listings')" class="nav-link text-gray-500 hover:text-gray-900">Manage Listings</a>
+                        <a href="#" onclick="showSection('earnings')" class="nav-link text-gray-500 hover:text-gray-900">Earnings</a>
+                        <a href="#" onclick="showSection('analytics')" class="nav-link text-gray-500 hover:text-gray-900">Analytics</a>
+                    </div>
+                </div>
+                
+                <!-- Right Side -->
+                <div class="flex items-center space-x-4">
+                    <!-- Provider Status -->
+                    <div class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-800 rounded-lg px-3 py-2">
+                        <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse" id="provider-status-indicator"></div>
+                        <span class="text-sm text-gray-600 dark:text-gray-300" id="provider-status">Verified Provider</span>
+                    </div>
+                    
+                    <!-- Earnings Display -->
+                    <div class="flex items-center space-x-2 bg-green-100 dark:bg-green-900 rounded-lg px-3 py-2">
+                        <i class="fas fa-dollar-sign text-green-600"></i>
+                        <span class="text-sm font-semibold text-green-600" id="total-earnings">$0.00</span>
+                    </div>
+                    
+                    <!-- Connect Wallet Button -->
+                    <button id="connect-wallet" class="bg-gradient-to-r from-primary to-secondary text-white px-6 py-2 rounded-lg hover:shadow-lg transition-all duration-300 animate-pulse-green">
+                        Connect Wallet
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <div class="pt-16">
+        
+        <!-- Provider Dashboard Section -->
+        <section id="dashboard-section" class="section-content">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                
+                <!-- Welcome Header -->
+                <div class="gradient-bg text-white rounded-2xl p-8 mb-8">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h1 class="text-4xl font-bold mb-2">Welcome back, GPU Provider!</h1>
+                            <p class="text-xl opacity-90 mb-4">Monetize your compute power and earn passive income</p>
+                            <div class="flex items-center space-x-6">
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-server text-2xl"></i>
+                                    <div>
+                                        <div class="text-sm opacity-80">Active GPUs</div>
+                                        <div class="text-2xl font-bold" id="active-gpus-count">0</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-clock text-2xl"></i>
+                                    <div>
+                                        <div class="text-sm opacity-80">Total Runtime</div>
+                                        <div class="text-2xl font-bold" id="total-runtime">0h</div>
+                                    </div>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    <i class="fas fa-chart-line text-2xl"></i>
+                                    <div>
+                                        <div class="text-sm opacity-80">This Month</div>
+                                        <div class="text-2xl font-bold" id="monthly-earnings">$0.00</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-center">
+                            <div class="provider-tier-gold text-white rounded-xl px-6 py-3">
+                                <div class="text-sm opacity-90">Provider Tier</div>
+                                <div class="text-2xl font-bold" id="provider-tier">Gold</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Stats Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-300 text-sm">Today's Earnings</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white" id="daily-earnings">$0.00</p>
+                                <p class="text-green-500 text-sm"><i class="fas fa-arrow-up"></i> +12.5%</p>
+                            </div>
+                            <div class="w-12 h-12 bg-green-100 dark:bg-green-900 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-dollar-sign text-green-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-300 text-sm">Utilization Rate</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white" id="utilization-rate">0%</p>
+                                <p class="text-blue-500 text-sm"><i class="fas fa-arrow-up"></i> +5.2%</p>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-percentage text-blue-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-300 text-sm">Performance Score</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white" id="performance-score">0</p>
+                                <p class="text-purple-500 text-sm"><i class="fas fa-star"></i> Excellent</p>
+                            </div>
+                            <div class="w-12 h-12 bg-purple-100 dark:bg-purple-900 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-chart-bar text-purple-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-600 dark:text-gray-300 text-sm">Active Rentals</p>
+                                <p class="text-3xl font-bold text-gray-900 dark:text-white" id="active-rentals">0</p>
+                                <p class="text-orange-500 text-sm"><i class="fas fa-server"></i> Running</p>
+                            </div>
+                            <div class="w-12 h-12 bg-orange-100 dark:bg-orange-900 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-play text-orange-600 text-xl"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recent Activity & Quick Actions -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Recent Activity</h3>
+                        <div class="space-y-4" id="recent-activity">
+                            <div class="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <div class="flex-1">
+                                    <p class="text-sm text-gray-900 dark:text-white">RTX 4090 rented for 4 hours</p>
+                                    <p class="text-xs text-gray-500">2 minutes ago - $4.80 earned</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+                                <div class="flex-1">
+                                    <p class="text-sm text-gray-900 dark:text-white">H100 listed at $5.50/hour</p>
+                                    <p class="text-xs text-gray-500">1 hour ago</p>
+                                </div>
+                            </div>
+                            <div class="flex items-center space-x-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <div class="w-2 h-2 bg-purple-500 rounded-full"></div>
+                                <div class="flex-1">
+                                    <p class="text-sm text-gray-900 dark:text-white">Provider tier upgraded to Gold</p>
+                                    <p class="text-xs text-gray-500">3 hours ago</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Quick Actions</h3>
+                        <div class="space-y-3">
+                            <button onclick="showSection('gpus')" class="w-full bg-gradient-to-r from-primary to-secondary text-white py-3 rounded-lg hover:shadow-lg transition-all duration-300 flex items-center justify-center space-x-2">
+                                <i class="fas fa-plus"></i>
+                                <span>Add New GPU</span>
+                            </button>
+                            <button onclick="optimizePricing()" class="w-full bg-gradient-to-r from-green-500 to-blue-500 text-white py-3 rounded-lg hover:shadow-lg transition-all duration-300 flex items-center justify-center space-x-2">
+                                <i class="fas fa-magic"></i>
+                                <span>Optimize Pricing</span>
+                            </button>
+                            <button onclick="showSection('earnings')" class="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-white py-3 rounded-lg hover:shadow-lg transition-all duration-300 flex items-center justify-center space-x-2">
+                                <i class="fas fa-download"></i>
+                                <span>Withdraw Earnings</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Earnings Chart -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                    <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Earnings Overview</h3>
+                    <canvas id="earnings-chart" height="400"></canvas>
+                </div>
+            </div>
+        </section>
+        
+        <!-- My GPUs Section -->
+        <section id="gpus-section" class="section-content hidden">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="text-4xl font-bold gradient-text">My GPUs</h1>
+                    <button onclick="showAddGPUModal()" class="bg-gradient-to-r from-primary to-secondary text-white px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-300 flex items-center space-x-2">
+                        <i class="fas fa-plus"></i>
+                        <span>Add GPU</span>
+                    </button>
+                </div>
+                
+                <!-- GPU Cards Grid -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="gpu-cards-container">
+                    <!-- GPU cards will be populated by JavaScript -->
+                </div>
+            </div>
+        </section>
+        
+        <!-- Manage Listings Section -->
+        <section id="listings-section" class="section-content hidden">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="text-4xl font-bold gradient-text">Manage Listings</h1>
+                    <div class="flex items-center space-x-4">
+                        <select class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                            <option>All Listings</option>
+                            <option>Active</option>
+                            <option>Paused</option>
+                            <option>Rented</option>
+                        </select>
+                        <button onclick="bulkOptimizePricing()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                            <i class="fas fa-magic mr-2"></i>Optimize All
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Listings Table -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-gray-50 dark:bg-gray-700">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">GPU</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Price/Hour</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Utilization</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Earnings</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700" id="listings-table-body">
+                                <!-- Table rows will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Earnings Section -->
+        <section id="earnings-section" class="section-content hidden">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <div class="flex justify-between items-center mb-8">
+                    <h1 class="text-4xl font-bold gradient-text">Earnings & Withdrawals</h1>
+                    <div class="flex items-center space-x-4">
+                        <select class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+                            <option>Last 30 Days</option>
+                            <option>Last 7 Days</option>
+                            <option>Last 24 Hours</option>
+                            <option>All Time</option>
+                        </select>
+                        <button onclick="withdrawEarnings()" class="bg-gradient-to-r from-green-500 to-blue-500 text-white px-6 py-3 rounded-lg hover:shadow-lg transition-all duration-300 flex items-center space-x-2">
+                            <i class="fas fa-download"></i>
+                            <span>Withdraw</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Earnings Summary -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <div class="text-center">
+                            <h3 class="text-lg font-semibold text-gray-600 dark:text-gray-300 mb-2">Available Balance</h3>
+                            <p class="text-4xl font-bold text-green-500" id="available-balance">$0.00</p>
+                            <p class="text-sm text-gray-500 mt-2">Ready to withdraw</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <div class="text-center">
+                            <h3 class="text-lg font-semibold text-gray-600 dark:text-gray-300 mb-2">Pending Earnings</h3>
+                            <p class="text-4xl font-bold text-yellow-500" id="pending-earnings">$0.00</p>
+                            <p class="text-sm text-gray-500 mt-2">Processing rentals</p>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <div class="text-center">
+                            <h3 class="text-lg font-semibold text-gray-600 dark:text-gray-300 mb-2">Total Lifetime</h3>
+                            <p class="text-4xl font-bold text-blue-500" id="lifetime-earnings">$0.00</p>
+                            <p class="text-sm text-gray-500 mt-2">All-time earnings</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Withdrawal History & Detailed Earnings -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Withdrawal History</h3>
+                        <div class="space-y-4" id="withdrawal-history">
+                            <!-- Withdrawal history will be populated by JavaScript -->
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Earnings Breakdown</h3>
+                        <canvas id="earnings-breakdown-chart" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Analytics Section -->
+        <section id="analytics-section" class="section-content hidden">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                <h1 class="text-4xl font-bold gradient-text mb-8">Provider Analytics</h1>
+                
+                <!-- Analytics Charts -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Utilization Trends</h3>
+                        <canvas id="utilization-chart" height="300"></canvas>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                        <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Performance Metrics</h3>
+                        <canvas id="performance-chart" height="300"></canvas>
+                    </div>
+                </div>
+                
+                <!-- Detailed Analytics -->
+                <div class="bg-white dark:bg-gray-800 rounded-xl p-6 shadow-lg">
+                    <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">Detailed Analytics</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div class="text-2xl font-bold text-blue-500" id="avg-rental-duration">0h</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Avg Rental Duration</div>
+                        </div>
+                        <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div class="text-2xl font-bold text-green-500" id="customer-satisfaction">0%</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Customer Satisfaction</div>
+                        </div>
+                        <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                            <div class="text-2xl font-bold text-purple-500" id="repeat-customers">0%</div>
+                            <div class="text-sm text-gray-600 dark:text-gray-300">Repeat Customers</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+    
+    <!-- Add GPU Modal -->
+    <div id="add-gpu-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-8 max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Add New GPU</h2>
+                <button onclick="hideAddGPUModal()" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="add-gpu-form" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">GPU Model</label>
+                        <select id="gpu-model" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                            <option>NVIDIA RTX 4090</option>
+                            <option>NVIDIA RTX 3090</option>
+                            <option>NVIDIA A100</option>
+                            <option>NVIDIA H100</option>
+                            <option>AMD RX 7900 XTX</option>
+                            <option>Other</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Memory (GB)</label>
+                        <input type="number" id="gpu-memory" placeholder="24" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Price per Hour ($)</label>
+                        <input type="number" step="0.01" id="gpu-price" placeholder="1.20" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Location</label>
+                        <select id="gpu-location" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                            <option>US East</option>
+                            <option>US West</option>
+                            <option>Europe</option>
+                            <option>Asia Pacific</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</label>
+                    <textarea id="gpu-description" rows="3" placeholder="Additional details about your GPU setup..." class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white"></textarea>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <label class="flex items-center">
+                        <input type="checkbox" id="auto-pricing" class="mr-2">
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Enable auto-pricing optimization</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="checkbox" id="instant-booking" class="mr-2" checked>
+                        <span class="text-sm text-gray-700 dark:text-gray-300">Allow instant booking</span>
+                    </label>
+                </div>
+                
+                <div class="flex justify-end space-x-4">
+                    <button type="button" onclick="hideAddGPUModal()" class="px-6 py-3 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-6 py-3 bg-gradient-to-r from-primary to-secondary text-white rounded-lg hover:shadow-lg transition-all duration-300">
+                        Add GPU
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white dark:bg-gray-800 rounded-xl p-8 text-center max-w-sm mx-4">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p class="text-gray-600 dark:text-gray-300" id="loading-message">Processing...</p>
+        </div>
+    </div>
+
+    <script src="enterprise-api-connector.js"></script>
+    <script>
+        // Global Variables
+        let currentSection = 'dashboard';
+        let userGPUs = [];
+        let userEarnings = { total: 0, available: 0, pending: 0 };
+        
+        // Mock Data
+        const mockProviderData = {
+            gpus: [
+                {
+                    id: 1,
+                    model: 'NVIDIA RTX 4090',
+                    memory: '24GB GDDR6X',
+                    price: 1.20,
+                    status: 'online',
+                    utilization: 85,
+                    earnings: 145.50,
+                    location: 'US East'
+                },
+                {
+                    id: 2,
+                    model: 'NVIDIA H100',
+                    memory: '80GB HBM3',
+                    price: 4.50,
+                    status: 'busy',
+                    utilization: 100,
+                    earnings: 892.30,
+                    location: 'US West'
+                },
+                {
+                    id: 3,
+                    model: 'NVIDIA A100',
+                    memory: '40GB HBM2e',
+                    price: 2.75,
+                    status: 'offline',
+                    utilization: 0,
+                    earnings: 523.75,
+                    location: 'Europe'
+                }
+            ],
+            earnings: {
+                daily: 45.80,
+                monthly: 1247.55,
+                total: 8934.20,
+                available: 1156.30,
+                pending: 91.25
+            }
+        };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 Initializing GPUDex Provider Portal...');
+            
+            loadProviderData();
+            initializeCharts();
+            
+            // Auto-refresh data every 30 seconds
+            setInterval(updateProviderData, 30000);
+        });
+        
+        // Section Management
+        function showSection(sectionName) {
+            // Hide all sections
+            document.querySelectorAll('.section-content').forEach(section => {
+                section.classList.add('hidden');
+            });
+            
+            // Show selected section
+            document.getElementById(sectionName + '-section').classList.remove('hidden');
+            
+            // Update navigation
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('text-gray-900', 'font-medium');
+                link.classList.add('text-gray-500');
+            });
+            
+            currentSection = sectionName;
+            
+            // Load section-specific data
+            loadSectionData(sectionName);
+        }
+        
+        function loadSectionData(sectionName) {
+            switch(sectionName) {
+                case 'gpus':
+                    loadGPUManagement();
+                    break;
+                case 'listings':
+                    loadListingsManagement();
+                    break;
+                case 'earnings':
+                    loadEarningsData();
+                    break;
+                case 'analytics':
+                    loadAnalyticsData();
+                    break;
+            }
+        }
+        
+        // Provider Data Management
+        function loadProviderData() {
+            // Load mock data
+            userGPUs = mockProviderData.gpus;
+            userEarnings = mockProviderData.earnings;
+            
+            // Update dashboard
+            updateDashboardData();
+            updateGPUCards();
+        }
+        
+        function updateDashboardData() {
+            // Update stats
+            document.getElementById('active-gpus-count').textContent = userGPUs.filter(gpu => gpu.status === 'online' || gpu.status === 'busy').length;
+            document.getElementById('total-runtime').textContent = '1,247h';
+            document.getElementById('monthly-earnings').textContent = `$${userEarnings.monthly.toFixed(2)}`;
+            document.getElementById('daily-earnings').textContent = `$${userEarnings.daily.toFixed(2)}`;
+            document.getElementById('total-earnings').textContent = `$${userEarnings.total.toFixed(2)}`;
+            document.getElementById('utilization-rate').textContent = '85%';
+            document.getElementById('performance-score').textContent = '94.2';
+            document.getElementById('active-rentals').textContent = userGPUs.filter(gpu => gpu.status === 'busy').length;
+        }
+        
+        function updateGPUCards() {
+            const container = document.getElementById('gpu-cards-container');
+            if (!container) return;
+            
+            container.innerHTML = userGPUs.map(gpu => `
+                <div class="gpu-card rounded-xl p-6 shadow-lg card-hover">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-xl font-bold text-gray-900 dark:text-white">${gpu.model}</h3>
+                            <p class="text-gray-600 dark:text-gray-300">${gpu.memory}</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-3 h-3 gpu-status-${gpu.status} rounded-full"></div>
+                            <span class="text-sm font-medium capitalize ${
+                                gpu.status === 'online' ? 'text-green-600' :
+                                gpu.status === 'busy' ? 'text-yellow-600' :
+                                gpu.status === 'offline' ? 'text-red-600' : 'text-gray-600'
+                            }">${gpu.status}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-3 mb-6">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-300">Price/Hour</span>
+                            <span class="font-semibold text-gray-900 dark:text-white">$${gpu.price.toFixed(2)}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-300">Location</span>
+                            <span class="font-semibold text-gray-900 dark:text-white">${gpu.location}</span>
+                        </div>
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 dark:text-gray-300">Utilization</span>
+                            <div class="flex items-center space-x-2">
+                                <div class="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                    <div class="bg-green-500 h-2 rounded-full" style="width: ${gpu.utilization}%"></div>
+                                </div>
+                                <span class="text-sm font-semibold text-gray-900 dark:text-white">${gpu.utilization}%</span>
+                            </div>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600 dark:text-gray-300">Total Earnings</span>
+                            <span class="font-semibold text-green-600">$${gpu.earnings.toFixed(2)}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="flex space-x-2">
+                        <button onclick="editGPU(${gpu.id})" class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                            <i class="fas fa-edit mr-1"></i>Edit
+                        </button>
+                        <button onclick="toggleGPUStatus(${gpu.id})" class="flex-1 bg-${gpu.status === 'offline' ? 'green' : 'yellow'}-600 text-white py-2 rounded-lg hover:bg-${gpu.status === 'offline' ? 'green' : 'yellow'}-700 transition-colors text-sm">
+                            <i class="fas fa-power-off mr-1"></i>${gpu.status === 'offline' ? 'Start' : 'Pause'}
+                        </button>
+                        <button onclick="removeGPU(${gpu.id})" class="bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors text-sm">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // GPU Management Functions
+        function showAddGPUModal() {
+            document.getElementById('add-gpu-modal').classList.remove('hidden');
+        }
+        
+        function hideAddGPUModal() {
+            document.getElementById('add-gpu-modal').classList.add('hidden');
+            document.getElementById('add-gpu-form').reset();
+        }
+        
+        function addGPU(event) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const newGPU = {
+                id: userGPUs.length + 1,
+                model: document.getElementById('gpu-model').value,
+                memory: document.getElementById('gpu-memory').value + 'GB',
+                price: parseFloat(document.getElementById('gpu-price').value),
+                status: 'online',
+                utilization: 0,
+                earnings: 0,
+                location: document.getElementById('gpu-location').value
+            };
+            
+            userGPUs.push(newGPU);
+            updateGPUCards();
+            hideAddGPUModal();
+            
+            showNotification('GPU added successfully!', 'success');
+        }
+        
+        function toggleGPUStatus(gpuId) {
+            const gpu = userGPUs.find(g => g.id === gpuId);
+            if (gpu) {
+                gpu.status = gpu.status === 'offline' ? 'online' : 'offline';
+                updateGPUCards();
+                showNotification(`GPU ${gpu.status === 'online' ? 'started' : 'paused'}!`, 'info');
+            }
+        }
+        
+        function removeGPU(gpuId) {
+            if (confirm('Are you sure you want to remove this GPU?')) {
+                userGPUs = userGPUs.filter(g => g.id !== gpuId);
+                updateGPUCards();
+                showNotification('GPU removed successfully!', 'success');
+            }
+        }
+        
+        // Listings Management
+        function loadListingsManagement() {
+            const tbody = document.getElementById('listings-table-body');
+            if (!tbody) return;
+            
+            tbody.innerHTML = userGPUs.map(gpu => `
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="text-sm font-medium text-gray-900 dark:text-white">${gpu.model}</div>
+                            <div class="text-sm text-gray-500 ml-2">${gpu.memory}</div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 py-1 text-xs font-semibold rounded-full ${
+                            gpu.status === 'online' ? 'bg-green-100 text-green-800' :
+                            gpu.status === 'busy' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                        }">
+                            ${gpu.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                        $${gpu.price.toFixed(2)}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                                <div class="bg-blue-600 h-2 rounded-full" style="width: ${gpu.utilization}%"></div>
+                            </div>
+                            <span class="text-sm text-gray-900 dark:text-white">${gpu.utilization}%</span>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-green-600 font-semibold">
+                        $${gpu.earnings.toFixed(2)}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <button onclick="editPricing(${gpu.id})" class="text-blue-600 hover:text-blue-900 mr-3">Edit</button>
+                        <button onclick="toggleGPUStatus(${gpu.id})" class="text-yellow-600 hover:text-yellow-900 mr-3">
+                            ${gpu.status === 'offline' ? 'Start' : 'Pause'}
+                        </button>
+                        <button onclick="viewAnalytics(${gpu.id})" class="text-purple-600 hover:text-purple-900">Analytics</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        // Earnings Management
+        function loadEarningsData() {
+            document.getElementById('available-balance').textContent = `$${userEarnings.available.toFixed(2)}`;
+            document.getElementById('pending-earnings').textContent = `$${userEarnings.pending.toFixed(2)}`;
+            document.getElementById('lifetime-earnings').textContent = `$${userEarnings.total.toFixed(2)}`;
+        }
+        
+        function withdrawEarnings() {
+            if (userEarnings.available <= 0) {
+                showNotification('No funds available for withdrawal', 'warning');
+                return;
+            }
+            
+            showLoading(true, 'Processing withdrawal...');
+            
+            // Simulate withdrawal process
+            setTimeout(() => {
+                showLoading(false);
+                showNotification(`Successfully withdrew $${userEarnings.available.toFixed(2)}!`, 'success');
+                userEarnings.available = 0;
+                loadEarningsData();
+            }, 3000);
+        }
+        
+        // Charts
+        function initializeCharts() {
+            // Earnings Chart
+            const earningsCtx = document.getElementById('earnings-chart');
+            if (earningsCtx) {
+                new Chart(earningsCtx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                        datasets: [{
+                            label: 'Monthly Earnings',
+                            data: [450, 680, 820, 950, 1100, 1247],
+                            borderColor: '#667eea',
+                            backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: {
+                                    callback: function(value) {
+                                        return '$' + value;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        // Utility Functions
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 transition-all duration-300 ${
+                type === 'success' ? 'bg-green-500' : 
+                type === 'error' ? 'bg-red-500' : 
+                type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+            }`;
+            
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas fa-${
+                        type === 'success' ? 'check-circle' : 
+                        type === 'error' ? 'exclamation-circle' : 
+                        type === 'warning' ? 'exclamation-triangle' : 'info-circle'
+                    } mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 5000);
+        }
+        
+        function showLoading(show, message = 'Processing...') {
+            const overlay = document.getElementById('loading-overlay');
+            const messageEl = document.getElementById('loading-message');
+            
+            if (overlay) {
+                overlay.classList.toggle('hidden', !show);
+                if (messageEl) {
+                    messageEl.textContent = message;
+                }
+            }
+        }
+        
+        function optimizePricing() {
+            showLoading(true, 'Optimizing pricing...');
+            
+            setTimeout(() => {
+                // Simulate AI pricing optimization
+                userGPUs.forEach(gpu => {
+                    gpu.price = Math.round((gpu.price * (0.95 + Math.random() * 0.1)) * 100) / 100;
+                });
+                
+                updateGPUCards();
+                loadListingsManagement();
+                showLoading(false);
+                showNotification('Pricing optimized based on market demand!', 'success');
+            }, 2000);
+        }
+        
+        function updateProviderData() {
+            // Simulate real-time updates
+            userGPUs.forEach(gpu => {
+                if (gpu.status === 'online' || gpu.status === 'busy') {
+                    gpu.utilization = Math.max(0, gpu.utilization + (Math.random() - 0.5) * 10);
+                    gpu.utilization = Math.min(100, gpu.utilization);
+                    
+                    if (gpu.status === 'busy') {
+                        gpu.earnings += gpu.price / 60; // Add earnings per minute
+                    }
+                }
+            });
+            
+            updateDashboardData();
+        }
+        
+        // Event Listeners
+        document.getElementById('add-gpu-form').addEventListener('submit', addGPU);
+        
+        // Connect wallet functionality (placeholder)
+        document.getElementById('connect-wallet').addEventListener('click', function() {
+            // Integration with existing wallet connection logic
+            showNotification('Wallet connection feature coming soon!', 'info');
+        });
+    </script>
+</body>
+</html> 

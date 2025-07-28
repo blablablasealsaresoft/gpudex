@@ -32,7 +32,7 @@ class APIKeyScope(str, Enum):
     READ_ANALYTICS = "read:analytics" 
     CREATE_RENTALS = "create:rentals"
     MANAGE_RENTALS = "manage:rentals"
-    READ_PREDICTIONS = "read:predictions"
+
     ADMIN = "admin:*"
     BILLING = "billing:*"
 
@@ -49,7 +49,7 @@ class UsageMetric(str, Enum):
     API_REQUESTS = "api_requests"
     GPU_HOURS = "gpu_hours"
     DATA_TRANSFER = "data_transfer"
-    PREDICTIONS = "predictions"
+
 
 @dataclass
 class PlanLimits:
@@ -95,7 +95,7 @@ PLAN_LIMITS = {
         max_team_members=15,
         max_api_keys=25,
         scopes=[APIKeyScope.READ_PRICES, APIKeyScope.READ_ANALYTICS, APIKeyScope.CREATE_RENTALS, 
-                APIKeyScope.MANAGE_RENTALS, APIKeyScope.READ_PREDICTIONS],
+                APIKeyScope.MANAGE_RENTALS],
         price_usd=99,
         gpu_hour_credits=200,
         support_level="priority"

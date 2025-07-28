@@ -1,0 +1,34 @@
+FROM node:20-alpine
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apk add --no-cache git python3 make g++ curl
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies INCLUDING devDependencies
+RUN npm ci --include=dev
+
+# Verify hardhat installation for node service
+RUN npm list hardhat || echo "Hardhat not found in node service!"
+
+# Copy configuration
+COPY hardhat.config.js ./
+COPY contracts/ ./contracts/
+COPY scripts/ ./scripts/
+
+# Create accounts directory for persistent accounts
+RUN mkdir -p /app/accounts
+
+# Expose Hardhat node port
+EXPOSE 8545
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8545/ || exit 1
+
+# Start Hardhat node
+CMD ["npx", "hardhat", "node", "--hostname", "0.0.0.0", "--port", "8545"] 
