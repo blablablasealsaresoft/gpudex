@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPUDex - Beta Access</title>
+    <link rel="icon" href="favicon.svg" type="image/svg+xml">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#667eea',
+                        secondary: '#764ba2'
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        /* 🎨 UNIFIED THEME COMPONENTS */
+        .unified-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px) saturate(200%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+        .dark .unified-card {
+            background: rgba(17, 25, 40, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        .unified-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 25px 50px rgba(102, 126, 234, 0.25);
+            border-color: rgba(102, 126, 234, 0.4);
+        }
+
+        .theme-gradient-bg { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); 
+        }
+        .theme-gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .section-bg {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 50%, rgba(240, 147, 251, 0.1) 100%);
+            backdrop-filter: blur(10px);
+        }
+
+        .primary-button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            transition: all 0.3s ease;
+        }
+        .primary-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        /* Animated background */
+        .animated-bg {
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 25%, #16213e 50%, #1a1a2e 75%, #0c0c0c 100%);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+        }
+
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Floating particles animation */
+        .particle {
+            position: absolute;
+            background: rgba(102, 126, 234, 0.3);
+            border-radius: 50%;
+            animation: float 20s infinite linear;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(-100vh) rotate(360deg); opacity: 0; }
+        }
+
+        /* Pulse animation for beta badge */
+        @keyframes pulse-glow {
+            0%, 100% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.5); }
+            50% { box-shadow: 0 0 40px rgba(102, 126, 234, 0.8); }
+        }
+
+        .animate-pulse-glow {
+            animation: pulse-glow 2s ease-in-out infinite;
+        }
+
+        /* Shake animation for wrong password */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+
+        .animate-shake {
+            animation: shake 0.5s ease-in-out;
+        }
+
+        /* Success animation */
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+
+        .animate-success {
+            animation: successPulse 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="animated-bg min-h-screen flex items-center justify-center p-4 overflow-hidden">
+    
+    <!-- Floating Particles Background -->
+    <div id="particles-container" class="fixed inset-0 pointer-events-none z-0"></div>
+    
+    <!-- Main Beta Gate Container -->
+    <div class="relative z-10 w-full max-w-md">
+        
+        <!-- Beta Access Card -->
+        <div id="beta-card" class="unified-card rounded-2xl p-8 text-center transform transition-all duration-500">
+            
+            <!-- Logo and Branding -->
+            <div class="mb-8">
+                <div class="w-20 h-20 mx-auto mb-4 theme-gradient-bg rounded-full flex items-center justify-center animate-pulse-glow">
+                    <span class="text-3xl">🖥️</span>
+                </div>
+                <h1 class="text-3xl font-bold theme-gradient-text mb-2">GPUDex</h1>
+                <p class="text-gray-300 text-sm">GPU Rental Marketplace</p>
+            </div>
+            
+            <!-- Beta Badge -->
+            <div class="mb-6">
+                <span class="inline-flex items-center px-4 py-2 rounded-full text-sm font-semibold bg-gradient-to-r from-purple-500 to-pink-500 text-white animate-pulse-glow">
+                    🚀 BETA ACCESS
+                </span>
+            </div>
+            
+            <!-- Access Form -->
+            <div class="space-y-6">
+                <div>
+                    <h2 class="text-xl font-semibold text-white mb-2">Welcome, Beta Tester!</h2>
+                    <p class="text-gray-400 text-sm mb-6">Enter your access code to continue to the platform</p>
+                </div>
+                
+                <!-- Password Input -->
+                <div class="space-y-4">
+                    <div class="relative">
+                        <input 
+                            type="password" 
+                            id="beta-password" 
+                            placeholder="Enter Beta Access Code"
+                            class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all duration-300"
+                            maxlength="10"
+                        >
+                        <div class="absolute right-3 top-3">
+                            <span class="text-gray-400">🔐</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Error Message -->
+                    <div id="error-message" class="text-red-400 text-sm hidden">
+                        ❌ Invalid access code. Please try again.
+                    </div>
+                    
+                    <!-- Success Message -->
+                    <div id="success-message" class="text-green-400 text-sm hidden">
+                        ✅ Access granted! Redirecting to platform...
+                    </div>
+                </div>
+                
+                <!-- Access Button -->
+                <button 
+                    id="access-btn" 
+                    onclick="checkAccess()"
+                    class="primary-button w-full py-3 px-6 rounded-lg text-white font-semibold hover:shadow-lg transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                >
+                    🚀 ACCESS PLATFORM
+                </button>
+            </div>
+            
+            <!-- Beta Info -->
+            <div class="mt-8 pt-6 border-t border-gray-600">
+                <div class="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                        <div class="text-purple-400 font-bold">LIVE</div>
+                        <div class="text-xs text-gray-500">Crypto Prices</div>
+                    </div>
+                    <div>
+                        <div class="text-purple-400 font-bold">WALLET</div>
+                        <div class="text-xs text-gray-500">Connect Ready</div>
+                    </div>
+                    <div>
+                        <div class="text-purple-400 font-bold">GPU</div>
+                        <div class="text-xs text-gray-500">Marketplace</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div class="mt-6 text-xs text-gray-500">
+                <p>Beta Version 2.0.0 • Production Ready</p>
+                <p class="mt-1">🔐 Authorized Beta Testers Only</p>
+            </div>
+        </div>
+        
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="hidden absolute inset-0 bg-black/50 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+            <div class="text-center">
+                <div class="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p class="text-white font-semibold">Accessing Platform...</p>
+                <p class="text-gray-400 text-sm">Initializing secure connection</p>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 🎨 BETA ACCESS GATE FUNCTIONALITY
+        
+        // Create floating particles
+        function createParticles() {
+            const container = document.getElementById('particles-container');
+            const particleCount = 15;
+            
+            for (let i = 0; i < particleCount; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                particle.style.left = Math.random() * 100 + '%';
+                particle.style.width = (Math.random() * 4 + 2) + 'px';
+                particle.style.height = particle.style.width;
+                particle.style.animationDelay = Math.random() * 20 + 's';
+                particle.style.animationDuration = (Math.random() * 10 + 15) + 's';
+                container.appendChild(particle);
+            }
+        }
+        
+        // Initialize particles
+        createParticles();
+        
+        // Password check functionality
+        const BETA_PASSWORD = 'CK'; // The required password
+        let attempts = 0;
+        const maxAttempts = 3;
+        
+        function checkAccess() {
+            const passwordInput = document.getElementById('beta-password');
+            const errorMessage = document.getElementById('error-message');
+            const successMessage = document.getElementById('success-message');
+            const betaCard = document.getElementById('beta-card');
+            const loadingOverlay = document.getElementById('loading-overlay');
+            const accessBtn = document.getElementById('access-btn');
+            
+            const enteredPassword = passwordInput.value.trim();
+            
+            // Clear previous messages
+            errorMessage.classList.add('hidden');
+            successMessage.classList.add('hidden');
+            betaCard.classList.remove('animate-shake');
+            
+            if (enteredPassword === BETA_PASSWORD) {
+                // Correct password
+                successMessage.classList.remove('hidden');
+                betaCard.classList.add('animate-success');
+                passwordInput.style.borderColor = '#10b981';
+                accessBtn.disabled = true;
+                accessBtn.innerHTML = '✅ ACCESS GRANTED';
+                
+                // Show loading overlay
+                setTimeout(() => {
+                    loadingOverlay.classList.remove('hidden');
+                }, 500);
+                
+                // Redirect to main platform
+                setTimeout(() => {
+                    // Store access token in session storage
+                    sessionStorage.setItem('betaAccess', 'true');
+                    sessionStorage.setItem('betaAccessTime', Date.now().toString());
+                    
+                    // Redirect to main platform
+                    window.location.href = 'index.html';
+                }, 2000);
+                
+            } else {
+                // Wrong password
+                attempts++;
+                errorMessage.classList.remove('hidden');
+                betaCard.classList.add('animate-shake');
+                passwordInput.style.borderColor = '#ef4444';
+                passwordInput.value = '';
+                passwordInput.focus();
+                
+                if (attempts >= maxAttempts) {
+                    errorMessage.innerHTML = `❌ Maximum attempts reached. Please contact the developer.`;
+                    passwordInput.disabled = true;
+                    accessBtn.disabled = true;
+                    accessBtn.innerHTML = '🔒 ACCESS BLOCKED';
+                    
+                    // Auto-reload after 10 seconds
+                    setTimeout(() => {
+                        location.reload();
+                    }, 10000);
+                } else {
+                    errorMessage.innerHTML = `❌ Invalid access code. ${maxAttempts - attempts} attempts remaining.`;
+                }
+            }
+        }
+        
+        // Enter key support
+        document.getElementById('beta-password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                checkAccess();
+            }
+        });
+        
+        // Auto-focus on password input
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('beta-password').focus();
+        });
+        
+        // Check if already authenticated
+        function checkExistingAccess() {
+            const betaAccess = sessionStorage.getItem('betaAccess');
+            const accessTime = sessionStorage.getItem('betaAccessTime');
+            
+            if (betaAccess === 'true' && accessTime) {
+                const currentTime = Date.now();
+                const storedTime = parseInt(accessTime);
+                const hoursPassed = (currentTime - storedTime) / (1000 * 60 * 60);
+                
+                // Auto-login if accessed within last 24 hours
+                if (hoursPassed < 24) {
+                    document.getElementById('loading-overlay').classList.remove('hidden');
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1000);
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        // Check for existing access on load
+        if (!checkExistingAccess()) {
+            // Show the gate normally
+            console.log('🔐 Beta Access Gate Active - Password Required');
+        }
+        
+        // Prevent right-click and inspect (basic protection)
+        document.addEventListener('contextmenu', function(e) {
+            e.preventDefault();
+        });
+        
+        document.addEventListener('keydown', function(e) {
+            // Disable F12, Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+U
+            if (e.key === 'F12' || 
+                (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J')) ||
+                (e.ctrlKey && e.key === 'u')) {
+                e.preventDefault();
+            }
+        });
+        
+        console.log('🚀 GPUDex Beta Access Gate Initialized');
+        console.log('🔐 Beta Version 2.0.0 - Production Ready');
+    </script>
+</body>
+</html> 

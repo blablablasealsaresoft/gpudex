@@ -5,6 +5,7 @@ RUN apk add --no-cache curl
 
 # Copy UNIFIED PLATFORM frontend files
 COPY frontend/index.html /usr/share/nginx/html/index.html
+COPY frontend/beta-gate.html /usr/share/nginx/html/beta-gate.html
 COPY frontend/ultimate-styles.css /usr/share/nginx/html/
 COPY frontend/enhanced-styles.css /usr/share/nginx/html/
 COPY frontend/favicon.svg /usr/share/nginx/html/

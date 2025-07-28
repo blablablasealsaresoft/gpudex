@@ -5416,8 +5416,39 @@ curl -H "Authorization: Bearer ${apiKey}" \\<br>
             }, 5000);
         }
 
+        // 🔐 BETA ACCESS SECURITY CHECK
+        function checkBetaAccess() {
+            const betaAccess = sessionStorage.getItem('betaAccess');
+            const accessTime = sessionStorage.getItem('betaAccessTime');
+            
+            if (betaAccess !== 'true' || !accessTime) {
+                // No beta access - redirect to gate
+                window.location.href = 'beta-gate.html';
+                return false;
+            }
+            
+            const currentTime = Date.now();
+            const storedTime = parseInt(accessTime);
+            const hoursPassed = (currentTime - storedTime) / (1000 * 60 * 60);
+            
+            // Session expires after 24 hours
+            if (hoursPassed >= 24) {
+                sessionStorage.removeItem('betaAccess');
+                sessionStorage.removeItem('betaAccessTime');
+                window.location.href = 'beta-gate.html';
+                return false;
+            }
+            
+            return true;
+        }
+
         // Initialize when page loads (enhanced with live prices)
         document.addEventListener('DOMContentLoaded', () => {
+            // Check beta access first
+            if (!checkBetaAccess()) {
+                return; // Will redirect to beta gate
+            }
+            
             setTimeout(async () => {
                 await initializeSwapInterface();
                 
@@ -5430,6 +5461,7 @@ curl -H "Authorization: Bearer ${apiKey}" \\<br>
                 }
                 
                 console.log('🚀 GPUDex initialized with live crypto prices!');
+                console.log('🔐 Beta access verified - Welcome to GPUDex!');
             }, 1000);
         });
 
