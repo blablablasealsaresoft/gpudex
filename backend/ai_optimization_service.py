@@ -174,7 +174,7 @@ class AIOptimizationService:
         SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
         return SessionLocal()
     
-    async def predict_gpu_prices(self, gpu_models: List[str], timeframe_hours: int = 24) -> List[MarketPrediction]:
+async def predict_gpu_prices(self, gpu_models: List[str], timeframe_hours: int = 24) -> List[MarketPrediction]:
         """AI-powered GPU price prediction"""
         try:
             predictions = []
@@ -219,7 +219,7 @@ class AIOptimizationService:
             logger.error(f"Error predicting GPU prices: {e}")
             return []
     
-    async def optimize_portfolio(self, wallet_address: str) -> PortfolioOptimization:
+async def optimize_portfolio(self, wallet_address: str) -> PortfolioOptimization:
         """Advanced portfolio optimization using modern portfolio theory"""
         try:
             # Get current portfolio
@@ -304,7 +304,7 @@ class AIOptimizationService:
                 rebalance_actions=[]
             )
     
-    async def assess_risk(self, wallet_address: str, gpu_allocations: Dict[str, float]) -> RiskAssessment:
+async def assess_risk(self, wallet_address: str, gpu_allocations: Dict[str, float]) -> RiskAssessment:
         """Comprehensive risk assessment using advanced metrics"""
         try:
             risks = {
@@ -380,7 +380,7 @@ class AIOptimizationService:
                 recommendations=["Error calculating risk - please try again"]
             )
     
-    async def generate_market_intelligence(self, gpu_models: List[str]) -> Dict[str, Any]:
+async def generate_market_intelligence(self, gpu_models: List[str]) -> Dict[str, Any]:
         """Generate comprehensive market intelligence report"""
         try:
             intelligence = {
@@ -428,7 +428,7 @@ class AIOptimizationService:
     
     # Helper methods for AI calculations
     
-    async def _get_historical_market_data(self, gpu_model: str, days: int = 30) -> List[Dict]:
+async def _get_historical_market_data(self, gpu_model: str, days: int = 30) -> List[Dict]:
         """Get historical market data for GPU model"""
         end_date = datetime.utcnow()
         start_date = end_date - timedelta(days=days)
@@ -469,7 +469,7 @@ class AIOptimizationService:
         
         return df[features].fillna(0).values
     
-    async def _train_price_prediction_model(self):
+async def _train_price_prediction_model(self):
         """Train the price prediction model"""
         try:
             # This would be expanded with more sophisticated training
@@ -544,7 +544,7 @@ class AIOptimizationService:
         
         return weights
     
-    async def _get_recent_market_activity(self, gpu_model: str) -> Dict:
+async def _get_recent_market_activity(self, gpu_model: str) -> Dict:
         """Get recent market activity for liquidity assessment"""
         # Simplified - would get real trading volume data
         return {'trading_volume': 100, 'order_book_depth': 50}
@@ -558,13 +558,13 @@ class AIOptimizationService:
         liquidity_score = min(100, (volume + depth) / 2)
         return liquidity_score
     
-    async def _calculate_market_correlation(self, gpu_allocations: Dict[str, float]) -> float:
+async def _calculate_market_correlation(self, gpu_allocations: Dict[str, float]) -> float:
         """Calculate overall market correlation"""
         # Simplified correlation calculation
         # In production, would calculate correlation with market indices
         return 0.7  # Placeholder
     
-    async def _calculate_demand_score(self, gpu_model: str) -> float:
+async def _calculate_demand_score(self, gpu_model: str) -> float:
         """Calculate demand score for GPU model"""
         recent_data = await self._get_historical_market_data(gpu_model, days=7)
         if not recent_data:
@@ -575,7 +575,7 @@ class AIOptimizationService:
         
         return (avg_utilization * 100 + avg_demand) / 2
     
-    async def _analyze_supply_metrics(self, gpu_model: str) -> Dict:
+async def _analyze_supply_metrics(self, gpu_model: str) -> Dict:
         """Analyze supply metrics for GPU model"""
         recent_data = await self._get_historical_market_data(gpu_model, days=7)
         if not recent_data:
@@ -589,7 +589,7 @@ class AIOptimizationService:
             'total_capacity': total_capacity
         }
     
-    async def _generate_strategic_recommendations(self, intelligence: Dict) -> List[str]:
+async def _generate_strategic_recommendations(self, intelligence: Dict) -> List[str]:
         """Generate strategic recommendations based on market intelligence"""
         recommendations = []
         
@@ -615,7 +615,7 @@ class AIOptimizationService:
 if __name__ == "__main__":
     import uvicorn
     from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.middleware.cors import CORSMiddleware
     import os
     
     # Configuration
@@ -641,16 +641,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
     
-    @app.get("/")
-    async def root():
+@app.get("/")
+async def root():
         return {"message": "GPUDx AI Optimization Service", "status": "operational"}
     
-    @app.get("/health")
-    async def health():
+@app.get("/health")
+async def health():
         return {"status": "healthy", "service": "ai_optimization"}
     
-    @app.get("/metrics")
-    async def metrics():
+@app.get("/metrics")
+async def metrics():
         """Prometheus metrics endpoint"""
         try:
             from prometheus_client import generate_latest, CONTENT_TYPE_LATEST

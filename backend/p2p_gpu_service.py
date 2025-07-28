@@ -495,7 +495,7 @@ class P2PGPUService:
 if __name__ == "__main__":
     import uvicorn
     from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.middleware.cors import CORSMiddleware
     import os
     
     # Configuration

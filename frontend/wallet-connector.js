@@ -1,317 +1,575 @@
-/**
- * GPUDx Wallet Connector - Web3 Integration
- * Supports MetaMask, WalletConnect, Coinbase Wallet, and more
- */
+// ===============================================================================
+// 🔥 BILL GATES ON ADDERALL: REAL WEB3 SMART CONTRACT INTEGRATION! 🔥
+// ===============================================================================
 
-class WalletConnector {
+class GPUDexWeb3Connector {
     constructor() {
         this.web3 = null;
-        this.account = null;
+        this.userAccount = null;
+        this.contracts = {};
         this.chainId = null;
         this.isConnected = false;
-        this.supportedChains = {
-            1: { name: 'Ethereum', rpc: 'https://mainnet.infura.io/v3/' },
-            137: { name: 'Polygon', rpc: 'https://polygon-rpc.com' },
-            31337: { name: 'Localhost', rpc: 'http://localhost:8545' }
+        
+        // Contract addresses from deployment
+        this.contractAddresses = {
+            GPUDX_TOKEN_V2: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+            GPUDX_STAKING: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
+            GPUDX_ESCROW_V2: '0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0',
+            GPUDX_TOKENOMICS_V2: '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9'
         };
-        this.targetChainId = 137; // Polygon by default
         
-        this.init();
+        // Contract ABIs (simplified - in production, load from artifacts)
+        this.contractABIs = {
+            GPUDX_TOKEN_V2: [
+                {
+                    "inputs": [{"name": "spender", "type": "address"}, {"name": "amount", "type": "uint256"}],
+                    "name": "approve",
+                    "outputs": [{"name": "", "type": "bool"}],
+                    "type": "function"
+                },
+                {
+                    "inputs": [{"name": "account", "type": "address"}],
+                    "name": "balanceOf",
+                    "outputs": [{"name": "", "type": "uint256"}],
+                    "type": "function"
+                },
+                {
+                    "inputs": [{"name": "to", "type": "address"}, {"name": "amount", "type": "uint256"}],
+                    "name": "transfer",
+                    "outputs": [{"name": "", "type": "bool"}],
+                    "type": "function"
+                }
+            ],
+            GPUDX_STAKING: [
+                {
+                    "inputs": [{"name": "amount", "type": "uint256"}, {"name": "lockPeriod", "type": "uint256"}],
+                    "name": "stake",
+                    "outputs": [],
+                    "type": "function"
+                },
+                {
+                    "inputs": [{"name": "stakingId", "type": "uint256"}],
+                    "name": "claimRewards",
+                    "outputs": [],
+                    "type": "function"
+                },
+                {
+                    "inputs": [{"name": "stakingId", "type": "uint256"}],
+                    "name": "unstake",
+                    "outputs": [],
+                    "type": "function"
+                },
+                {
+                    "inputs": [{"name": "user", "type": "address"}],
+                    "name": "getStakingPositions",
+                    "outputs": [{"name": "", "type": "tuple[]"}],
+                    "type": "function"
+                }
+            ],
+            GPUDX_ESCROW_V2: [
+                {
+                    "inputs": [
+                        {"name": "provider", "type": "address"},
+                        {"name": "amount", "type": "uint256"},
+                        {"name": "duration", "type": "uint256"},
+                        {"name": "metadata", "type": "string"}
+                    ],
+                    "name": "createRental",
+                    "outputs": [{"name": "rentalId", "type": "uint256"}],
+                    "type": "function"
+                },
+                {
+                    "inputs": [{"name": "rentalId", "type": "uint256"}],
+                    "name": "completeRental",
+                    "outputs": [],
+                    "type": "function"
+                },
+                {
+                    "inputs": [{"name": "user", "type": "address"}],
+                    "name": "getUserRentals",
+                    "outputs": [{"name": "", "type": "tuple[]"}],
+                    "type": "function"
+                }
+            ]
+        };
+        
+        this.initialize();
     }
 
-    async init() {
-        // Check if already connected
-        if (this.hasWalletConnection()) {
-            await this.autoConnect();
+    async initialize() {
+        console.log('🚀 Initializing GPUDex Web3 Connector...');
+        
+        if (typeof window.ethereum !== 'undefined') {
+            this.web3 = new Web3(window.ethereum);
+            
+            // Check if already connected
+            const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+            if (accounts.length > 0) {
+                await this.handleAccountsChanged(accounts);
+            }
+            
+            // Set up event listeners
+            this.setupEventListeners();
+            
+            // Initialize contracts
+            await this.initializeContracts();
+            
+            console.log('✅ Web3 connector initialized successfully');
+        } else {
+            console.warn('⚠️ MetaMask not detected');
+            this.showInstallMetaMaskModal();
         }
-        
-        // Listen for account changes
-        this.setupEventListeners();
-        
-        // Update UI
-        this.updateWalletUI();
-    }
-
-    hasWalletConnection() {
-        return localStorage.getItem('walletConnected') === 'true';
     }
 
     setupEventListeners() {
-        if (window.ethereum) {
-            window.ethereum.on('accountsChanged', (accounts) => {
-                if (accounts.length === 0) {
-                    this.disconnect();
-                } else {
-                    this.account = accounts[0];
-                    this.updateWalletUI();
-                }
-            });
-
-            window.ethereum.on('chainChanged', (chainId) => {
-                this.chainId = parseInt(chainId, 16);
-                this.updateWalletUI();
-                if (this.chainId !== this.targetChainId) {
-                    this.promptChainSwitch();
-                }
-            });
-        }
+        window.ethereum.on('accountsChanged', this.handleAccountsChanged.bind(this));
+        window.ethereum.on('chainChanged', this.handleChainChanged.bind(this));
+        window.ethereum.on('disconnect', this.handleDisconnect.bind(this));
     }
 
-    async connectWallet(walletType = 'metamask') {
+    async initializeContracts() {
         try {
-            switch (walletType) {
-                case 'metamask':
-                    return await this.connectMetaMask();
-                case 'walletconnect':
-                    return await this.connectWalletConnect();
-                case 'coinbase':
-                    return await this.connectCoinbaseWallet();
-                default:
-                    return await this.connectMetaMask();
+            for (const [name, address] of Object.entries(this.contractAddresses)) {
+                if (this.contractABIs[name]) {
+                    this.contracts[name] = new this.web3.eth.Contract(
+                        this.contractABIs[name],
+                        address
+                    );
+                    console.log(`✅ Contract ${name} initialized at ${address}`);
+                }
             }
         } catch (error) {
-            console.error('Wallet connection error:', error);
-            this.showNotification('Failed to connect wallet: ' + error.message, 'error');
-            return false;
+            console.error('❌ Failed to initialize contracts:', error);
         }
     }
 
-    async connectMetaMask() {
-        if (!window.ethereum) {
-            this.showInstallMetaMaskModal();
-            return false;
-        }
-
+    // MAIN CONNECTION FUNCTION
+    async connectWallet() {
         try {
+            console.log('🔗 Connecting wallet...');
+            
+            if (!this.web3) {
+                throw new Error('Web3 not available. Please install MetaMask.');
+            }
+
             // Request account access
             const accounts = await window.ethereum.request({
                 method: 'eth_requestAccounts'
             });
 
-            if (accounts.length === 0) {
-                throw new Error('No accounts found');
-            }
-
-            this.account = accounts[0];
-            this.web3 = new Web3(window.ethereum);
+            await this.handleAccountsChanged(accounts);
             
-            // Get chain ID
-            this.chainId = await window.ethereum.request({
-                method: 'eth_chainId'
-            });
-            this.chainId = parseInt(this.chainId, 16);
-
-            // Switch to target chain if needed
-            if (this.chainId !== this.targetChainId) {
-                await this.switchChain(this.targetChainId);
-            }
-
-            this.isConnected = true;
-            localStorage.setItem('walletConnected', 'true');
-            localStorage.setItem('walletType', 'metamask');
+            // Verify we're on the correct network
+            await this.checkNetwork();
             
-            this.updateWalletUI();
-            this.showNotification('Wallet connected successfully!', 'success');
+            this.showNotification('✅ Wallet connected successfully!', 'success');
+            console.log(`✅ Connected to wallet: ${this.userAccount}`);
             
-            return true;
+            return {
+                success: true,
+                account: this.userAccount,
+                chainId: this.chainId
+            };
+
         } catch (error) {
-            throw new Error(`MetaMask connection failed: ${error.message}`);
+            console.error('❌ Wallet connection failed:', error);
+            this.showNotification(`❌ Connection failed: ${error.message}`, 'error');
+            return { success: false, error: error.message };
         }
     }
 
-    async connectWalletConnect() {
-        // WalletConnect integration would go here
-        this.showNotification('WalletConnect integration coming soon!', 'info');
-        return false;
-    }
-
-    async connectCoinbaseWallet() {
-        // Coinbase Wallet integration would go here
-        this.showNotification('Coinbase Wallet integration coming soon!', 'info');
-        return false;
-    }
-
-    async autoConnect() {
-        const walletType = localStorage.getItem('walletType') || 'metamask';
-        return await this.connectWallet(walletType);
-    }
-
-    async switchChain(chainId) {
-        const chainConfig = this.supportedChains[chainId];
-        if (!chainConfig) {
-            throw new Error('Unsupported chain');
+    async handleAccountsChanged(accounts) {
+        if (accounts.length === 0) {
+            // User disconnected
+            this.userAccount = null;
+            this.isConnected = false;
+            console.log('👋 Wallet disconnected');
+        } else {
+            this.userAccount = accounts[0];
+            this.isConnected = true;
+            
+            // Update UI
+            this.updateWalletDisplay();
+            
+            // Load user data
+            await this.loadUserData();
         }
-
-        try {
-            await window.ethereum.request({
-                method: 'wallet_switchEthereumChain',
-                params: [{ chainId: '0x' + chainId.toString(16) }]
-            });
-        } catch (switchError) {
-            // Chain not added to wallet
-            if (switchError.code === 4902) {
-                await this.addChain(chainId);
-            } else {
-                throw switchError;
-            }
-        }
-    }
-
-    async addChain(chainId) {
-        const chainConfig = this.supportedChains[chainId];
         
-        const params = {
-            chainId: '0x' + chainId.toString(16),
-            chainName: chainConfig.name,
-            rpcUrls: [chainConfig.rpc],
-            nativeCurrency: {
-                name: chainId === 137 ? 'MATIC' : 'ETH',
-                symbol: chainId === 137 ? 'MATIC' : 'ETH',
-                decimals: 18
-            }
-        };
-
-        if (chainId === 137) {
-            params.blockExplorerUrls = ['https://polygonscan.com'];
-        }
-
-        await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [params]
-        });
+        // Notify other components
+        window.dispatchEvent(new CustomEvent('walletChanged', {
+            detail: { account: this.userAccount, connected: this.isConnected }
+        }));
     }
 
-    disconnect() {
-        this.web3 = null;
-        this.account = null;
-        this.chainId = null;
+    async handleChainChanged(chainId) {
+        this.chainId = chainId;
+        console.log(`🔄 Chain changed to: ${chainId}`);
+        
+        // Reload contracts for new chain
+        await this.initializeContracts();
+        
+        // Check if we're on the correct network
+        await this.checkNetwork();
+    }
+
+    handleDisconnect() {
+        this.userAccount = null;
         this.isConnected = false;
-        
-        localStorage.removeItem('walletConnected');
-        localStorage.removeItem('walletType');
-        
-        this.updateWalletUI();
-        this.showNotification('Wallet disconnected', 'info');
+        console.log('🔌 Wallet disconnected');
+        this.updateWalletDisplay();
     }
 
-    updateWalletUI() {
+    async checkNetwork() {
+        const chainId = await this.web3.eth.getChainId();
+        this.chainId = chainId;
+        
+        // Check if we're on Polygon (137) or localhost (31337) for development
+        const supportedChains = [137, 31337, 80001]; // Polygon, Localhost, Mumbai
+        
+        if (!supportedChains.includes(chainId)) {
+            this.showNetworkSwitchModal();
+            return false;
+        }
+        
+        return true;
+    }
+
+    // ===============================================================================
+    // 🔥 SMART CONTRACT INTERACTION FUNCTIONS - THE REAL DEAL! 🔥
+    // ===============================================================================
+
+    // REAL STAKING FUNCTION WITH SMART CONTRACT
+    async stakeTokens(amount, lockPeriodDays = 0) {
+        try {
+            if (!this.isConnected) {
+                throw new Error('Please connect your wallet first');
+            }
+
+            console.log(`🥩 Staking ${amount} GPUDX tokens for ${lockPeriodDays} days...`);
+            
+            const amountWei = this.web3.utils.toWei(amount.toString(), 'ether');
+            const lockPeriodSeconds = lockPeriodDays * 24 * 60 * 60;
+
+            // Step 1: Approve token spending
+            await this.approveTokenSpending(amountWei, this.contractAddresses.GPUDX_STAKING);
+
+            // Step 2: Call staking contract
+            const stakingContract = this.contracts.GPUDX_STAKING;
+            
+            const txHash = await stakingContract.methods
+                .stake(amountWei, lockPeriodSeconds)
+                .send({
+                    from: this.userAccount,
+                    gas: 500000
+                });
+
+            console.log(`✅ Staking transaction sent: ${txHash.transactionHash}`);
+            
+            return {
+                success: true,
+                transactionHash: txHash.transactionHash,
+                amount: amount,
+                lockPeriod: lockPeriodDays
+            };
+
+        } catch (error) {
+            console.error('❌ Staking failed:', error);
+            throw new Error(`Staking failed: ${error.message}`);
+        }
+    }
+
+    // REAL GPU RENTAL WITH SMART CONTRACT ESCROW
+    async createGPURental(providerAddress, rentalAmount, durationHours, metadata) {
+        try {
+            if (!this.isConnected) {
+                throw new Error('Please connect your wallet first');
+            }
+
+            console.log(`🖥️ Creating GPU rental with ${providerAddress} for ${durationHours} hours...`);
+            
+            const amountWei = this.web3.utils.toWei(rentalAmount.toString(), 'ether');
+            const durationSeconds = durationHours * 60 * 60;
+
+            // Step 1: Approve token spending for escrow
+            await this.approveTokenSpending(amountWei, this.contractAddresses.GPUDX_ESCROW_V2);
+
+            // Step 2: Create rental in escrow contract
+            const escrowContract = this.contracts.GPUDX_ESCROW_V2;
+            
+            const txHash = await escrowContract.methods
+                .createRental(providerAddress, amountWei, durationSeconds, metadata)
+                .send({
+                    from: this.userAccount,
+                    gas: 800000
+                });
+
+            console.log(`✅ Rental transaction sent: ${txHash.transactionHash}`);
+            
+            return {
+                success: true,
+                transactionHash: txHash.transactionHash,
+                rentalId: txHash.events.RentalCreated?.returnValues?.rentalId,
+                amount: rentalAmount,
+                duration: durationHours
+            };
+
+        } catch (error) {
+            console.error('❌ Rental creation failed:', error);
+            throw new Error(`Rental creation failed: ${error.message}`);
+        }
+    }
+
+    // APPROVE TOKEN SPENDING
+    async approveTokenSpending(amount, spenderAddress) {
+        try {
+            console.log(`🔓 Approving ${amount} token spending for ${spenderAddress}...`);
+            
+            const tokenContract = this.contracts.GPUDX_TOKEN_V2;
+            
+            const txHash = await tokenContract.methods
+                .approve(spenderAddress, amount)
+                .send({
+                    from: this.userAccount,
+                    gas: 100000
+                });
+
+            console.log(`✅ Approval transaction sent: ${txHash.transactionHash}`);
+            return txHash.transactionHash;
+
+        } catch (error) {
+            console.error('❌ Token approval failed:', error);
+            throw new Error(`Token approval failed: ${error.message}`);
+        }
+    }
+
+    // GET USER TOKEN BALANCE
+    async getUserBalance() {
+        try {
+            if (!this.isConnected) return '0';
+            
+            const tokenContract = this.contracts.GPUDX_TOKEN_V2;
+            const balanceWei = await tokenContract.methods.balanceOf(this.userAccount).call();
+            const balance = this.web3.utils.fromWei(balanceWei, 'ether');
+            
+            return parseFloat(balance).toFixed(4);
+
+        } catch (error) {
+            console.error('❌ Failed to get user balance:', error);
+            return '0';
+        }
+    }
+
+    // GET USER STAKING POSITIONS
+    async getUserStakingPositions() {
+        try {
+            if (!this.isConnected) return [];
+            
+            const stakingContract = this.contracts.GPUDX_STAKING;
+            const positions = await stakingContract.methods.getStakingPositions(this.userAccount).call();
+            
+            return positions.map(position => ({
+                id: position.id,
+                amount: this.web3.utils.fromWei(position.amount, 'ether'),
+                lockPeriod: position.lockPeriod,
+                startTime: new Date(position.startTime * 1000),
+                unlockTime: new Date((position.startTime + position.lockPeriod) * 1000),
+                rewards: this.web3.utils.fromWei(position.pendingRewards, 'ether'),
+                tier: this.calculateStakingTier(position.amount),
+                apy: this.calculateAPY(position.lockPeriod)
+            }));
+
+        } catch (error) {
+            console.error('❌ Failed to get staking positions:', error);
+            return [];
+        }
+    }
+
+    // GET USER RENTALS
+    async getUserRentals() {
+        try {
+            if (!this.isConnected) return [];
+            
+            const escrowContract = this.contracts.GPUDX_ESCROW_V2;
+            const rentals = await escrowContract.methods.getUserRentals(this.userAccount).call();
+            
+            return rentals.map(rental => ({
+                id: rental.id,
+                provider: rental.provider,
+                amount: this.web3.utils.fromWei(rental.amount, 'ether'),
+                duration: rental.duration / 3600, // Convert to hours
+                startTime: new Date(rental.startTime * 1000),
+                endTime: new Date((rental.startTime + rental.duration) * 1000),
+                status: rental.status,
+                metadata: JSON.parse(rental.metadata || '{}')
+            }));
+
+        } catch (error) {
+            console.error('❌ Failed to get user rentals:', error);
+            return [];
+        }
+    }
+
+    // CLAIM STAKING REWARDS
+    async claimStakingRewards(stakingId) {
+        try {
+            if (!this.isConnected) {
+                throw new Error('Please connect your wallet first');
+            }
+
+            console.log(`💰 Claiming rewards for staking position ${stakingId}...`);
+            
+            const stakingContract = this.contracts.GPUDX_STAKING;
+            
+            const txHash = await stakingContract.methods
+                .claimRewards(stakingId)
+                .send({
+                    from: this.userAccount,
+                    gas: 300000
+                });
+
+            console.log(`✅ Claim rewards transaction sent: ${txHash.transactionHash}`);
+            
+            return {
+                success: true,
+                transactionHash: txHash.transactionHash
+            };
+
+        } catch (error) {
+            console.error('❌ Claim rewards failed:', error);
+            throw new Error(`Claim rewards failed: ${error.message}`);
+        }
+    }
+
+    // ===============================================================================
+    // 🔥 UTILITY FUNCTIONS 🔥
+    // ===============================================================================
+
+    calculateStakingTier(amountWei) {
+        const amount = parseFloat(this.web3.utils.fromWei(amountWei, 'ether'));
+        
+        if (amount >= 100000) return 'Diamond';
+        if (amount >= 50000) return 'Platinum';
+        if (amount >= 10000) return 'Gold';
+        if (amount >= 1000) return 'Silver';
+        return 'Bronze';
+    }
+
+    calculateAPY(lockPeriodSeconds) {
+        const lockPeriodDays = lockPeriodSeconds / (24 * 60 * 60);
+        
+        if (lockPeriodDays >= 365) return 15; // 15% APY for 1 year+
+        if (lockPeriodDays >= 180) return 12; // 12% APY for 6 months+
+        if (lockPeriodDays >= 90) return 8;   // 8% APY for 3 months+
+        if (lockPeriodDays >= 30) return 5;   // 5% APY for 1 month+
+        return 2; // 2% APY for no lock
+    }
+
+    async loadUserData() {
+        if (!this.isConnected) return;
+        
+        try {
+            // Load balance
+            const balance = await this.getUserBalance();
+            
+            // Update balance display
+            const balanceElements = document.querySelectorAll('.user-balance');
+            balanceElements.forEach(el => {
+                el.textContent = `${balance} GPUDX`;
+            });
+            
+            // Load staking positions
+            const stakingPositions = await this.getUserStakingPositions();
+            
+            // Load rentals
+            const rentals = await this.getUserRentals();
+            
+            console.log(`✅ Loaded user data: ${balance} GPUDX, ${stakingPositions.length} stakes, ${rentals.length} rentals`);
+            
+        } catch (error) {
+            console.warn('⚠️ Failed to load user data:', error);
+        }
+    }
+
+    updateWalletDisplay() {
         const connectButton = document.getElementById('connect-wallet');
         const walletStatus = document.getElementById('wallet-status');
-        const walletIndicator = document.getElementById('wallet-indicator');
-
-        if (this.isConnected && this.account) {
-            // Update connect button
+        const userBalanceElements = document.querySelectorAll('.user-balance');
+        
+        if (this.isConnected && this.userAccount) {
+            const shortAddress = `${this.userAccount.slice(0, 6)}...${this.userAccount.slice(-4)}`;
+            
             if (connectButton) {
-                connectButton.textContent = `${this.account.slice(0, 6)}...${this.account.slice(-4)}`;
-                connectButton.classList.remove('animate-pulse-glow');
-                connectButton.onclick = () => this.showWalletMenu();
+                connectButton.textContent = shortAddress;
+                connectButton.onclick = () => this.disconnectWallet();
             }
-
-            // Update status
+            
             if (walletStatus) {
-                walletStatus.textContent = 'Connected';
+                walletStatus.textContent = `Connected: ${shortAddress}`;
             }
-
-            // Update indicator
-            if (walletIndicator) {
-                walletIndicator.className = 'w-2 h-2 bg-green-500 rounded-full';
-            }
-
-            // Check chain
-            if (this.chainId !== this.targetChainId) {
-                this.showChainWarning();
-            }
+            
+            // Load and display balance
+            this.getUserBalance().then(balance => {
+                userBalanceElements.forEach(el => {
+                    el.textContent = `${balance} GPUDX`;
+                });
+            });
+            
         } else {
-            // Update connect button
             if (connectButton) {
                 connectButton.textContent = 'Connect Wallet';
-                connectButton.classList.add('animate-pulse-glow');
-                connectButton.onclick = () => this.showConnectModal();
+                connectButton.onclick = () => this.connectWallet();
             }
-
-            // Update status
+            
             if (walletStatus) {
                 walletStatus.textContent = 'Not Connected';
             }
-
-            // Update indicator
-            if (walletIndicator) {
-                walletIndicator.className = 'w-2 h-2 bg-red-500 rounded-full';
-            }
+            
+            userBalanceElements.forEach(el => {
+                el.textContent = '0 GPUDX';
+            });
         }
     }
 
-    showConnectModal() {
-        const modal = document.createElement('div');
-        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-        modal.innerHTML = `
-            <div class="bg-white dark:bg-gray-800 rounded-xl p-8 max-w-md mx-4">
-                <h3 class="text-2xl font-bold mb-6 text-center">Connect Wallet</h3>
-                <div class="space-y-4">
-                    <button onclick="walletConnector.connectWallet('metamask'); this.closest('.fixed').remove()" 
-                            class="w-full flex items-center justify-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                        <img src="data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjEyIiBoZWlnaHQ9IjE4OSIgdmlld0JveD0iMCAwIDIxMiAxODkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PC9zdmc+" 
-                             alt="MetaMask" class="w-8 h-8 mr-3">
-                        <span class="font-medium">MetaMask</span>
-                    </button>
-                    <button onclick="walletConnector.connectWallet('walletconnect'); this.closest('.fixed').remove()" 
-                            class="w-full flex items-center justify-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                        <div class="w-8 h-8 mr-3 bg-blue-500 rounded-full flex items-center justify-center">
-                            <span class="text-white font-bold text-sm">WC</span>
-                        </div>
-                        <span class="font-medium">WalletConnect</span>
-                    </button>
-                    <button onclick="walletConnector.connectWallet('coinbase'); this.closest('.fixed').remove()" 
-                            class="w-full flex items-center justify-center p-4 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                        <div class="w-8 h-8 mr-3 bg-blue-600 rounded-full flex items-center justify-center">
-                            <span class="text-white font-bold text-sm">CB</span>
-                        </div>
-                        <span class="font-medium">Coinbase Wallet</span>
-                    </button>
-                </div>
-                <button onclick="this.closest('.fixed').remove()" 
-                        class="w-full mt-6 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                    Cancel
-                </button>
-            </div>
-        `;
+    disconnectWallet() {
+        this.userAccount = null;
+        this.isConnected = false;
+        this.updateWalletDisplay();
         
-        document.body.appendChild(modal);
+        this.showNotification('👋 Wallet disconnected', 'info');
+        
+        // Notify other components
+        window.dispatchEvent(new CustomEvent('walletChanged', {
+            detail: { account: null, connected: false }
+        }));
     }
 
-    showWalletMenu() {
-        const modal = document.createElement('div');
-        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
-        modal.innerHTML = `
-            <div class="bg-white dark:bg-gray-800 rounded-xl p-8 max-w-md mx-4">
-                <h3 class="text-2xl font-bold mb-6 text-center">Wallet Menu</h3>
-                <div class="space-y-4">
-                    <div class="text-center">
-                        <p class="text-sm text-gray-500 mb-2">Connected Account</p>
-                        <p class="font-mono text-lg">${this.account}</p>
-                        <p class="text-sm text-gray-500 mt-2">
-                            Chain: ${this.supportedChains[this.chainId]?.name || 'Unknown'}
-                        </p>
-                    </div>
-                    <div class="border-t pt-4">
-                        <button onclick="navigator.clipboard.writeText('${this.account}'); this.textContent='Copied!'" 
-                                class="w-full mb-3 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                            Copy Address
-                        </button>
-                        <button onclick="walletConnector.disconnect(); this.closest('.fixed').remove()" 
-                                class="w-full px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">
-                            Disconnect
-                        </button>
-                    </div>
-                </div>
-                <button onclick="this.closest('.fixed').remove()" 
-                        class="w-full mt-6 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
-                    Close
-                </button>
+    // UI UTILITY FUNCTIONS
+    showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 p-4 rounded-lg text-white z-50 transform translate-x-full transition-transform duration-300 ${
+            type === 'success' ? 'bg-green-500' : 
+            type === 'error' ? 'bg-red-500' : 
+            type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+        }`;
+        
+        notification.innerHTML = `
+            <div class="flex items-center">
+                <i class="fas fa-${
+                    type === 'success' ? 'check-circle' : 
+                    type === 'error' ? 'exclamation-circle' : 
+                    type === 'warning' ? 'exclamation-triangle' : 'info-circle'
+                } mr-2"></i>
+                <span>${message}</span>
             </div>
         `;
         
-        document.body.appendChild(modal);
+        document.body.appendChild(notification);
+        
+        setTimeout(() => notification.style.transform = 'translateX(0)', 100);
+        setTimeout(() => {
+            notification.style.transform = 'translateX(100%)';
+            setTimeout(() => notification.remove(), 300);
+        }, 5000);
     }
 
     showInstallMetaMaskModal() {
@@ -319,81 +577,93 @@ class WalletConnector {
         modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
         modal.innerHTML = `
             <div class="bg-white dark:bg-gray-800 rounded-xl p-8 max-w-md mx-4 text-center">
+                <i class="fas fa-wallet text-6xl text-orange-500 mb-4"></i>
                 <h3 class="text-2xl font-bold mb-4">MetaMask Required</h3>
                 <p class="text-gray-600 dark:text-gray-300 mb-6">
-                    Please install MetaMask to connect your wallet and interact with GPUDx.
+                    You need MetaMask to interact with GPUDex smart contracts.
                 </p>
-                <div class="space-y-4">
+                <div class="flex gap-4">
+                    <button onclick="this.closest('.fixed').remove()" 
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                        Cancel
+                    </button>
                     <a href="https://metamask.io/download/" target="_blank" 
-                       class="block w-full enhanced-button text-center">
+                       class="flex-1 bg-gradient-to-r from-primary to-secondary text-white px-4 py-2 rounded-lg hover:shadow-lg text-center">
                         Install MetaMask
                     </a>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+
+    showNetworkSwitchModal() {
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        modal.innerHTML = `
+            <div class="bg-white dark:bg-gray-800 rounded-xl p-8 max-w-md mx-4 text-center">
+                <i class="fas fa-network-wired text-6xl text-purple-500 mb-4"></i>
+                <h3 class="text-2xl font-bold mb-4">Switch Network</h3>
+                <p class="text-gray-600 dark:text-gray-300 mb-6">
+                    Please switch to Polygon network to use GPUDex.
+                </p>
+                <div class="flex gap-4">
                     <button onclick="this.closest('.fixed').remove()" 
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
+                            class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50">
                         Cancel
+                    </button>
+                    <button onclick="gpuDexConnector.switchToPolygon(); this.closest('.fixed').remove()" 
+                            class="flex-1 bg-gradient-to-r from-primary to-secondary text-white px-4 py-2 rounded-lg hover:shadow-lg">
+                        Switch to Polygon
                     </button>
                 </div>
             </div>
         `;
-        
         document.body.appendChild(modal);
     }
 
-    promptChainSwitch() {
-        this.showNotification(`Please switch to ${this.supportedChains[this.targetChainId].name} network`, 'warning');
-    }
-
-    showChainWarning() {
-        const warning = document.createElement('div');
-        warning.className = 'fixed top-20 right-4 bg-yellow-500 text-white px-4 py-2 rounded-lg z-40';
-        warning.innerHTML = `
-            <div class="flex items-center">
-                <i class="fas fa-exclamation-triangle mr-2"></i>
-                <span>Wrong network. Switch to ${this.supportedChains[this.targetChainId].name}</span>
-                <button onclick="walletConnector.switchChain(${this.targetChainId}); this.closest('div').remove()" 
-                        class="ml-3 bg-white text-yellow-500 px-2 py-1 rounded text-sm">
-                    Switch
-                </button>
-            </div>
-        `;
-        
-        document.body.appendChild(warning);
-        
-        setTimeout(() => {
-            if (warning.parentNode) {
-                warning.remove();
+    async switchToPolygon() {
+        try {
+            await window.ethereum.request({
+                method: 'wallet_switchEthereumChain',
+                params: [{ chainId: '0x89' }], // Polygon Mainnet
+            });
+        } catch (switchError) {
+            // If the chain hasn't been added to MetaMask
+            if (switchError.code === 4902) {
+                try {
+                    await window.ethereum.request({
+                        method: 'wallet_addEthereumChain',
+                        params: [{
+                            chainId: '0x89',
+                            chainName: 'Polygon',
+                            nativeCurrency: {
+                                name: 'MATIC',
+                                symbol: 'MATIC',
+                                decimals: 18,
+                            },
+                            rpcUrls: ['https://polygon-rpc.com/'],
+                            blockExplorerUrls: ['https://polygonscan.com/'],
+                        }],
+                    });
+                } catch (addError) {
+                    console.error('Failed to add Polygon network:', addError);
+                }
             }
-        }, 10000);
-    }
-
-    showNotification(message, type = 'info') {
-        const notification = document.createElement('div');
-        notification.className = `notification fixed top-4 right-4 px-6 py-3 rounded-lg text-white z-50 ${
-            type === 'success' ? 'bg-green-500' : 
-            type === 'error' ? 'bg-red-500' : 
-            type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
-        }`;
-        notification.textContent = message;
-        
-        document.body.appendChild(notification);
-        
-        setTimeout(() => {
-            notification.remove();
-        }, 5000);
-    }
-
-    // Utility methods for contract interactions
-    async getBalance() {
-        if (!this.web3 || !this.account) return 0;
-        const balance = await this.web3.eth.getBalance(this.account);
-        return this.web3.utils.fromWei(balance, 'ether');
-    }
-
-    async signMessage(message) {
-        if (!this.web3 || !this.account) return null;
-        return await this.web3.eth.personal.sign(message, this.account);
+        }
     }
 }
 
-// Initialize wallet connector
-const walletConnector = new WalletConnector(); 
+// ===============================================================================
+// 🔥 INITIALIZE GLOBAL CONNECTOR INSTANCE 🔥
+// ===============================================================================
+
+// Create global instance
+window.gpuDexConnector = new GPUDexWeb3Connector();
+
+// Export for modules
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = GPUDexWeb3Connector;
+}
+
+console.log('🔥 GPUDEX WEB3 CONNECTOR LOADED - READY FOR MAXIMUM BLOCKCHAIN INTEGRATION! 🔥'); 

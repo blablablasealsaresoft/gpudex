@@ -920,7 +920,7 @@ class SocialGamificationService:
 if __name__ == "__main__":
     import uvicorn
     from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
+    from fastapi.middleware.cors import CORSMiddleware
     import os
     
     # Configuration
@@ -937,14 +937,111 @@ from fastapi.middleware.cors import CORSMiddleware
     # Create FastAPI app
     app = FastAPI(title="GPUDx Social Gamification Service", version="2.0.0")
 
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost", "http://localhost:80", "http://127.0.0.1", "http://127.0.0.1:80"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+    # ===============================================================================
+    # 🎮 SOCIAL GAMIFICATION API ENDPOINTS - EARN TOKENS THROUGH SOCIAL MEDIA! 🎮
+    # ===============================================================================
+
+    @app.post("/api/v1/social/register")
+    async def register_social_profile_endpoint(data: dict):
+        """Register social media accounts for gamification"""
+        try:
+            wallet_address = data.get('wallet_address')
+            social_data = data.get('social_data', {})
+            
+            result = await social_service.register_social_profile(wallet_address, social_data)
+            return {"success": True, "data": result}
+        except Exception as e:
+            logger.error(f"Failed to register social profile: {e}")
+            return {"success": False, "error": str(e)}
+
+    @app.post("/api/v1/social/submit-post")
+    async def submit_daily_post_endpoint(data: dict):
+        """Submit daily social media post for token rewards"""
+        try:
+            wallet_address = data.get('wallet_address')
+            post_url = data.get('post_url')
+            platform = data.get('platform')
+            
+            result = await social_service.submit_daily_post(wallet_address, post_url, platform)
+            return {"success": True, "data": result}
+        except Exception as e:
+            logger.error(f"Failed to submit post: {e}")
+            return {"success": False, "error": str(e)}
+
+    @app.get("/api/v1/social/dashboard/{wallet_address}")
+    async def get_user_dashboard_endpoint(wallet_address: str):
+        """Get user's social gamification dashboard"""
+        try:
+            result = await social_service.get_user_dashboard(wallet_address)
+            return {"success": True, "data": result}
+        except Exception as e:
+            logger.error(f"Failed to get dashboard: {e}")
+            return {"success": False, "error": str(e)}
+
+    @app.get("/api/v1/social/leaderboard")
+    async def get_leaderboard_endpoint(period: str = 'weekly', limit: int = 50):
+        """Get social gamification leaderboard"""
+        try:
+            result = await social_service.get_leaderboard(period, limit)
+            return {"success": True, "data": result}
+        except Exception as e:
+            logger.error(f"Failed to get leaderboard: {e}")
+            return {"success": False, "error": str(e)}
+
+    @app.get("/api/v1/social/achievements")
+    async def get_achievements_endpoint():
+        """Get all available achievements"""
+        try:
+            achievements_data = []
+            for achievement in social_service.achievements:
+                achievements_data.append({
+                    'id': achievement.achievement_id,
+                    'name': achievement.name,
+                    'description': achievement.description,
+                    'icon': achievement.icon,
+                    'reward_amount': achievement.reward_amount,
+                    'rarity': achievement.rarity,
+                    'unlock_condition': achievement.unlock_condition
+                })
+            return {"success": True, "data": {"achievements": achievements_data}}
+        except Exception as e:
+            logger.error(f"Failed to get achievements: {e}")
+            return {"success": False, "error": str(e)}
+
+    @app.get("/api/v1/social/challenges")
+    async def get_daily_challenges_endpoint():
+        """Get current daily challenges"""
+        try:
+            return {"success": True, "data": {"challenges": social_service.daily_challenges}}
+        except Exception as e:
+            logger.error(f"Failed to get challenges: {e}")
+            return {"success": False, "error": str(e)}
+
+    @app.get("/api/v1/social/rewards/{wallet_address}")
+    async def get_reward_history_endpoint(wallet_address: str, limit: int = 50):
+        """Get user's reward history"""
+        try:
+            # This would query the SocialRewardHistory table
+            # For now, return mock data structure
+            result = {
+                'total_earned': 0,
+                'this_week': 0,
+                'pending_rewards': 0,
+                'reward_history': []
+            }
+            return {"success": True, "data": result}
+        except Exception as e:
+            logger.error(f"Failed to get reward history: {e}")
+            return {"success": False, "error": str(e)}
+
+    # Add CORS middleware
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost", "http://localhost:80", "http://127.0.0.1", "http://127.0.0.1:80"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
     
     @app.get("/")
     async def root():
