@@ -8,18 +8,16 @@
     <link rel="alternate icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23667eea'/><path d='M8 12h4v8H8z M14 10h4v12h-4z M20 8h4v16h-4z' fill='white'/></svg>">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/web3/1.10.0/web3.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link href="enhanced-styles.css" rel="stylesheet">
     
-    <!-- GPUDx Component Scripts -->
-    <script src="components/StakingDashboard.js"></script>
-    <script src="components/AchievementSystem.js"></script>
-    <script src="components/InfluencerDashboard.js"></script>
-    <script src="marketplace-api.js"></script>
-    <script src="wallet-connector.js"></script>
+    <!-- GPUDx Component Scripts - defer loading -->
+    <script src="components/StakingDashboard.js" defer></script>
+    <script src="components/AchievementSystem.js" defer></script>
+    <script src="components/InfluencerDashboard.js" defer></script>
+    <script src="marketplace-api.js" defer></script>
     
     <style>
         * { font-family: 'Inter', sans-serif; }
@@ -2254,8 +2252,20 @@
             
             try {
                 // Initialize Production Wallet Connector
+                console.log('🔗 Checking Web3 and GPUDexWeb3Connector availability...');
+                console.log('Web3 available:', typeof Web3 !== 'undefined');
+                console.log('GPUDexWeb3Connector available:', typeof GPUDexWeb3Connector !== 'undefined');
+                
+                if (typeof GPUDexWeb3Connector === 'undefined') {
+                    console.error('❌ GPUDexWeb3Connector not loaded! Wallet functionality will not work.');
+                    showNotification('⚠️ Wallet connector not loaded. Please refresh the page.', 'warning');
+                    return;
+                }
+                
                 gpuDexConnector = new GPUDexWeb3Connector();
                 window.gpuDexConnector = gpuDexConnector; // Make globally available
+                
+                console.log('✅ Wallet connector initialized:', gpuDexConnector);
                 
                 // Initialize WalletConnect for production
                 if (typeof window.initializeWalletConnect === 'function') {
@@ -2793,14 +2803,44 @@
 
         // Enhanced connect wallet function
         async function connectWallet() {
+            console.log('🔗 Connect wallet button clicked!');
+            
             try {
-                const result = await gpuDexConnector.connectWallet();
+                // Check if gpuDexConnector is available
+                if (!window.gpuDexConnector) {
+                    console.error('❌ gpuDexConnector not available!');
+                    showNotification('❌ Wallet connector not initialized. Please refresh the page.', 'error');
+                    return;
+                }
                 
-                if (result.success) {
+                // Check if MetaMask is available as fallback
+                if (typeof window.ethereum === 'undefined') {
+                    console.warn('⚠️ No Web3 wallet detected');
+                    showNotification('🦊 Please install MetaMask or another Web3 wallet to continue', 'warning');
+                    
+                    // Show installation modal
+                    if (window.gpuDexConnector.showInstallPrompt) {
+                        window.gpuDexConnector.showInstallPrompt();
+                    }
+                    return;
+                }
+                
+                console.log('🔗 Calling gpuDexConnector.connectWallet()...');
+                const result = await window.gpuDexConnector.connectWallet();
+                console.log('🔗 Wallet connection result:', result);
+                
+                if (result && result.success) {
+                    console.log('✅ Wallet connected successfully!');
+                    showNotification('✅ Wallet connected successfully!', 'success');
+                    
                     // Update all UI elements
-                    await updateUserBalance();
-                    await loadStakingPositions();
-                    await loadUserRentals();
+                    try {
+                        await updateUserBalance();
+                        await loadStakingPositions();
+                        await loadUserRentals();
+                    } catch (uiError) {
+                        console.warn('⚠️ UI update failed:', uiError);
+                    }
                     
                     // Show connected sections
                     document.querySelectorAll('.wallet-required').forEach(el => {
@@ -2810,12 +2850,32 @@
                     document.querySelectorAll('.wallet-not-connected').forEach(el => {
                         el.classList.add('hidden');
                     });
+                } else {
+                    console.warn('⚠️ Wallet connection was not successful:', result);
+                    if (result && result.message && result.message !== 'Wallet selection pending') {
+                        showNotification(`⚠️ ${result.message}`, 'warning');
+                    }
                 }
             } catch (error) {
-                console.error('Wallet connection failed:', error);
+                console.error('❌ Wallet connection failed:', error);
                 showNotification(`❌ Connection failed: ${error.message}`, 'error');
             }
         }
+
+        // Test function for debugging - can be called from browser console
+        window.testWalletConnection = async function() {
+            console.log('🧪 Testing wallet connection...');
+            console.log('Web3 available:', typeof Web3 !== 'undefined');
+            console.log('Ethereum available:', typeof window.ethereum !== 'undefined');
+            console.log('GPUDexWeb3Connector available:', typeof GPUDexWeb3Connector !== 'undefined');
+            console.log('gpuDexConnector instance:', window.gpuDexConnector);
+            
+            if (window.gpuDexConnector) {
+                console.log('Supported wallets:', window.gpuDexConnector.supportedWallets);
+            }
+            
+            return 'Check console for debug info';
+        };
 
         // Listen for wallet connection changes
         window.addEventListener('walletChanged', async (event) => {
